@@ -1,0 +1,10 @@
+{
+  "matlab_file_count": 113,
+  "package_reference_count": 91,
+  "file_reference_checks": "passed",
+  "core_function_preservation": "passed",
+  "json_validation": "passed",
+  "matlab_runtime_tests": "passed (MATLAB R2025b, run_tests 13/13)",
+  "graphics_runtime_tests": "passed (MATLAB R2025b, PNG/FIG export from hidden tabbed figure)",
+  "lightweight_delimiter_block_check": "passed (not a MATLAB parser)"
+}

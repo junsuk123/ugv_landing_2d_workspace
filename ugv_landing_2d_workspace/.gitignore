@@ -1,0 +1,6 @@
+results/*
+!results/.gitkeep
+*.asv
+*.m~
+.DS_Store
+Thumbs.db

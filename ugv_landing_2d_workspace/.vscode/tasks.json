@@ -1,0 +1,57 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "MATLAB: Run and save results",
+      "type": "process",
+      "command": "matlab",
+      "args": [
+        "-batch",
+        "run_ugv_landing_2d(struct('animate',false,'figureVisible',false));"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "MATLAB: Run all comparisons",
+      "type": "process",
+      "command": "matlab",
+      "args": [
+        "-batch",
+        "run_all(struct('figureVisible',false));"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "MATLAB: Run tests",
+      "type": "process",
+      "command": "matlab",
+      "args": [
+        "-batch",
+        "run_tests;"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "MATLAB: Replot saved results",
+      "type": "process",
+      "command": "matlab",
+      "args": [
+        "-batch",
+        "replot_results([],struct('figureVisible',false));"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
