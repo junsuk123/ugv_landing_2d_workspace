@@ -18,6 +18,11 @@ end
 % 학습 결과에 영향을 주지 않는 표시 설정은 지문에서 제외.
 signature.rl.verbose = false;
 signature.rl.retrain = false;
+% 조기 종료를 끈 상태는 이 항목이 생기기 전과 학습이 완전히 같으므로 지문에서 뺍니다.
+% 그래야 예전에 저장한 정책 파일을 그대로 다시 쓸 수 있습니다.
+if isfield(signature.rl,'earlyStopPatience') && signature.rl.earlyStopPatience == 0
+    signature.rl = rmfield(signature.rl,'earlyStopPatience');
+end
 % 상태 표현은 기준 모델일 때 지문에 넣지 않습니다. 그래야 이 항목이 생기기 전에
 % 저장해 둔 기준 모델 정책 파일을 그대로 다시 쓸 수 있습니다.
 if isfield(c,'graphState') && ~strcmp(c.graphState.stateRepresentation,'baseline')

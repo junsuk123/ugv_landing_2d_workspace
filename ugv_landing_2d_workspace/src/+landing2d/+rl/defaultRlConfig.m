@@ -57,6 +57,12 @@ rl.initialLogStd = -1.6;     % 탐색 잡음 log 표준편차 (제한 이전 명
 rl.maxGradNorm = 1.0;
 rl.valueWarmup = 2;          % 처음 몇 번은 가치망만 학습해 정책 붕괴를 줄임
 rl.evaluateEvery = 3;        % 몇 번마다 결정론적 성능을 확인해 최고 정책 보관
+% 조기 종료: 평가 점수가 이만큼 연속으로 나아지지 않으면 학습을 멈춥니다.
+% 0이면 끕니다. ppoTrain은 이미 최고 점수의 정책을 따로 보관하므로, 멈추는 시점이
+% 최고점 이후라면 결과가 달라지지 않고 시간만 줄어듭니다.
+% 기본값을 0으로 두어, 이 항목이 생기기 전에 저장한 정책 파일을 그대로 씁니다
+% (landing2d.rl.trainingSignature가 0일 때 지문에서 제외합니다).
+rl.earlyStopPatience = 0;
 
 %% 초기 조건 무작위화 (평가에는 사용하지 않음)
 rl.initialHeightRange = [0.7,1.3];   % initialHeight 배율
@@ -83,10 +89,15 @@ rl.scratch = struct( ...
     'initialLogStd',-0.7, ...    % 탐색 잡음 확대
     'policyLearnRate',5e-4, ...  % 지킬 사전 정책이 없으므로 크게
     'entropyWeight',0.005, ...
-    'ppoIterations',2500, ...   % 교사 없이 착륙을 찾는 데 필요한 예산 (최초 착륙 약 1800회)
+    'ppoIterations',2500, ...   % 교사 없이 착륙을 찾는 데 필요한 예산 상한
     'evaluateEvery',25, ...
+    'earlyStopPatience',15, ...  % 평가 15회(375반복) 연속 정체면 종료
     'initialHeightRange',[0.01,1.30], ...  % 접지 직전 고도 출발을 섞어 착륙을 경험하게 함
     'initialOffsetFraction',0.5);          % 어떤 고도에서 출발해도 패드가 보이게
+% earlyStopPatience 근거: 온톨로지 그래프 상태로 교사 없이 학습했을 때 최초 착륙이
+% 550반복, 최고 점수가 1100반복이었고 그 뒤로는 나빠지기만 했습니다(2500반복까지
+% 확인). 상한 2500은 그대로 두되 정체하면 멈추게 해서, 돌려주는 정책을 바꾸지 않고
+% 학습 시간만 줄입니다. ppoTrain이 최고 점수의 정책을 따로 보관하기 때문입니다.
 
 %% 저장
 rl.policyFile = 'rl_policy.mat';     % outputDir 기준 학습 결과 파일

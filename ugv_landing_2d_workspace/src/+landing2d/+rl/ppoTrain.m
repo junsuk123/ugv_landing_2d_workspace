@@ -12,6 +12,13 @@ valueState = landing2d.util.adamInit(agent.value.net);
 policyEncoderState = landing2d.util.adamInit(agent.policy.encoder);
 valueEncoderState = landing2d.util.adamInit(agent.value.encoder);
 best = agent;
+% 조기 종료: 평가 점수가 patience회 연속 나아지지 않으면 멈춥니다.
+% 최고 점수의 정책은 따로 보관하므로 멈추어도 돌려주는 정책은 달라지지 않습니다.
+patience = 0;
+if isfield(rl,'earlyStopPatience')
+    patience = rl.earlyStopPatience;
+end
+stagnant = 0;
 [~,bestScore,bestInfo] = landing2d.rl.evaluate(agent,c);
 history = struct('iteration',0,'score',bestScore, ...
     'landingRate',bestInfo.landingRate,'captureRate',bestInfo.meanCaptureRate, ...
@@ -75,12 +82,23 @@ for iteration = 1:rl.ppoIterations
         if score > bestScore
             bestScore = score;
             best = agent;
+            stagnant = 0;
+        else
+            stagnant = stagnant+1;
         end
         if rl.verbose
             fprintf(['  [%2d/%2d] train %8.2f | eval %8.2f | landing %3.0f%%' ...
                 ' | capture %3.0f%%\n'],iteration,rl.ppoIterations, ...
                 mean(episodeReturn),score,100*info.landingRate, ...
                 100*info.meanCaptureRate);
+        end
+        if patience > 0 && stagnant >= patience
+            if rl.verbose
+                fprintf(['  조기 종료: 평가 %d회 연속으로 최고 점수를 넘지 ' ...
+                    '못했습니다 (%d/%d 반복에서 중단).\n'], ...
+                    stagnant,iteration,rl.ppoIterations);
+            end
+            break;
         end
     end
 end
