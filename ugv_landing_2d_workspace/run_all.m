@@ -6,12 +6,21 @@ function [comparison, summaryTable, cfg] = run_all(options)
 %   3) Onto Graph RL  같은 보상/행동/환경/PPO에, 상태 표현만 온톨로지 그래프 +
 %                     R-GAT + 그래프 수준 읽기로 바꾼 제안 모델
 %
-% 2)와 3)의 유일한 차이는 PPO가 받는 상태 표현입니다.
+% 2)와 3)이 PPO에 넣는 상태가 다릅니다.
 %   기준 모델 : landing2d.rl.observation의 11차원 관측 벡터
 %   제안 모델 : 같은 관측 정보로 만든 온톨로지 그래프 G_t를 R-GAT으로 부호화하고
 %               모든 노드를 읽어 만든 그래프 수준 표현 g_t
-% 보상 함수와 계수, 행동 정의와 한계, 환경, 종료 조건, PPO 알고리즘과
-% 하이퍼파라미터, 학습 반복 수, 시드는 두 비교군이 완전히 같습니다.
+%
+% 보상 함수와 계수, 행동 정의와 한계, 환경, 종료 조건은 두 비교군이 완전히 같고
+% landing2d.graphstate.assertSameProblem이 실행 중에 이를 강제합니다.
+%
+% 학습 조건은 기본값에서 다릅니다. 기준 모델은 PN 유도를 교사로 모방 학습한 뒤
+% PPO로 미세조정하고, 제안 모델은 교사 없이 처음부터 학습합니다
+% (cfg.graphState.useScratchSettings = true). 모방 학습으로 초기화하면 정책이
+% 유도 법칙의 거동을 물려받아 비가시 구간에서도 유도 법칙과 같은 움직임을 보이기
+% 때문입니다. 대신 상태 표현 외의 변수가 함께 달라지므로, 달라진 항목을
+% 실행 중에 목록으로 출력합니다. 상태 표현만 비교하려면 useScratchSettings를
+% false로 두거나 기준 모델에도 landing2d.rl.applyScratchSettings를 적용하십시오.
 %
 % 옛 제안 모델(온톨로지 R-GAT으로 보상 가중치를 설계하던 경로)은 지우지 않고
 % cfg.useLegacyOntologyReward = true일 때만 실행하도록 남겨 두었습니다.
@@ -26,6 +35,8 @@ function [comparison, summaryTable, cfg] = run_all(options)
 %   run_all(struct('controller','pd'));        % 기준을 기존 PD로 바꿔 실행
 %   run_all(struct('stateRepresentation','gat'));        % 제거 실험으로 바꿔 실행
 %   run_all(struct('useLegacyOntologyReward',true));     % 옛 보상 설계 비교군 포함
+%   run_all(struct('scratchBaseline',true));             % 두 비교군 모두 교사 없이 학습
+%                                                        % (실험 변수 = 상태 표현 하나)
 %
 % 학습 결과는 results에 저장하고, 설정 지문이 같으면 다시 씁니다.
 if nargin < 1
@@ -70,15 +81,25 @@ guidanceResults = landing2d.simulation.run(cfg);
 stage(2,nStages,'기준 모델 PPO (상태: 관측 벡터 %d차원, 보상: capture %.3f / distance %.3f)', ...
     cfg.rl.observationDim,cfg.rl.captureWeight,cfg.rl.distanceWeight);
 baselineCfg = landing2d.graphstate.applyStateRepresentation(cfg,'baseline');
+if cfg.scratchBaseline
+    % 기준 모델도 교사 없이 학습해 실험 변수를 상태 표현 하나로 남깁니다.
+    % 교사로 만든 정책과 섞이지 않도록 저장 파일 이름을 나눕니다.
+    baselineCfg.rl = landing2d.rl.applyScratchSettings(baselineCfg.rl);
+    baselineCfg.rl.policyFile = 'rl_policy_baseline_scratch.mat';
+    fprintf('기준 모델도 교사 없이 학습합니다 (PPO %d반복).\n', ...
+        baselineCfg.rl.ppoIterations);
+end
 [baselineAgent,baselineTraining] = landing2d.rl.loadOrTrainAgent(baselineCfg);
 baselineResults = landing2d.rl.evaluate(baselineAgent,baselineCfg);
 
 %% 3) 제안 모델: 온톨로지 그래프 상태 표현을 받는 PPO
 proposedCfg = landing2d.graphstate.applyStateRepresentation(cfg,stateRepresentation);
-% 보상과 행동이 기준 모델과 같은지 여기서 한 번 확인하고 넘어갑니다.
-landing2d.graphstate.assertSameProblem(baselineCfg,proposedCfg);
-stage(3,nStages,['제안 모델 PPO (상태: %s, 보상/행동/PPO 설정은 기준 모델과 동일)'], ...
+% 보상, 행동, 환경, 종료 조건이 기준 모델과 같은지 확인합니다.
+% 학습 조건이 다르면 멈추지 않고 목록으로 돌려주므로, 아래에 함께 출력합니다.
+trainingDiff = landing2d.graphstate.assertSameProblem(baselineCfg,proposedCfg);
+stage(3,nStages,'제안 모델 PPO (상태: %s, 보상/행동/환경/종료 조건은 기준 모델과 동일)', ...
     stateRepresentation);
+reportTrainingDifferences(trainingDiff);
 [proposedAgent,proposedTraining] = landing2d.rl.loadOrTrainAgent(proposedCfg);
 proposedResults = landing2d.rl.evaluate(proposedAgent,proposedCfg);
 
@@ -147,6 +168,21 @@ if strcmpi(cfg.controller,'pn')
 else
     label = 'PD control';
 end
+end
+
+function reportTrainingDifferences(differences)
+% 상태 표현 외에 함께 달라진 학습 조건을 결과와 같은 화면에 남깁니다.
+% 결과를 해석할 때 이 목록이 보이지 않으면 교란 변수를 놓치기 쉽습니다.
+if isempty(differences)
+    fprintf('학습 조건: 기준 모델과 동일 (실험 변수는 상태 표현 하나)\n\n');
+    return;
+end
+fprintf(['학습 조건도 함께 다릅니다. 아래 %d개 항목은 상태 표현과 별개의 ' ...
+    '변수이므로\n결과를 해석할 때 반드시 함께 밝혀야 합니다.\n'],numel(differences));
+for i = 1:numel(differences)
+    fprintf('  %s\n',differences{i});
+end
+fprintf('  (상태 표현만 비교하려면 cfg.graphState.useScratchSettings = false)\n\n');
 end
 
 function note = stateNote(cfg)

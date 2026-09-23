@@ -95,4 +95,18 @@ cfg.graphState = landing2d.graphstate.defaultGraphStateConfig();
 % true로 두면 run_all이 그 비교군을 예전처럼 함께 실행합니다.
 % 코드는 +ontology 패키지에 그대로 남아 있고 지우지 않았습니다.
 cfg.useLegacyOntologyReward = false;
+
+% 기준 모델도 교사 없이 처음부터 학습할지 여부.
+%
+% false (기본): 기준 모델은 PN 유도를 교사로 모방 학습 + PPO, 제안 모델은 교사 없이
+%   학습합니다. 제안 모델이 유도 법칙의 거동을 물려받지 않게 하려는 설정이지만,
+%   상태 표현 외에 학습 조건도 함께 달라집니다.
+% true: 두 비교군 모두 교사 없이 학습합니다. 실험 변수가 **상태 표현 하나**로
+%   남으므로 비교가 가장 깔끔합니다. 대신 기준 모델도 다시 학습해야 합니다.
+%
+% 세 가지 조합이 가능합니다.
+%   scratchBaseline=false, graphState.useScratchSettings=false -> 둘 다 교사 사용
+%   scratchBaseline=false, graphState.useScratchSettings=true  -> 기본값 (혼합)
+%   scratchBaseline=true,  graphState.useScratchSettings=true  -> 둘 다 교사 없음
+cfg.scratchBaseline = false;
 end

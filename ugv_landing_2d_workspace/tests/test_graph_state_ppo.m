@@ -18,6 +18,10 @@ c.rl.parallelEpisodes = false;
 c.rl.verbose = false;
 c.graphState.hiddenDim = 6;
 c.graphState.graphDim = 5;
+% 이 테스트는 배선을 검사하는 것이라 학습을 짧게 유지해야 합니다.
+% 교사 없는 학습 설정(기본값)은 반복 수를 2500으로 덮어쓰므로 여기서는 끕니다.
+% 그 설정 자체는 아래 '학습 조건 차이' 항목에서 따로 검사합니다.
+c.graphState.useScratchSettings = false;
 
 baselineCfg = landing2d.graphstate.applyStateRepresentation(c,'baseline');
 proposedCfg = landing2d.graphstate.applyStateRepresentation(c,'ontology_rgat');
@@ -25,8 +29,11 @@ landing2d.config.validateConfig(baselineCfg);
 landing2d.config.validateConfig(proposedCfg);
 
 %% Test 10 - 상태 표현을 바꾼다고 보상 설정이 달라지면 안 됩니다.
-% assertSameProblem이 보상/행동/환경/PPO 설정을 모두 대조합니다.
-landing2d.graphstate.assertSameProblem(baselineCfg,proposedCfg);
+% assertSameProblem은 보상/행동/환경/종료 조건을 대조하고, 학습 조건 차이는
+% 멈추지 않고 목록으로 돌려줍니다.
+differences = landing2d.graphstate.assertSameProblem(baselineCfg,proposedCfg);
+assert(isempty(differences), ...
+    'With useScratchSettings=false the training regime must be identical.');
 assert(~isfield(proposedCfg,'ontologyRewardApplied'), ...
     'The proposed path must not run through landing2d.ontology.applyDesign.');
 assert(baselineCfg.useLegacyOntologyReward == false, ...
@@ -41,6 +48,27 @@ tampered = proposedCfg;
 tampered.rl.captureWeight = tampered.rl.captureWeight+0.1;
 assertThrows(@()landing2d.graphstate.assertSameProblem(baselineCfg,tampered), ...
     'landing2d:ProblemMismatch');
+
+%% 학습 조건 차이 - 교사 없는 학습은 막지 말고 목록으로 보고해야 합니다.
+% 제안 모델은 기준 유도 법칙을 모방하지 않고 처음부터 학습합니다. 모방 학습으로
+% 초기화하면 비가시 구간 거동까지 유도 법칙을 물려받아, 상태 표현의 효과를
+% 볼 수 없기 때문입니다.
+scratchCfg = c;
+scratchCfg.graphState.useScratchSettings = true;
+scratchCfg = landing2d.graphstate.applyStateRepresentation(scratchCfg,'ontology_rgat');
+assert(~scratchCfg.rl.useBehaviorClone, ...
+    'The proposed arm must train without behaviour cloning by default.');
+assert(baselineCfg.rl.useBehaviorClone, ...
+    'The baseline arm keeps its behaviour cloning.');
+scratchDiff = landing2d.graphstate.assertSameProblem(baselineCfg,scratchCfg);
+assert(~isempty(scratchDiff), ...
+    'A different training regime must be reported, not silently accepted.');
+assert(any(contains(scratchDiff,'useBehaviorClone')), ...
+    'The report must name useBehaviorClone.');
+% 보상과 행동은 학습 조건이 달라도 여전히 같아야 합니다.
+assert(scratchCfg.rl.captureWeight == baselineCfg.rl.captureWeight);
+assert(scratchCfg.rl.distanceWeight == baselineCfg.rl.distanceWeight);
+assert(scratchCfg.rl.actionDim == baselineCfg.rl.actionDim);
 
 %% Test 3 - 행동 공간이 완전히 같아야 합니다.
 rs = RandStream('threefry','Seed',5);
@@ -139,6 +167,7 @@ assert(isfinite(score) && numel(info.landed) == size(proposedCfg.scenarioSpeeds,
 %% 제거 실험 설정도 같은 PPO 코드로 끝까지 돌아야 합니다.
 for mode = {'node_pool','gat'}
     ablation = landing2d.graphstate.applyStateRepresentation(c,mode{1});
+    ablation.rl.ppoIterations = c.rl.ppoIterations;
     landing2d.graphstate.assertSameProblem(baselineCfg,ablation);
     agent = landing2d.rl.trainAgent(ablation);
     assert(all(isfinite(agent.policy.logStd)));

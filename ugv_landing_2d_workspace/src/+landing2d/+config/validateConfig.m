@@ -70,5 +70,9 @@ if isfield(c,'useLegacyOntologyReward')
     validateattributes(c.useLegacyOntologyReward,{'logical','numeric'}, ...
         {'scalar','real','finite','binary'},mfilename,'useLegacyOntologyReward');
 end
+if isfield(c,'scratchBaseline')
+    validateattributes(c.scratchBaseline,{'logical','numeric'}, ...
+        {'scalar','real','finite','binary'},mfilename,'scratchBaseline');
+end
 
 end
