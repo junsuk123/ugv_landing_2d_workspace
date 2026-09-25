@@ -17,4 +17,22 @@ catch
     rejected = true;
 end
 assert(rejected);
+c = landing2d.config.defaultConfig();
+c.showLiveDashboard = 2;
+rejected = false;
+try
+    landing2d.config.validateConfig(c);
+catch
+    rejected = true;
+end
+assert(rejected,'showLiveDashboard는 논리 스칼라여야 합니다.');
+c = landing2d.config.defaultConfig();
+c.evaluationMonteCarloRuns = 1;
+rejected = false;
+try
+    landing2d.config.validateConfig(c);
+catch
+    rejected = true;
+end
+assert(rejected,'몬테카를로 평가는 최소 2회여야 합니다.');
 end

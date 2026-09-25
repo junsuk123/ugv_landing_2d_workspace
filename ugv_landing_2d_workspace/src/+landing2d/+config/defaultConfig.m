@@ -80,6 +80,27 @@ cfg.figureVisible = true;          % false: 창은 숨기되 저장은 수행 �
 cfg.figureResolution = 200;        % PNG 해상도 [dpi]
 cfg.saveFig = true;                % 편집 가능한 MATLAB FIG도 함께 저장
 
+%% 통합 실시간 대시보드 (run_all)
+% PPO 학습 곡선, 현재 온톨로지 그래프 노드 값, 평가 중 에이전트 궤적을
+% 한 창에서 갱신합니다. 수치 계산과 저장되는 정책에는 영향을 주지 않습니다.
+cfg.showLiveDashboard = true;
+cfg.evaluationMonteCarloRuns = 20;          % 최종 평가의 무작위 초기조건 반복 수
+cfg.evaluationMonteCarloSeed = 20240924;    % 모든 비교군이 공유하는 평가 표본 시드
+cfg.evaluationHeightRange = [0.8,1.2];      % 초기 고도 배율 범위
+cfg.evaluationOffsetRange = [-1.0,1.0];     % 초기 수평 오차 범위 [m]
+cfg.evaluationSpeedRange = [-0.5,0.5];      % 초기 상대 수평 속도 범위 [m/s]
+
+%% 온톨로지 탭 (읽기 전용 시각화)
+% 결과 요약 창의 탭 그룹에 '온톨로지' 탭 하나를 덧붙입니다.
+% 저장이 끝난 뒤에 붙으므로 시나리오별 PNG와 FIG 내용은 달라지지 않습니다.
+cfg.showOntologyTab = true;
+% 탭이 처음 열 때 읽는 표시 대상.
+%   'ontology'        landing2d.ontology.nodeSchema('core')   온톨로지 의미 그래프
+%   'ontology_design' landing2d.ontology.nodeSchema('design') 보상 가중치 설계용 확장
+%   'graphstate'      landing2d.graphstate.schemaFor(...)     강화학습 입력 그래프
+% 탭 안의 표시 대상 선택창에서 언제든 바꿀 수 있습니다.
+cfg.ontologyViewSource = 'ontology';
+
 %% 비교군 1: 유도 법칙 교사 모방 학습 + PPO 강화학습 (run_all에서 사용)
 cfg.rl = landing2d.rl.defaultRlConfig();
 

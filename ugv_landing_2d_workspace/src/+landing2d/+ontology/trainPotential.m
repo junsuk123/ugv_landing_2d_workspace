@@ -31,6 +31,9 @@ for epoch = 1:onto.epochs
     history.trainLoss(epoch) = total/max(batches,1);
     prediction = landing2d.rgat.predict(P,D.X(:,:,validationIndex),T);
     history.validationLoss(epoch) = mean((prediction-D.y(validationIndex)).^2);
+    landing2d.viz.liveDashboard('ontology',struct('epoch',epoch, ...
+        'maxEpoch',onto.epochs,'trainLoss',history.trainLoss(epoch), ...
+        'validationLoss',history.validationLoss(epoch)));
     if onto.verbose && (mod(epoch,5) == 0 || epoch == 1 || epoch == onto.epochs)
         fprintf('  R-GAT epoch %2d/%2d | train %.4f | val %.4f\n', ...
             epoch,onto.epochs,history.trainLoss(epoch),history.validationLoss(epoch));

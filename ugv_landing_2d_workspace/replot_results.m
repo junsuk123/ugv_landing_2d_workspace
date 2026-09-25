@@ -19,7 +19,8 @@ if ~(isstruct(options) && isscalar(options))
 end
 allowed = {'segmentColors','segmentAlpha','showSegmentLabels','showEventLines', ...
     'makeDetailPlots','makeTrajectoryPlots','trajectoryFlightOnly','figureVisible', ...
-    'figureResolution','saveResults','saveFig','outputDir'};
+    'figureResolution','saveResults','saveFig','outputDir', ...
+    'showOntologyTab','ontologyViewSource'};
 keys = fieldnames(options);
 for i = 1:numel(keys)
     if ~ismember(keys{i},allowed)

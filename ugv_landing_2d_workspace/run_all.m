@@ -32,6 +32,7 @@ function [comparison, summaryTable, cfg] = run_all(options)
 %   run_all;                                   % 필요한 학습만 수행하고 전체 비교
 %   run_all(struct('rlRetrain',true));         % 정책을 다시 학습
 %   run_all(struct('figureVisible',false));    % 창 없이 계산과 저장만
+%   run_all(struct('showLiveDashboard',false)); % 실시간 대시보드만 끄기
 %   run_all(struct('controller','pd'));        % 기준을 기존 PD로 바꿔 실행
 %   run_all(struct('stateRepresentation','gat'));        % 제거 실험으로 바꿔 실행
 %   run_all(struct('useLegacyOntologyReward',true));     % 옛 보상 설계 비교군 포함
@@ -71,11 +72,19 @@ landing2d.config.validateConfig(cfg);
 useLegacy = cfg.useLegacyOntologyReward;
 nStages = 4+2*double(useLegacy);
 started = tic;
+dashboardOn = cfg.showLiveDashboard && cfg.figureVisible;
+if dashboardOn
+    landing2d.viz.liveDashboard('init',cfg);
+end
 
 %% 1) 기준 유도 법칙
 stage(1,nStages,'%s 유도로 %d개 시나리오 실행', ...
     upper(cfg.controller),size(cfg.scenarioSpeeds,1));
 guidanceResults = landing2d.simulation.run(cfg);
+guidanceMc = [];
+if dashboardOn
+    guidanceMc = landing2d.simulation.evaluateMonteCarlo(cfg,guidanceLabel(cfg));
+end
 
 %% 2) 기준 모델: 관측 벡터를 그대로 받는 PPO
 stage(2,nStages,'기준 모델 PPO (상태: 관측 벡터 %d차원, 보상: capture %.3f / distance %.3f)', ...
@@ -89,8 +98,14 @@ if cfg.scratchBaseline
     fprintf('기준 모델도 교사 없이 학습합니다 (PPO %d반복).\n', ...
         baselineCfg.rl.ppoIterations);
 end
+baselineCfg.dashboardAgentLabel = 'PPO RL (baseline state)';
 [baselineAgent,baselineTraining] = landing2d.rl.loadOrTrainAgent(baselineCfg);
 baselineResults = landing2d.rl.evaluate(baselineAgent,baselineCfg);
+baselineMc = [];
+if dashboardOn
+    baselineMc = landing2d.rl.evaluateMonteCarlo( ...
+        baselineAgent,baselineCfg,baselineCfg.dashboardAgentLabel);
+end
 
 %% 3) 제안 모델: 온톨로지 그래프 상태 표현을 받는 PPO
 proposedCfg = landing2d.graphstate.applyStateRepresentation(cfg,stateRepresentation);
@@ -100,8 +115,14 @@ trainingDiff = landing2d.graphstate.assertSameProblem(baselineCfg,proposedCfg);
 stage(3,nStages,'제안 모델 PPO (상태: %s, 보상/행동/환경/종료 조건은 기준 모델과 동일)', ...
     stateRepresentation);
 reportTrainingDifferences(trainingDiff);
+proposedCfg.dashboardAgentLabel = sprintf('PPO RL (%s state)',stateRepresentation);
 [proposedAgent,proposedTraining] = landing2d.rl.loadOrTrainAgent(proposedCfg);
 proposedResults = landing2d.rl.evaluate(proposedAgent,proposedCfg);
+proposedMc = [];
+if dashboardOn
+    proposedMc = landing2d.rl.evaluateMonteCarlo( ...
+        proposedAgent,proposedCfg,proposedCfg.dashboardAgentLabel);
+end
 
 runs = struct( ...
     'results',{guidanceResults,baselineResults,proposedResults}, ...
@@ -112,7 +133,9 @@ runs = struct( ...
 comparison = struct('runs',[],'baselineAgent',baselineAgent, ...
     'baselineTraining',baselineTraining,'proposedAgent',proposedAgent, ...
     'proposedTraining',proposedTraining, ...
-    'stateRepresentation',stateRepresentation,'seconds',0);
+    'stateRepresentation',stateRepresentation,'seconds',0, ...
+    'monteCarlo',struct('guidance',guidanceMc,'baseline',baselineMc, ...
+        'proposed',proposedMc));
 
 %% (선택) 옛 제안 모델: 온톨로지 R-GAT이 보상 가중치를 설계하던 경로
 % 새 제안 모델과 섞이지 않도록 완전히 분리해 둔 경로입니다.
@@ -123,8 +146,14 @@ if useLegacy
     legacyCfg = landing2d.graphstate.applyStateRepresentation(legacyCfg,'baseline');
     stage(5,nStages,'[legacy] PPO (보상 가중치: capture %.3f / distance %.3f)', ...
         legacyCfg.rl.captureWeight,legacyCfg.rl.distanceWeight);
+    legacyCfg.dashboardAgentLabel = 'Onto R-GAT (legacy reward)';
     [legacyAgent,legacyTraining] = landing2d.rl.loadOrTrainAgent(legacyCfg);
     legacyResults = landing2d.rl.evaluate(legacyAgent,legacyCfg);
+    legacyMc = [];
+    if dashboardOn
+        legacyMc = landing2d.rl.evaluateMonteCarlo( ...
+            legacyAgent,legacyCfg,legacyCfg.dashboardAgentLabel);
+    end
     runs(end+1) = struct('results',legacyResults, ...
         'label','Onto R-GAT (legacy reward)', ...
         'note',sprintf('capture %.3f / distance %.3f', ...
@@ -133,6 +162,7 @@ if useLegacy
     comparison.designInfo = designInfo;
     comparison.legacyAgent = legacyAgent;
     comparison.legacyTraining = legacyTraining;
+    comparison.monteCarlo.legacy = legacyMc;
     [comparison.designTable,comparison.nodeTable] = ...
         landing2d.io.saveRewardDesign(design,cfg);
     disp(comparison.designTable);
@@ -151,6 +181,10 @@ if cfg.makeFinalPlots
         'comparison_tabs','Guidance vs baseline state vs ontology graph state');
 end
 comparison.seconds = toc(started);
+if dashboardOn
+    landing2d.viz.liveDashboard('done',struct('message', ...
+        sprintf('전체 실행 완료 · %.1f s',comparison.seconds)));
+end
 fprintf('\n전체 소요 시간: %.1f s\n',comparison.seconds);
 if cfg.saveResults
     fprintf('결과 저장 폴더: %s\n',cfg.outputDir);

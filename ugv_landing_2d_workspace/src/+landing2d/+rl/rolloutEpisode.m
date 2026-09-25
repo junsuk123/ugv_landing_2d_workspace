@@ -23,9 +23,10 @@ dtAction = c.dt*interval;
 t = r.time;
 n = numel(t);
 collect = opts.collect;
+traceGraph = isfield(opts,'traceGraph') && opts.traceGraph && useGraph;
 traj = struct('observation',[],'state',[],'command',[],'logProbability',[], ...
     'value',[],'reward',[],'count',0,'bootstrap',0, ...
-    'captureRate',0,'return',0);
+    'captureRate',0,'return',0,'graphValues',[]);
 if collect
     capacity = ceil(n/interval)+1;
     % observation은 기록과 정보경계 점검용으로 항상 남깁니다. PPO가 학습에 쓰는
@@ -36,6 +37,12 @@ if collect
     traj.logProbability = zeros(1,capacity);
     traj.value = zeros(1,capacity);
     traj.reward = zeros(1,capacity);
+end
+if traceGraph
+    graphSchema = landing2d.graphstate.schemaFor(spec.mode);
+    graphCapacity = ceil(n/interval)+1;
+    traj.graphValues = zeros(graphSchema.nNodes,graphCapacity);
+    graphCount = 0;
 end
 memory = landing2d.rl.initialMemory(r.vxUgv(1));
 o = zeros(rl.observationDim,1);
@@ -78,7 +85,13 @@ for k = 1:n
         [o,memory] = landing2d.rl.observation(s,obs,memory,c,dtAction);
         if useGraph
             % 갱신된 memory를 그대로 넘깁니다. 관측이 쓰는 것과 같은 기억입니다.
-            state = landing2d.graphstate.situationGraph(s,obs,memory,c);
+            if traceGraph
+                [state,graphDetail] = landing2d.graphstate.situationGraph(s,obs,memory,c);
+                graphCount = graphCount+1;
+                traj.graphValues(:,graphCount) = graphDetail.values(:);
+            else
+                state = landing2d.graphstate.situationGraph(s,obs,memory,c);
+            end
         else
             state = o;
         end
@@ -127,6 +140,9 @@ if collect
     traj.value = traj.value(1:count);
     traj.reward = traj.reward(1:count);
     traj.return = sum(traj.reward);
+end
+if traceGraph
+    traj.graphValues = traj.graphValues(:,1:graphCount);
 end
 traj.captureRate = capturedCount/max(decisionCount,1);
 end

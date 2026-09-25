@@ -23,6 +23,7 @@ stagnant = 0;
 history = struct('iteration',0,'score',bestScore, ...
     'landingRate',bestInfo.landingRate,'captureRate',bestInfo.meanCaptureRate, ...
     'trainReturn',NaN);
+notifyDashboard(c,history(end),rl.ppoIterations);
 if rl.verbose
     fprintf('  [BC] score %8.2f | landing %3.0f%% | capture %3.0f%%\n', ...
         bestScore,100*bestInfo.landingRate,100*bestInfo.meanCaptureRate);
@@ -79,6 +80,7 @@ for iteration = 1:rl.ppoIterations
         history(end+1) = struct('iteration',iteration,'score',score, ...
             'landingRate',info.landingRate,'captureRate',info.meanCaptureRate, ...
             'trainReturn',mean(episodeReturn)); %#ok<AGROW>
+        notifyDashboard(c,history(end),rl.ppoIterations);
         if score > bestScore
             bestScore = score;
             best = agent;
@@ -106,6 +108,22 @@ agent = best;
 if rl.verbose
     fprintf('  선택한 정책 점수: %.2f\n',bestScore);
 end
+end
+
+function notifyDashboard(c,item,maxIteration)
+if ~isfield(c,'showLiveDashboard') || ~c.showLiveDashboard ...
+        || ~isfield(c,'figureVisible') || ~c.figureVisible
+    return;
+end
+label = c.graphState.stateRepresentation;
+if isfield(c,'dashboardAgentLabel') && ~isempty(c.dashboardAgentLabel)
+    label = c.dashboardAgentLabel;
+end
+payload = struct('label',label,'iteration',item.iteration, ...
+    'maxIteration',maxIteration,'score',item.score, ...
+    'trainReturn',item.trainReturn,'landingRate',item.landingRate, ...
+    'captureRate',item.captureRate);
+landing2d.viz.liveDashboard('training',payload);
 end
 
 % ------------------------------------------------------------ 정책 갱신 한 단계
