@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="850" viewBox="0 0 1500 850" role="img" aria-labelledby="title desc">
+  <title id="title">UGV 착륙 온톨로지의 9개 노드와 관계 구조</title>
+  <desc id="desc">위험 상태 노드가 착륙 안전도와 가시성을 저하하고 가시성과 안전도가 안전 착륙 목표에 기여하는 방향 그래프</desc>
+  <defs>
+    <marker id="red-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/>
+    </marker>
+    <marker id="blue-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+    </marker>
+    <marker id="purple-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7c3aed"/>
+    </marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#0f172a" flood-opacity="0.12"/>
+    </filter>
+    <style>
+      .title { font: 700 32px 'Segoe UI', 'Noto Sans KR', sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 18px 'Segoe UI', 'Noto Sans KR', sans-serif; fill: #475569; }
+      .node { font: 700 18px 'Segoe UI', 'Noto Sans KR', sans-serif; fill: #0f172a; text-anchor: middle; dominant-baseline: middle; }
+      .note { font: 400 14px 'Segoe UI', 'Noto Sans KR', sans-serif; fill: #64748b; text-anchor: middle; }
+      .edge-red { fill: none; stroke: #dc2626; stroke-width: 3; marker-end: url(#red-arrow); }
+      .edge-blue { fill: none; stroke: #2563eb; stroke-width: 3; marker-end: url(#blue-arrow); }
+      .edge-purple { fill: none; stroke: #7c3aed; stroke-width: 3; marker-end: url(#purple-arrow); }
+      .edge-label { font: 700 14px 'Segoe UI', 'Noto Sans KR', sans-serif; paint-order: stroke; stroke: #f8fafc; stroke-width: 6; stroke-linejoin: round; }
+      .legend { font: 600 16px 'Segoe UI', 'Noto Sans KR', sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <rect width="1500" height="850" fill="#f8fafc"/>
+  <text x="750" y="52" class="title" text-anchor="middle">UGV Landing Ontology — Core State Graph</text>
+  <text x="750" y="83" class="subtitle" text-anchor="middle">9개 의미 노드 · 4개 관계 유형 · 방향 그래프 (self 간선은 생략)</text>
+
+  <rect x="42" y="112" width="480" height="670" rx="24" fill="#fff1f2" stroke="#fecdd3" stroke-width="2"/>
+  <text x="72" y="150" class="legend">위험 및 관측 의미 노드</text>
+  <rect x="555" y="112" width="500" height="670" rx="24" fill="#eff6ff" stroke="#bfdbfe" stroke-width="2"/>
+  <text x="585" y="150" class="legend">중간 상태 노드</text>
+  <rect x="1088" y="112" width="370" height="670" rx="24" fill="#f5f3ff" stroke="#ddd6fe" stroke-width="2"/>
+  <text x="1118" y="150" class="legend">목표 노드</text>
+
+  <g filter="url(#shadow)">
+    <rect x="90" y="190" width="185" height="76" rx="38" fill="#fee2e2" stroke="#ef4444" stroke-width="2"/>
+    <text x="182" y="222" class="node">PositionError</text>
+    <text x="182" y="247" class="note">수평 위치 오차</text>
+
+    <rect x="315" y="190" width="170" height="76" rx="38" fill="#fee2e2" stroke="#ef4444" stroke-width="2"/>
+    <text x="400" y="222" class="node">DescentSpeed</text>
+    <text x="400" y="247" class="note">수직 속도 위험</text>
+
+    <rect x="90" y="380" width="170" height="76" rx="38" fill="#fee2e2" stroke="#ef4444" stroke-width="2"/>
+    <text x="175" y="412" class="node">PadMotion</text>
+    <text x="175" y="437" class="note">패드 이동 위험</text>
+
+    <rect x="310" y="380" width="175" height="76" rx="38" fill="#fee2e2" stroke="#ef4444" stroke-width="2"/>
+    <text x="397" y="412" class="node">FovMargin</text>
+    <text x="397" y="437" class="note">시야 가장자리 위험</text>
+
+    <rect x="90" y="590" width="200" height="76" rx="38" fill="#fee2e2" stroke="#ef4444" stroke-width="2"/>
+    <text x="190" y="622" class="node">SearchDuration</text>
+    <text x="190" y="647" class="note">재탐색 지속 시간</text>
+
+    <rect x="320" y="590" width="185" height="76" rx="38" fill="#fee2e2" stroke="#ef4444" stroke-width="2"/>
+    <text x="412" y="622" class="node">RelativeDistance</text>
+    <text x="412" y="647" class="note">상대거리 위험</text>
+
+    <rect x="670" y="255" width="230" height="94" rx="22" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+    <text x="785" y="293" class="node">TouchdownSafety</text>
+    <text x="785" y="321" class="note">접지 조건의 종합 안전도</text>
+
+    <rect x="670" y="535" width="230" height="94" rx="22" fill="#dcfce7" stroke="#16a34a" stroke-width="3"/>
+    <text x="785" y="573" class="node">PadVisibility</text>
+    <text x="785" y="601" class="note">포착 및 추종 상태</text>
+
+    <rect x="1160" y="362" width="230" height="110" rx="55" fill="#ede9fe" stroke="#7c3aed" stroke-width="4"/>
+    <text x="1275" y="405" class="node">SafeLanding</text>
+    <text x="1275" y="435" class="note">목표 노드 · 입력값은 항상 0</text>
+  </g>
+
+  <!-- degrades -->
+  <path class="edge-red" d="M275 228 C450 220 535 245 670 285"/>
+  <path class="edge-red" d="M485 228 C560 230 600 250 670 290"/>
+  <path class="edge-red" d="M260 407 C430 360 540 325 670 305"/>
+  <path class="edge-red" d="M485 407 C570 370 610 345 680 330"/>
+  <path class="edge-red" d="M260 418 L310 418"/>
+  <path class="edge-red" d="M397 456 C450 525 555 570 670 580"/>
+  <path class="edge-red" d="M290 628 C445 635 545 615 670 590"/>
+  <path class="edge-red" d="M505 618 C680 650 925 610 1165 455"/>
+  <path class="edge-red" d="M505 605 C570 520 610 405 700 345"/>
+  <path class="edge-red" d="M290 615 C620 510 890 455 1160 422"/>
+
+  <!-- supports / contributes -->
+  <path class="edge-blue" d="M785 535 L785 349"/>
+  <path class="edge-purple" d="M900 302 C1020 320 1080 360 1160 395"/>
+  <path class="edge-purple" d="M900 575 C1020 550 1090 500 1175 465"/>
+
+  <text x="520" y="209" class="edge-label" fill="#dc2626">degrades</text>
+  <text x="285" y="397" class="edge-label" fill="#dc2626">degrades</text>
+  <text x="455" y="525" class="edge-label" fill="#dc2626">degrades</text>
+  <text x="803" y="452" class="edge-label" fill="#2563eb">supports</text>
+  <text x="1030" y="327" class="edge-label" fill="#7c3aed">contributes</text>
+  <text x="1035" y="558" class="edge-label" fill="#7c3aed">contributes</text>
+
+  <g transform="translate(570,735)">
+    <line x1="0" y1="0" x2="54" y2="0" class="edge-red"/>
+    <text x="70" y="6" class="legend">degrades</text>
+    <line x1="210" y1="0" x2="264" y2="0" class="edge-blue"/>
+    <text x="280" y="6" class="legend">supports</text>
+    <line x1="420" y1="0" x2="474" y2="0" class="edge-purple"/>
+    <text x="490" y="6" class="legend">contributes</text>
+  </g>
+
+  <text x="750" y="820" class="subtitle" text-anchor="middle">각 노드에는 관계형 메시지 전달을 위한 self 간선도 있으며, R-GAT은 관계 유형별 파라미터를 따로 학습합니다.</text>
+</svg>
