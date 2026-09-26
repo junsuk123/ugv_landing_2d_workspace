@@ -2,13 +2,28 @@ function [o,memory] = observation(s,obs,memory,c,dtAction)
 % OBSERVATION  정책 입력 벡터. 비가시 구간에서는 패드 참값을 넣지 않습니다.
 % 보이지 않는 동안에는 마지막 관측값과 마지막 관측 패드 속도로만 추측합니다.
 if obs.visible
+    margin = obs.halfWidth-abs(obs.xError);
+    if memory.hasObservation
+        memory.padAcceleration = (obs.padSpeed-memory.lastPadSpeed)/dtAction;
+        memory.fovMarginRate = (margin-memory.lastFovMargin)/dtAction;
+    else
+        memory.padAcceleration = 0;
+        memory.fovMarginRate = 0;
+    end
     memory.lastError = obs.xError;
     memory.lastPadSpeed = obs.padSpeed;
+    memory.lastFovMargin = margin;
     memory.timeSinceSeen = 0;
+    memory.hasObservation = true;
 else
     % 마지막으로 본 패드 속도를 이용한 추측 항법. 현재 참값은 사용하지 않음.
     memory.lastError = memory.lastError+(memory.lastPadSpeed-s.vx)*dtAction;
     memory.timeSinceSeen = memory.timeSinceSeen+dtAction;
+    % Predict margin motion from the last observation and own-state only.
+    memory.fovMarginRate = s.vz*tand(c.cameraFovDeg/2) ...
+        -sign(memory.lastError)*(memory.lastPadSpeed-s.vx);
+    memory.lastFovMargin = max(s.h,0)*tand(c.cameraFovDeg/2) ...
+        -abs(memory.lastError);
 end
 xScale = 5.0;
 vScale = 3.0;

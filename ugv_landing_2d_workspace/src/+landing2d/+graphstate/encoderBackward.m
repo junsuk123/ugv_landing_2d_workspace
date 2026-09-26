@@ -4,7 +4,7 @@ function [grads,dS] = encoderBackward(params,spec,cache,dG)
 %   dG : [graphDim x B]  g_t에 대한 손실 기울기
 %
 % 정확성은 tests/test_graph_state_encoder.m에서 중앙 차분과 비교해 확인합니다.
-if strcmp(spec.mode,'baseline')
+if ismember(spec.mode,{'baseline','semantic_flat'})
     grads = struct();
     dS = dG;
     return;

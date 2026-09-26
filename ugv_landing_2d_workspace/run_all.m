@@ -69,6 +69,9 @@ if ~isfield(options,'animate')
 end
 cfg = landing2d.config.applyOptions(cfg,options);
 landing2d.config.validateConfig(cfg);
+feasibilityTable = landing2d.metrics.horizontalRecoveryFeasibility(cfg);
+fprintf('\nIdealized horizontal-only FOV-retention diagnostic:\n');
+disp(feasibilityTable);
 useLegacy = cfg.useLegacyOntologyReward;
 nStages = 4+2*double(useLegacy);
 started = tic;
@@ -81,10 +84,7 @@ end
 stage(1,nStages,'%s 유도로 %d개 시나리오 실행', ...
     upper(cfg.controller),size(cfg.scenarioSpeeds,1));
 guidanceResults = landing2d.simulation.run(cfg);
-guidanceMc = [];
-if dashboardOn
-    guidanceMc = landing2d.simulation.evaluateMonteCarlo(cfg,guidanceLabel(cfg));
-end
+guidanceMc = landing2d.simulation.evaluateMonteCarlo(cfg,guidanceLabel(cfg));
 
 %% 2) 기준 모델: 관측 벡터를 그대로 받는 PPO
 stage(2,nStages,'기준 모델 PPO (상태: 관측 벡터 %d차원, 보상: capture %.3f / distance %.3f)', ...
@@ -101,11 +101,8 @@ end
 baselineCfg.dashboardAgentLabel = 'PPO RL (baseline state)';
 [baselineAgent,baselineTraining] = landing2d.rl.loadOrTrainAgent(baselineCfg);
 baselineResults = landing2d.rl.evaluate(baselineAgent,baselineCfg);
-baselineMc = [];
-if dashboardOn
-    baselineMc = landing2d.rl.evaluateMonteCarlo( ...
-        baselineAgent,baselineCfg,baselineCfg.dashboardAgentLabel);
-end
+baselineMc = landing2d.rl.evaluateMonteCarlo( ...
+    baselineAgent,baselineCfg,baselineCfg.dashboardAgentLabel);
 
 %% 3) 제안 모델: 온톨로지 그래프 상태 표현을 받는 PPO
 proposedCfg = landing2d.graphstate.applyStateRepresentation(cfg,stateRepresentation);
@@ -118,11 +115,8 @@ reportTrainingDifferences(trainingDiff);
 proposedCfg.dashboardAgentLabel = sprintf('PPO RL (%s state)',stateRepresentation);
 [proposedAgent,proposedTraining] = landing2d.rl.loadOrTrainAgent(proposedCfg);
 proposedResults = landing2d.rl.evaluate(proposedAgent,proposedCfg);
-proposedMc = [];
-if dashboardOn
-    proposedMc = landing2d.rl.evaluateMonteCarlo( ...
-        proposedAgent,proposedCfg,proposedCfg.dashboardAgentLabel);
-end
+proposedMc = landing2d.rl.evaluateMonteCarlo( ...
+    proposedAgent,proposedCfg,proposedCfg.dashboardAgentLabel);
 
 runs = struct( ...
     'results',{guidanceResults,baselineResults,proposedResults}, ...
@@ -134,6 +128,7 @@ comparison = struct('runs',[],'baselineAgent',baselineAgent, ...
     'baselineTraining',baselineTraining,'proposedAgent',proposedAgent, ...
     'proposedTraining',proposedTraining, ...
     'stateRepresentation',stateRepresentation,'seconds',0, ...
+    'feasibility',feasibilityTable, ...
     'monteCarlo',struct('guidance',guidanceMc,'baseline',baselineMc, ...
         'proposed',proposedMc));
 
@@ -149,11 +144,8 @@ if useLegacy
     legacyCfg.dashboardAgentLabel = 'Onto R-GAT (legacy reward)';
     [legacyAgent,legacyTraining] = landing2d.rl.loadOrTrainAgent(legacyCfg);
     legacyResults = landing2d.rl.evaluate(legacyAgent,legacyCfg);
-    legacyMc = [];
-    if dashboardOn
-        legacyMc = landing2d.rl.evaluateMonteCarlo( ...
-            legacyAgent,legacyCfg,legacyCfg.dashboardAgentLabel);
-    end
+    legacyMc = landing2d.rl.evaluateMonteCarlo( ...
+        legacyAgent,legacyCfg,legacyCfg.dashboardAgentLabel);
     runs(end+1) = struct('results',legacyResults, ...
         'label','Onto R-GAT (legacy reward)', ...
         'note',sprintf('capture %.3f / distance %.3f', ...
@@ -175,10 +167,16 @@ disp(summaryTable);
 comparison.runs = runs;
 if cfg.saveResults
     landing2d.io.saveComparison(runs,summaryTable,cfg,'comparison');
+    monteCarlo = comparison.monteCarlo; %#ok<NASGU>
+    save(fullfile(cfg.outputDir,'monte_carlo_summary.mat'), ...
+        'monteCarlo','feasibilityTable');
+    writetable(feasibilityTable,fullfile(cfg.outputDir, ...
+        'horizontal_recovery_feasibility.csv'));
 end
 if cfg.makeFinalPlots
     landing2d.viz.plotRunSummary(runs,cfg,'scenario_%d_comparison', ...
         'comparison_tabs','Guidance vs baseline state vs ontology graph state');
+    landing2d.viz.plotMonteCarloComparison(comparison.monteCarlo,cfg);
 end
 comparison.seconds = toc(started);
 if dashboardOn

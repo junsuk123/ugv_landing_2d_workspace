@@ -22,7 +22,7 @@ for j = 1:nCases
         landing2d.viz.liveDashboard('monteCarloProgress',struct( ...
             'label',label,'scenario',j,'index',i,'total',nRuns));
     end
-    items{j} = landing2d.viz.monteCarloSummary(runs,label,j);
+    items{j} = landing2d.viz.monteCarloSummary(runs,label,j,c);
     if traceGraph
         items{j}.nodeMean = mean(finalNodeValues,2);
         items{j}.nodeVariance = var(finalNodeValues,0,2);

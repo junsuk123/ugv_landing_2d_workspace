@@ -1,5 +1,7 @@
 # UGV 착륙 2차원 MATLAB 모듈형 프로젝트
 
+> **재현성 주의:** 접근 보상의 거리 변화율이 `d_(t-1)-d_t`가 아니라 `0-d_t`로 계산되던 오류를 수정했습니다. 아래의 과거 수치 결과와 기존 정책 파일은 수정 전 구현에서 생성되었으므로 새 결론의 근거로 재사용하지 않습니다. 정책 설정 지문에 알고리즘 버전을 포함해 자동 재학습되며, 새 결과는 별도 출력 폴더에서 다시 산출해야 합니다.
+
 UGV 위 착륙 패드를 추종하는 드론의 **시야 이탈 → 상승 → 재포착 → 착륙** 시뮬레이션입니다.
 세 가지 제어기를 같은 환경에서 비교합니다.
 **모든 비교군의 제어 명령은 수평/수직 가속도 [m/s^2]** 입니다.
@@ -15,7 +17,7 @@ UGV 위 착륙 패드를 추종하는 드론의 **시야 이탈 → 상승 → �
 검사하고 하나라도 다르면 중단합니다. 달라지는 것은 PPO가 받는 상태 표현입니다.
 
 학습 조건(교사 모방 사용 여부, 반복 수)은 실험 설계에 따라 고르며, 기본값에서는
-제안 모델이 교사 없이 학습합니다. 자세한 내용은 아래 "학습 조건" 절에 있습니다.
+두 PPO 비교군 모두 교사 없이 동일한 조건으로 학습합니다. 자세한 내용은 아래 "학습 조건" 절에 있습니다.
 
 ### 핵심 결과
 
@@ -84,7 +86,8 @@ run_all(struct('figureVisible',false));    % 창 없이 계산과 저장만
 run_all(struct('showLiveDashboard',false)); % 실시간 대시보드만 끄고 최종 그림은 생성
 run_all(struct('controller','pd'));        % 기준을 기존 PD로 바꿔 실행
 run_all(struct('stateRepresentation','gat'));    % 제거 실험으로 제안 모델 교체
-run_all(struct('scratchBaseline',true));         % 두 비교군 모두 교사 없이 학습
+run_all(struct('stateRepresentation','semantic_flat')); % 같은 의미 특징의 평탄 MLP 대조군
+run_all(struct('scratchBaseline',false));        % 옛 혼합 초기화 조건을 의도적으로 재현
 run_all(struct('useLegacyOntologyReward',true)); % 옛 보상 설계 비교군까지 포함
 ```
 
@@ -251,9 +254,9 @@ RMS 차이는 다음과 같았습니다(시나리오 1, 비가시 표본 3,463�
 교사를 따라갔기 때문**입니다. 이 상태로는 패드가 시야에서 사라진 구간에서 상태 표현이
 무엇을 바꾸는지 볼 수 없습니다.
 
-기본값(두 번째)은 상태 표현 외에 학습 조건도 함께 달라집니다. `assertSameProblem`은
-이 경우 **중단하지 않고 달라진 항목을 목록으로 돌려주며** `run_all`이 결과와 같은
-화면에 출력합니다. 논문용 통제 비교에는 첫 번째나 세 번째를 쓰십시오.
+기본값(세 번째)은 두 모델 모두 scratch 학습을 사용하므로 상태 표현 외 학습 조건이
+같습니다. 두 번째 혼합 조건은 과거 실험 재현을 위해서만 명시적으로 선택하십시오.
+`assertSameProblem`은 차이가 있으면 항목을 목록으로 돌려주며 `run_all`이 출력합니다.
 
 ```matlab
 run_all(struct('scratchBaseline',true));   % 실험 변수 = 상태 표현 하나
@@ -459,7 +462,7 @@ options.playbackSpeed = 4;
 | `outputDir` | 프로젝트/results | 결과 저장 폴더 |
 | `rl` | `defaultRlConfig()` | 강화학습 학습 설정 묶음 |
 | `graphState` | `defaultGraphStateConfig()` | 상태 표현 설정 묶음 (제안 모델) |
-| `scratchBaseline` | false | true면 기준 모델도 교사 없이 학습 |
+| `scratchBaseline` | true | true면 기준 모델도 교사 없이 학습(기본 통제 비교) |
 | `useLegacyOntologyReward` | false | true면 옛 보상 설계 비교군까지 실행 |
 | `ontology` | `defaultOntologyConfig()` | [legacy] 온톨로지/R-GAT 가중치 설계 설정 |
 

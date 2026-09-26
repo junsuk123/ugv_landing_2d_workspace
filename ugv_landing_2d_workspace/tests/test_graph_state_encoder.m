@@ -34,6 +34,15 @@ assert(landing2d.util.clipGradient(struct('a',3),1).a ...
     == landing2d.util.clipGradient(struct('a',3,'encoder',struct()),1).a, ...
     'An empty encoder must not change the clipped gradient norm.');
 
+% Semantic-flat receives exactly the graph feature tensor, but has no graph
+% encoder parameters or message passing.
+flatGs = gs;
+flatGs.stateRepresentation = 'semantic_flat';
+[flatParams,flatSpec] = landing2d.graphstate.encoderInit(flatGs,11,rs);
+flatState = randn(rs,flatSpec.stateDim,4);
+flatOutput = landing2d.graphstate.encoderForward(flatParams,flatSpec,flatState);
+assert(isempty(fieldnames(flatParams)) && isequal(flatOutput,flatState));
+
 %% Test 6 - 노드 이름표를 바꿔도 그래프 수준 표현이 같아야 함.
 % 노드를 다시 번호 매기면서 간선과 노드 특징을 함께 옮기면, R-GAT은 같은 임베딩을
 % 순서만 바꿔 내놓고 평균/최댓값 읽기는 순서에 무관하므로 g_t가 같아야 합니다.

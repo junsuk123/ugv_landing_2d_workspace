@@ -77,7 +77,7 @@ assert(nargin('landing2d.ontology.semanticState') == 5, ...
     'The legacy semanticState keeps its truth argument and stays separate.');
 
 %% Test 5 - 그래프 무결성. 노드/간선/관계/특징 차원과 값 범위.
-for mode = {'ontology_rgat','gat','node_pool'}
+for mode = {'ontology_rgat','gat','node_pool','semantic_flat'}
     name = mode{1};
     [modeSchema,T] = landing2d.graphstate.schemaFor(name);
     assert(modeSchema.nNodes == 9,'The situation graph keeps the 9 ontology nodes.');
@@ -87,7 +87,7 @@ for mode = {'ontology_rgat','gat','node_pool'}
     assert(all(modeSchema.dst >= 1 & modeSchema.dst <= modeSchema.nNodes));
     assert(all(modeSchema.rel >= 1 & modeSchema.rel <= modeSchema.nRelations));
     % 상태 표현용 특징은 방향 부호 채널이 하나 더 있습니다.
-    assert(modeSchema.inDim == 5+modeSchema.nNodes);
+    assert(modeSchema.inDim == 5+modeSchema.nContext+modeSchema.nNodes);
     assert(T.nEdges == numel(modeSchema.src));
     assert(T.nNodes == modeSchema.nNodes && T.nRelations == modeSchema.nRelations);
     % 모든 노드에 자기 간선이 있어야 자기 특징이 보존됩니다.
@@ -134,7 +134,9 @@ for k = 1:numel(cases)
         assert(X(3,i) == double(ismember(i,info.schema.riskNodes)));
         assert(X(4,i) == 1);
         assert(abs(X(5,i)) <= 1,'The signed channel must stay inside [-1,1].');
-        assert(X(5+i,i) == 1 && sum(X(6:end,i)) == 1);
+        identityStart = 5+info.schema.nContext;
+        assert(X(identityStart+i,i) == 1 ...
+            && sum(X(identityStart+1:end,i)) == 1);
     end
 end
 assert(isstruct(sem));

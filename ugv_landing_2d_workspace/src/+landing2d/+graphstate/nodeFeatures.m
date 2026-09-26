@@ -1,4 +1,4 @@
-function X = nodeFeatures(values,signed,schema)
+function X = nodeFeatures(values,signed,schema,context)
 % NODEFEATURES  상태 표현용 노드 특징 행렬 X_t.
 %
 % landing2d.ontology.buildGraph와 같은 구성에 방향 부호 채널 하나를 더한 것입니다.
@@ -21,6 +21,9 @@ function X = nodeFeatures(values,signed,schema)
 % 제어가 불가능합니다. 측정값은 docs/ONTOLOGY_GRAPH_STATE_KO.md에 있습니다.
 n = schema.nNodes;
 X = zeros(schema.inDim,n);
+if nargin < 4
+    context = struct();
+end
 for i = 1:n
     name = schema.nodeNames{i};
     if isfield(signed,name)
@@ -30,6 +33,12 @@ for i = 1:n
     end
     riskFlag = double(ismember(i,schema.riskNodes));
     X(1:5,i) = [values(i);1-values(i);riskFlag;1;direction];
-    X(5+i,i) = 1;
+    for j = 1:schema.nContext
+        key = schema.contextNames{j};
+        if isfield(context,key) && isfield(context.(key),name)
+            X(5+j,i) = context.(key).(name);
+        end
+    end
+    X(5+schema.nContext+i,i) = 1;
 end
 end

@@ -29,6 +29,14 @@ spec.inDim = schema.inDim;
 spec.nNodes = schema.nNodes;
 spec.hiddenDim = dh;
 spec.stateDim = schema.inDim*schema.nNodes;
+if strcmp(mode,'semantic_flat')
+    % Same semantic features as the graph arms, passed directly to the MLP.
+    % This separates added-information gains from graph-structure gains.
+    params = struct();
+    spec.hiddenDim = 0;
+    spec.graphDim = spec.stateDim;
+    return;
+end
 scale = gs.initScale;
 switch mode
     case 'node_pool'

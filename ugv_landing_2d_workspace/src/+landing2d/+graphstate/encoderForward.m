@@ -7,9 +7,9 @@ function [g,cache] = encoderForward(params,spec,S)
 % 중간 결과 H_t는 [hiddenDim x nNodes x B]이며 모든 노드가 읽기에 들어갑니다.
 % 특정 노드(예: 목표 노드)를 골라 쓰지 않습니다. 그 점이 보상 설계에 쓰는
 % landing2d.rgat.potentialForward와 다릅니다.
-if strcmp(spec.mode,'baseline')
+if ismember(spec.mode,{'baseline','semantic_flat'})
     g = S;
-    cache = struct('mode','baseline');
+    cache = struct('mode',spec.mode);
     return;
 end
 B = size(S,2);

@@ -18,4 +18,11 @@ assert(isequal(a.varX,b.varX) && isequal(a.varZ,b.varZ), ...
 assert(all(a.varX >= 0) && all(a.varZ >= 0));
 assert(any(a.varX > 0) && any(a.varZ > 0), ...
     '무작위 초기조건 평가의 궤적 분산이 모두 0이면 안 됩니다.');
+assert(isfield(a,'eventMean') && isfield(a,'eventVariance') ...
+    && size(a.eventSamples,2) == c.evaluationMonteCarloRuns);
+assert(all(a.eventVariance(isfinite(a.eventVariance)) >= 0));
+c.saveResults = false;
+fig = landing2d.viz.plotMonteCarloComparison(struct('guidance',a),c);
+cleanup = onCleanup(@()close(fig)); %#ok<NASGU>
+assert(isgraphics(fig));
 end

@@ -165,13 +165,17 @@ assert(isequal(sort(fieldnames(results)),sort(fieldnames(reference))), ...
 assert(isfinite(score) && numel(info.landed) == size(proposedCfg.scenarioSpeeds,1));
 
 %% 제거 실험 설정도 같은 PPO 코드로 끝까지 돌아야 합니다.
-for mode = {'node_pool','gat'}
+for mode = {'semantic_flat','node_pool','gat'}
     ablation = landing2d.graphstate.applyStateRepresentation(c,mode{1});
     ablation.rl.ppoIterations = c.rl.ppoIterations;
     landing2d.graphstate.assertSameProblem(baselineCfg,ablation);
     agent = landing2d.rl.trainAgent(ablation);
     assert(all(isfinite(agent.policy.logStd)));
-    assert(~isempty(fieldnames(agent.policy.encoder)));
+    if strcmp(mode{1},'semantic_flat')
+        assert(isempty(fieldnames(agent.policy.encoder)));
+    else
+        assert(~isempty(fieldnames(agent.policy.encoder)));
+    end
 end
 end
 

@@ -49,7 +49,9 @@ o = zeros(rl.observationDim,1);
 state = zeros(stateDim,1);
 ax = 0; az = 0;
 pending = 0;
-previousDistance = 0;
+% Distance at the start of the pending action.  It is updated only after
+% the preceding transition reward has been calculated.
+previousDistance = NaN;
 capturedCount = 0;
 decisionCount = 0;
 for k = 1:n
@@ -79,7 +81,8 @@ for k = 1:n
         if collect && pending > 0
             % 보상 항 1: 착륙 패드 포착.  보상 항 2: 착륙 지점과의 상대거리.
             traj.reward(pending) = rl.captureWeight*captureSignal(s,obs,xp,rl) ...
-                +rl.distanceWeight*distanceSignal(distance,previousDistance,dtAction,rl);
+                +rl.distanceWeight*landing2d.rl.distanceSignal( ...
+                    distance,previousDistance,dtAction,rl);
             pending = 0;
         end
         [o,memory] = landing2d.rl.observation(s,obs,memory,c,dtAction);
@@ -108,6 +111,7 @@ for k = 1:n
             traj.command(:,index) = u;
             traj.logProbability(index) = logProbability;
             traj.value(index) = landing2d.rl.valueForward(agent,state);
+            previousDistance = distance;
             pending = index;
         end
     end
@@ -145,36 +149,6 @@ if traceGraph
     traj.graphValues = traj.graphValues(:,1:graphCount);
 end
 traj.captureRate = capturedCount/max(decisionCount,1);
-end
-
-function value = distanceSignal(distance,previous,dtAction,rl)
-% 보상 항 2. [-1, +1] 범위입니다.
-%
-% 두 성분을 섞습니다.
-%   변화율   : (이전 거리 - 현재 거리)/dt 를 기준 속도로 정규화.
-%              가까워지면 +, 멀어지면 -, 제자리면 0.
-%   거리 자체: 가까우면 +, 멀면 -.
-%
-% 변화율만 쓰면 어느 고도에 있든 누적 가치가 같아집니다(망원경 합). 그러면 고도를
-% 포착 항이 혼자 결정하고, 시야가 넓은 높은 곳에 머무는 해가 최적이 됩니다.
-% 거리 자체 항이 있어야 "낮은 곳에 있는 것" 자체에 가치가 생겨 착륙이 목표가 됩니다.
-% 즉 변화율은 유도(shaping), 거리 자체는 목표(objective) 역할입니다.
-rate = landing2d.util.saturate( ...
-    (previous-distance)/(dtAction*rl.distanceRateScale),1);
-proximity = landing2d.util.saturate( ...
-    1-(distance/rl.distanceScale)^rl.distanceExponent,1);
-switch rl.distanceMode
-    case 'hybrid'
-        share = rl.distanceRateShare;
-        value = share*rate+(1-share)*proximity;
-    case 'rate'
-        value = rate;
-    case 'proximity'
-        value = proximity;
-    otherwise
-        error('landing2d:UnknownDistanceMode', ...
-            'Unknown distanceMode: %s',rl.distanceMode);
-end
 end
 
 function value = captureSignal(s,obs,xp,rl)

@@ -7,6 +7,8 @@ function gs = defaultGraphStateConfig()
 % stateRepresentation
 %   'baseline'      기준 모델. landing2d.rl.observation의 11차원 벡터를 그대로
 %                   정책/가치망에 넣습니다. 부호기가 항등이므로 수치가 기존과 같습니다.
+%   'semantic_flat' 그래프 모델과 같은 의미 노드 특징을 평탄화해 MLP에 넣습니다.
+%                   정보 추가 효과와 그래프 구조 효과를 분리하는 대조군입니다.
 %   'node_pool'     제거 실험 B. 온톨로지 노드 특징을 노드별로 사영한 뒤 읽기만 합니다.
 %                   메시지 전달(간선)이 없습니다.
 %   'gat'           제거 실험 C. 그래프 구조는 쓰되 관계 유형을 하나로 합칩니다.

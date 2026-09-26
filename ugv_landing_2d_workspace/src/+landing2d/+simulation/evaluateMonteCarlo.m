@@ -11,7 +11,7 @@ for j = 1:nCases
         runs(i) = landing2d.simulation.rolloutCase(r,s,c);
         notify(label,j,i,nRuns);
     end
-    items{j} = landing2d.viz.monteCarloSummary(runs,label,j);
+    items{j} = landing2d.viz.monteCarloSummary(runs,label,j,c);
     landing2d.viz.liveDashboard('monteCarlo',items{j});
 end
 summaries = [items{:}];

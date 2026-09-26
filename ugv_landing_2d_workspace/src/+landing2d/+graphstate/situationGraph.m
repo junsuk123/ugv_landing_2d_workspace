@@ -14,12 +14,13 @@ function [S,detail] = situationGraph(s,obs,memory,c)
 % 관측 파이프라인이 보는 정보만 사용합니다. 환경 참값은 들어가지 않습니다.
 mode = c.graphState.stateRepresentation;
 schema = landing2d.graphstate.schemaFor(mode);
-[sem,~,signed] = landing2d.graphstate.observationSemantics(s,obs,memory,c);
+[sem,~,signed,context] = landing2d.graphstate.observationSemantics(s,obs,memory,c);
 values = landing2d.ontology.nodeValues(sem,schema);
-X = landing2d.graphstate.nodeFeatures(values,signed,schema);
+X = landing2d.graphstate.nodeFeatures(values,signed,schema,context);
 S = X(:);
 if nargout > 1
     detail = struct('X',X,'values',values,'signed',signed, ...
+        'context',context, ...
         'semantics',sem,'schema',schema);
 end
 end

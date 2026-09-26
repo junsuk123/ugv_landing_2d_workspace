@@ -1,4 +1,4 @@
-function [sem,sources,signed] = observationSemantics(s,obs,memory,c)
+function [sem,sources,signed,context] = observationSemantics(s,obs,memory,c)
 % OBSERVATIONSEMANTICS  온톨로지 의미 채널을 "관측만으로" 계산하는 적응 계층.
 %
 % landing2d.ontology.semanticState와 같은 채널을 만들지만, 그쪽은 환경 참값
@@ -101,6 +101,32 @@ if nargout > 2
         'SafeLanding',0);
 end
 
+if nargout > 3
+    % Five explicit context channels preserve dynamics that a magnitude-only
+    % node value cannot express.  Each is derived from observations, memory,
+    % or the drone's own state; hidden UGV truth is never used.
+    acceleration = memory.padAcceleration/(abs(memory.padAcceleration) ...
+        +max(c.ugvAccelMax,1e-9));
+    marginRate = memory.fovMarginRate/(abs(memory.fovMarginRate) ...
+        +max(c.vxMax,1e-9));
+    if memory.lastFovMargin <= 0
+        boundaryUrgency = 1;
+    elseif memory.fovMarginRate < 0
+        timeToBoundary = memory.lastFovMargin/max(-memory.fovMarginRate,1e-9);
+        boundaryUrgency = 1/(1+timeToBoundary/max(gs.searchScale,1e-9));
+    else
+        boundaryUrgency = 0;
+    end
+    uncertainty = 1-exp(-memory.timeSinceSeen/max(gs.searchScale,1e-9));
+    altitude = min(max(h/c.maxHeight,0),1);
+    context = blankContext();
+    context.AccelerationTrend.PadMotion = acceleration;
+    context.MarginRate.FovMargin = marginRate;
+    context.BoundaryUrgency.FovMargin = boundaryUrgency;
+    context.MemoryUncertainty.SearchDuration = uncertainty;
+    context.AltitudeContext.RelativeDistance = altitude;
+end
+
 if nargout > 1
     sources = struct( ...
         'PositionError','obs.xError (visible) / memory.lastError (occluded)', ...
@@ -112,6 +138,15 @@ if nargout > 1
         'RelativeDistance','obs.xError / memory.lastError, s.h (own state)', ...
         'TouchdownSafety','same estimates as above, s.vz', ...
         'SafeLanding','constant 0 (goal node, never observed)');
+end
+
+function context = blankContext()
+names = {'AccelerationTrend','MarginRate','BoundaryUrgency', ...
+    'MemoryUncertainty','AltitudeContext'};
+context = struct();
+for i = 1:numel(names)
+    context.(names{i}) = struct();
+end
 end
 end
 

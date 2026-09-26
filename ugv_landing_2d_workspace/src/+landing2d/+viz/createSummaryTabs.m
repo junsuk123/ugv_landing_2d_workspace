@@ -32,15 +32,15 @@ for j = 1:nCases
     landing2d.viz.prepareAxes(axDistance);
     axTrajectory = nexttile(layouts(j));
     landing2d.viz.prepareAxes(axTrajectory);
-    drawDistancePanel(axDistance,runs,j,c);
-    drawTrajectoryPanel(axTrajectory,runs,j,c);
+    drawRecoveryTimePanel(axDistance,runs,j,c);
+    drawRelativeTrajectoryPanel(axTrajectory,runs,j,c);
     title(layouts(j),tabTitle(runs,j),'Interpreter','none','Color',[0.12,0.12,0.12]);
 end
 group.SelectedTab = tabs(1);
 end
 
 % ---------------------------------------------------------------- 왼쪽 패널
-function drawDistancePanel(ax,runs,j,c)
+function drawDistancePanel(ax,runs,j,c) %#ok<DEFNU>
 handles = gobjects(0,1);
 labels = {};
 tShow = 0;
@@ -83,7 +83,7 @@ legend(ax,handles,labels,'Location','northeast','AutoUpdate','off', ...
 end
 
 % -------------------------------------------------------------- 오른쪽 패널
-function drawTrajectoryPanel(ax,runs,j,c)
+function drawTrajectoryPanel(ax,runs,j,c) %#ok<DEFNU>
 handles = gobjects(0,1);
 labels = {};
 base = runs(1).results(j);
@@ -192,6 +192,78 @@ end
 if ~isempty(notes)
     text{end+1} = strjoin(notes,'   |   ');
 end
-text{end+1} = ['Left background: time segments.  ' ...
-    'Right background: UGV positions at the speed switches.'];
+text{end+1} = ['Left: signed error with +/- FOV limits.  ' ...
+    'Right: pad-relative recovery path with loss/reacquire/landing events.'];
+end
+
+function drawRecoveryTimePanel(ax,runs,j,c)
+% Signed horizontal error with the altitude-dependent camera boundaries.
+handles = gobjects(0,1);
+labels = {};
+tShow = 0;
+yMax = 0;
+for i = 1:numel(runs)
+    r = runs(i).results(j);
+    last = find(r.time <= landing2d.viz.flightEndTime(r)+1e-10,1,'last');
+    idx = 1:last;
+    handles(end+1,1) = plot(ax,r.time(idx),r.xError(idx), ...
+        runs(i).lineStyle,'Color',runs(i).color,'LineWidth',1.9); %#ok<AGROW>
+    labels{end+1} = runs(i).label; %#ok<AGROW>
+    plot(ax,r.time(idx),r.fovHalfWidth(idx),':','Color',runs(i).color, ...
+        'LineWidth',1.0,'HandleVisibility','off');
+    plot(ax,r.time(idx),-r.fovHalfWidth(idx),':','Color',runs(i).color, ...
+        'LineWidth',1.0,'HandleVisibility','off');
+    tShow = max(tShow,r.time(last));
+    yMax = max(yMax,max([abs(r.xError(idx));r.fovHalfWidth(idx)]));
+    if c.showEventLines
+        [h,name] = markEvents(ax,r,r.time,r.xError);
+        handles = [handles;h]; %#ok<AGROW>
+        labels = [labels,name]; %#ok<AGROW>
+    end
+end
+xlim(ax,[0,max(tShow,c.dt)]);
+ylim(ax,1.08*[-max(yMax,0.5),max(yMax,0.5)]);
+yline(ax,0,'-','Color',[0.55,0.55,0.55],'HandleVisibility','off');
+segments = landing2d.scenario.segmentMetadata(runs(1).results(j),c);
+landing2d.viz.addSegmentBackground(ax,segments,'time',c);
+title(ax,'Signed tracking error and FOV boundaries');
+xlabel(ax,'Time [s]');
+ylabel(ax,'Pad-relative horizontal error [m]');
+[handles,labels] = uniqueEntries(handles,labels);
+legend(ax,handles,labels,'Location','northeast','AutoUpdate','off', ...
+    'Box','off','TextColor',[0.15,0.15,0.15]);
+end
+
+function drawRelativeTrajectoryPanel(ax,runs,j,c)
+% Pad-relative trajectory exposes recovery direction and climb directly.
+handles = gobjects(0,1);
+labels = {};
+allX = [];
+allH = [];
+for i = 1:numel(runs)
+    r = runs(i).results(j);
+    last = find(r.time <= landing2d.viz.flightEndTime(r)+1e-10,1,'last');
+    idx = 1:last;
+    height = r.zDrone(idx)-c.padHeight;
+    handles(end+1,1) = plot(ax,r.xError(idx),height, ...
+        runs(i).lineStyle,'Color',runs(i).color,'LineWidth',2); %#ok<AGROW>
+    labels{end+1} = runs(i).label; %#ok<AGROW>
+    allX = [allX;r.xError(idx)]; %#ok<AGROW>
+    allH = [allH;height]; %#ok<AGROW>
+    if c.showEventLines
+        [h,name] = markEvents(ax,r,r.xError,r.zDrone-c.padHeight);
+        handles = [handles;h]; %#ok<AGROW>
+        labels = [labels,name]; %#ok<AGROW>
+    end
+end
+xSpan = max(max(allX)-min(allX),1);
+xlim(ax,[min(allX)-0.05*xSpan,max(allX)+0.05*xSpan]);
+ylim(ax,[0,max(1.08*max(allH),c.initialHeight)]);
+xline(ax,0,'-','Color',[0.45,0.45,0.45],'HandleVisibility','off');
+title(ax,'Pad-relative recovery trajectory');
+xlabel(ax,'Horizontal error [m]');
+ylabel(ax,'Height above pad [m]');
+[handles,labels] = uniqueEntries(handles,labels);
+legend(ax,handles,labels,'Location','northeast','AutoUpdate','off', ...
+    'Box','off','TextColor',[0.15,0.15,0.15]);
 end

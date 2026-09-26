@@ -11,7 +11,7 @@ function [schema,T] = schemaFor(mode)
 %   'node_pool'     간선을 쓰지 않으므로 색인표는 구조 점검용으로만 돌려줍니다.
 schema = landing2d.ontology.nodeSchema('core');
 switch mode
-    case {'ontology_rgat','node_pool'}
+    case {'ontology_rgat','node_pool','semantic_flat'}
         % 관계 유형 유지.
     case 'gat'
         schema.rel = ones(size(schema.rel));
@@ -23,7 +23,10 @@ switch mode
 end
 % 상태 표현용 노드 특징은 방향 부호 채널이 하나 더 있습니다.
 % landing2d.graphstate.nodeFeatures 참고. 노드와 간선은 그대로입니다.
-schema.inDim = 5+schema.nNodes;
+schema.contextNames = {'AccelerationTrend','MarginRate', ...
+    'BoundaryUrgency','MemoryUncertainty','AltitudeContext'};
+schema.nContext = numel(schema.contextNames);
+schema.inDim = 5+schema.nContext+schema.nNodes;
 if nargout > 1
     T = landing2d.rgat.topology(schema);
 end
