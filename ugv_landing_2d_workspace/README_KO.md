@@ -1,6 +1,6 @@
 # UGV 착륙 2차원 MATLAB 모듈형 프로젝트
 
-> **재현성 주의:** 접근 보상의 거리 변화율이 `d_(t-1)-d_t`가 아니라 `0-d_t`로 계산되던 오류를 수정했습니다. 아래의 과거 수치 결과와 기존 정책 파일은 수정 전 구현에서 생성되었으므로 새 결론의 근거로 재사용하지 않습니다. 정책 설정 지문에 알고리즘 버전을 포함해 자동 재학습되며, 새 결과는 별도 출력 폴더에서 다시 산출해야 합니다.
+> **재현성 주의:** 접근 보상 계산과 종료 전이를 수정했고, 제안 모델의 mean/max readout을 `PolicyNode`/`ValueNode` 직접 읽기로 교체했습니다. 아래의 과거 수치 결과와 기존 정책 파일은 수정 전 구현에서 생성되었으므로 새 결론의 근거로 재사용하지 않습니다. 정책 설정 지문에 알고리즘 버전을 포함해 자동 재학습되며, 새 결과는 별도 출력 폴더에서 다시 산출해야 합니다.
 
 UGV 위 착륙 패드를 추종하는 드론의 **시야 이탈 → 상승 → 재포착 → 착륙** 시뮬레이션입니다.
 세 가지 제어기를 같은 환경에서 비교합니다.
@@ -9,8 +9,8 @@ UGV 위 착륙 패드를 추종하는 드론의 **시야 이탈 → 상승 → �
 1. **PN guidance** — 비례 항법 유도 (기준선)
 2. **PPO 강화학습 (기준 모델)** — 정책 입력은 `landing2d.rl.observation`의 11차원 관측 벡터
 3. **온톨로지 그래프 상태 (제안 모델)** — 2번과 같은 관측 정보로 온톨로지 상황 그래프
-   `G_t = (V_t, E_t, X_t)`를 만들고, R-GAT으로 그래프 전체를 부호화한 뒤(`H_t`),
-   모든 노드를 읽어 그래프 수준 표현 `g_t`를 Actor/Critic에 넣습니다.
+   `G_t = (V_t, E_t, X_t)`를 만들고, R-GAT의 `PolicyNode`와 `ValueNode` 임베딩을
+   각각 Actor와 Critic에 직접 넣습니다.
 
 2번과 3번은 **보상 함수와 계수, 행동 정의와 한계, 환경 동역학, 종료 조건, PPO 구현이
 완전히 같습니다.** `landing2d.graphstate.assertSameProblem`이 학습 전에 실행 중으로
@@ -119,7 +119,7 @@ run_realtime_checkpoint_comparison;              % 저장 정책 3종을 한 탭
 - 실제 노드 마커, R-GAT 2계층 어텐션 흐름 화살표와 출발→도착 어텐션 행렬
 - PN, baseline PPO, ontology graph PPO의 몬테카를로 평균 이동 궤적과 1σ 공분산 타원
 
-3D 표면은 9개 이산 노드 값을 읽기 쉽게 만든 Gaussian 보간 표시입니다. 실제 값은
+3D 표면은 9개 의미 노드와 2개 가상 노드를 읽기 쉽게 만든 Gaussian 보간 표시입니다. 실제 값은
 노드 마커이며, 화살표와 행렬은 Actor R-GAT 두 번째 계층의 어텐션 계수입니다.
 
 저장된 정책을 재사용할 때도 저장된 학습 이력을 곡선으로 복원합니다. 대시보드는
@@ -290,9 +290,9 @@ run_all(struct('scratchBaseline',true));   % 실험 변수 = 상태 표현 하�
 제안 모델
   o_t와 같은 관측 정보
         -> 온톨로지 상황 그래프 G_t = (V_t, E_t, X_t)
-        -> R-GAT으로 그래프 전체를 부호화 -> H_t  (9개 노드 임베딩)
-        -> 그래프 수준 읽기(mean + max)   -> g_t
-        -> Actor pi(a_t | g_t) / Critic V(g_t)
+        -> PolicyNode/ValueNode가 추가된 관계 그래프 (총 11노드)
+        -> R-GAT으로 그래프 전체를 부호화 -> H_t
+        -> Actor pi(a_t | h_Policy) / Critic V(h_Value)
 ```
 
 **온톨로지와 R-GAT은 보상에 전혀 관여하지 않습니다.** 보상 가중치 생성, 가중치 동적 변경,
@@ -300,12 +300,14 @@ run_all(struct('scratchBaseline',true));   % 실험 변수 = 상태 표현 하�
 
 ### 그래프 구성
 
-노드와 간선은 기존 `landing2d.ontology.nodeSchema('core')` 그대로이며,
-새 온톨로지 클래스나 관계를 만들지 않았습니다.
+9개 의미 노드와 기존 의미 간선은 `landing2d.ontology.nodeSchema('core')`에서 옵니다.
+정책 입력 그래프에는 센서값을 갖지 않는 두 가상 의사결정 노드를 추가합니다.
 
 - 노드 9개: PositionError, DescentSpeed, RelativeMotionRisk, FovMargin, SearchDuration,
   PadVisibility, RelativeDistance, TouchdownSafety, SafeLanding
-- 관계 4종: `degrades`, `supports`, `contributes`, `self` (간선 22개)
+- 가상 노드 2개: `PolicyNode`, `ValueNode` (값·방향·문맥은 항상 0)
+- 모든 의미 노드에서 두 가상 노드로 `contributes` 간선 연결
+- 관계 4종: `degrades`, `supports`, `contributes`, `self`
 - 관계 유형은 합치지 않습니다. `gat` 제거 실험에서만 하나로 합칩니다.
 
 노드 특징 행렬 `X_t`:
@@ -319,14 +321,21 @@ run_all(struct('scratchBaseline',true));   % 실험 변수 = 상태 표현 하�
 6.... : 노드 정체성 one-hot
 ```
 
-읽기는 **모든 노드**를 씁니다. 특정 노드(목표 노드 등)를 골라 쓰지 않습니다.
+trajectory의 `state`에는 MATLAB 미니배치를 위해 `X_t(:)` 형태로 직렬화해
+저장하지만, 이를 MLP에 직접 넣지 않습니다. R-GAT 입구가 즉시
+`feature × node × batch`로 복원하고 고정된 `src/dst/rel` 토폴로지를 적용합니다.
+
+Actor와 Critic은 각각 가상 노드 하나를 직접 읽습니다. 두 가상 노드는 message
+passing으로 모든 의미 노드의 정보를 집계합니다.
 
 ```text
-g_t = tanh(W_g [mean(H_t, 노드축) ; max(H_t, 노드축)] + b_g)
+h_policy = H_t(:, PolicyNode)
+h_value  = H_t(:, ValueNode)
 ```
 
-Actor와 Critic은 각자 부호기를 하나씩 갖고, 기울기는 PPO 목적함수에서 R-GAT까지
-끊김 없이 이어집니다. 미리 계산해 얼리지 않습니다.
+전역 `mean/max`와 투영 `W_g`는 제안 경로에서 사용하지 않습니다. Actor와 Critic은
+각자 부호기를 하나씩 갖고, 기울기는 선택된 가상 노드에서 R-GAT까지 끊김 없이
+이어집니다. 미리 계산해 얼리지 않습니다.
 
 ### 정보경계
 
@@ -344,7 +353,7 @@ Actor와 Critic은 각자 부호기를 하나씩 갖고, 기울기는 PPO 목적
 | `baseline` | 기준 관측 벡터 (부호기가 항등이라 수치가 리팩터링 이전과 같음) |
 | `node_pool` | 노드 특징 + 읽기, 메시지 전달 없음 (간선 미사용) |
 | `gat` | 그래프 구조만 사용, 관계 유형을 하나로 합침 |
-| `ontology_rgat` | 관계 유형을 유지한 R-GAT + 그래프 수준 읽기 (제안 모델) |
+| `ontology_rgat` | 관계 유형을 유지한 R-GAT + Policy/Value 가상 노드 직접 읽기 (제안 모델) |
 
 ### 구현 중 찾아 고친 네 가지
 
@@ -488,8 +497,8 @@ options.playbackSpeed = 4;
 | 항목 | 기본값 | 역할 |
 |---|---|---|
 | `stateRepresentation` | `'baseline'` | `baseline` / `node_pool` / `gat` / `ontology_rgat` |
-| `hiddenDim`, `graphDim` | 32, 32 | R-GAT 노드 임베딩 폭 `d`, 그래프 표현 차원 `d_g` |
-| `readout` | `'meanmax'` | `meanmax` 또는 `mean` |
+| `hiddenDim`, `graphDim` | 32, 32 | R-GAT 노드 임베딩 폭 `d`, pooling 제거 실험의 출력 폭 |
+| `readout` | `'decision_nodes'` | 기본 가상 노드 읽기; `meanmax`/`mean`은 제거 실험 |
 | `encoderLearnRate` | 3e-4 | 부호기 Adam 학습률 |
 | `positionScale`, `distanceScale` | 1.0, 3.0 | 채널 값이 0.5가 되는 지점 [m] |
 | `useScratchSettings` | true | 제안 모델을 교사 없이 학습 |

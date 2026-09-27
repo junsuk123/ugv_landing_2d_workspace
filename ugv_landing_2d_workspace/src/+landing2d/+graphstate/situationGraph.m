@@ -5,8 +5,8 @@ function [S,detail] = situationGraph(s,obs,memory,c)
 % PPO 쪽 자료 구조가 기준 모델과 같은 [stateDim x batch] 행렬이 되도록 펴 두고,
 % 부호기 안에서 다시 [inDim x nNodes x batch]로 되돌립니다.
 %
-%   V_t : landing2d.ontology.nodeSchema의 9개 고정 노드
-%   E_t : 같은 스키마의 관계형 간선 (i, r, j)
+%   V_t : 9개 온톨로지 의미 노드 + PolicyNode/ValueNode (R-GAT 모드)
+%   E_t : 온톨로지 간선 + 의미 노드에서 가상 의사결정 노드로 가는 간선
 %   X_t : landing2d.graphstate.nodeFeatures가 만드는 노드 특징 행렬
 %         [값; 1-값; 위험 노드 표시; 편향; 방향 부호; 노드 정체성 one-hot]
 %
@@ -15,7 +15,12 @@ function [S,detail] = situationGraph(s,obs,memory,c)
 mode = c.graphState.stateRepresentation;
 schema = landing2d.graphstate.schemaFor(mode);
 [sem,~,signed,context] = landing2d.graphstate.observationSemantics(s,obs,memory,c);
-values = landing2d.ontology.nodeValues(sem,schema);
+extra = struct();
+if isfield(schema,'policyNode')
+    extra.PolicyNode = 0;
+    extra.ValueNode = 0;
+end
+values = landing2d.ontology.nodeValues(sem,schema,extra);
 X = landing2d.graphstate.nodeFeatures(values,signed,schema,context);
 S = X(:);
 if nargout > 1

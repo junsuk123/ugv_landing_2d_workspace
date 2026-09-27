@@ -9,7 +9,8 @@ function agent = agentInit(rl,rs,gs)
 % 두 망은 이미 학습률과 Adam 상태가 분리되어 있어, 부호기를 각 구조체 안에 두면
 % 기존 최적화기 구성을 그대로 재사용할 수 있습니다. 공유 부호기로 만들면 서로 다른
 % 학습률의 기울기를 한 파라미터에 합쳐야 해서 변경 폭이 더 커집니다.
-% 두 부호기는 같은 그래프 G_t를 받고 같은 구조를 쓰므로 표현의 의미는 같습니다.
+% 두 부호기는 같은 그래프 G_t와 구조를 쓰되, 정책 부호기는 PolicyNode를,
+% 가치 부호기는 ValueNode를 읽습니다.
 if nargin < 3 || isempty(gs)
     gs = landing2d.graphstate.defaultGraphStateConfig();
 end

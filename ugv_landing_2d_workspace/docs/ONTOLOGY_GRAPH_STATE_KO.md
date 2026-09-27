@@ -16,9 +16,9 @@
 제안 모델
   o_t와 같은 관측 정보
         -> 온톨로지 상황 그래프 G_t = (V_t, E_t, X_t)
-        -> R-GAT  -> H_t (9개 노드 전체의 임베딩)
-        -> 그래프 수준 읽기 -> g_t
-        -> Actor / Critic
+        -> 9개 의미 노드 + PolicyNode/ValueNode
+        -> R-GAT -> H_t (11개 노드 임베딩)
+        -> Actor(H_t(:,PolicyNode)) / Critic(H_t(:,ValueNode))
 ```
 
 다음은 두 모델이 **완전히 같습니다**. `landing2d.graphstate.assertSameProblem`이
@@ -84,20 +84,23 @@ run_all(struct('scratchBaseline',true));   % 실험 변수 = 상태 표현 하�
 | `+graphstate/nodeFeatures.m` | 노드 특징 행렬 X_t 구성 |
 | `+graphstate/situationGraph.m` | G_t = (V_t, E_t, X_t) 생성 |
 | `+graphstate/schemaFor.m` | 표현 방식별 스키마와 간선 색인표 |
-| `+graphstate/encoderInit/Forward/Backward.m` | R-GAT 부호기 + 그래프 수준 읽기 |
+| `+graphstate/encoderInit/Forward/Backward.m` | R-GAT 부호기 + Policy/Value 가상 노드 읽기 |
 | `+graphstate/applyStateRepresentation.m` | 상태 표현만 바꾸는 설정 헬퍼 |
 | `+graphstate/assertSameProblem.m` | 보상/행동/환경/PPO 동일성 실행 중 검사 |
-| `+graphstate/inspectPipeline.m` | o_t → G_t → H_t → g_t → a_t 디버깅 출력 |
+| `+graphstate/inspectPipeline.m` | o_t → G_t → H_t → h_policy/h_value → a_t 디버깅 출력 |
 
 ### 노드와 간선
 
-노드 집합 V_t와 간선 집합 E_t는 기존 `landing2d.ontology.nodeSchema('core')`
-그대로입니다. 새 온톨로지 클래스나 관계를 만들지 않았습니다.
+9개 의미 노드와 그 사이의 간선은 기존
+`landing2d.ontology.nodeSchema('core')`에서 옵니다. 정책 그래프 어댑터가 센서값을
+갖지 않는 `PolicyNode`와 `ValueNode`를 추가합니다.
 
 - 노드 9개: PositionError, DescentSpeed, RelativeMotionRisk, FovMargin, SearchDuration,
   PadVisibility, RelativeDistance, TouchdownSafety, SafeLanding
+- 가상 의사결정 노드 2개: PolicyNode, ValueNode
 - 관계 4종: `degrades`, `supports`, `contributes`, `self`
-- 간선 22개, 관계 유형을 유지한 채 `(i, r, j)`로 표현
+- 9개 의미 노드 각각에서 두 가상 노드로 `contributes` 간선을 추가
+- 관계 유형을 유지한 채 `(i, r, j)`로 표현
 
 관계 유형은 합치지 않습니다. `gat` 제거 실험에서만 하나로 합칩니다.
 
@@ -119,19 +122,25 @@ run_all(struct('scratchBaseline',true));   % 실험 변수 = 상태 표현 하�
 보상 설계 경로가 쓰는 `landing2d.ontology.buildGraph`(5행 없음)는 그대로 두고,
 상태 표현 전용으로 `landing2d.graphstate.nodeFeatures`를 따로 두었습니다.
 
-### R-GAT과 읽기
+rollout 자료 구조는 미니배치 연결을 위해 `X_t(:)`를 한 열로 저장합니다. 이것은
+저장 레이아웃일 뿐이며 flatten-MLP가 아닙니다. `encoderForward`가 먼저
+`feature × node × batch`로 복원하고 `encoderSpec.T`의 고정 `src/dst/rel`로
+R-GAT message passing을 수행합니다.
+
+### R-GAT과 가상 노드 읽기
 
 관계형 주의 계층 두 개(`landing2d.rgat.relationForward`, 잔차 연결)로 그래프
-**전체**를 부호화해 `H_t ∈ R^(d × N)`를 얻고, 모든 노드를 읽어 `g_t`를 만듭니다.
+**전체**를 부호화해 `H_t ∈ R^(d × 11)`를 얻습니다. Actor와 Critic은 전역
+pooling 대신 각자의 가상 노드 임베딩을 직접 읽습니다.
 
 ```
-h_mean = mean(H_t, 노드축)
-h_max  = max(H_t, 노드축)
-g_t    = tanh(W_g [h_mean ; h_max] + b_g)
+h_policy = H_t(:, PolicyNode)
+h_value  = H_t(:, ValueNode)
 ```
 
-특정 노드(목표 노드 등)를 골라 쓰지 않습니다. 이 점이 보상 설계에 쓰는
-`landing2d.rgat.potentialForward`(목표 노드에서만 읽음)와 다릅니다.
+두 가상 노드의 값·방향·동적 문맥은 항상 0입니다. 따라서 센서나 결과 레이블을
+추가하지 않고, 모든 의미 노드에서 들어온 관계형 메시지만 서로 다른 query로
+집계합니다. 제안 경로에는 `mean/max` 투영 파라미터 `W_g`가 없습니다.
 노드 수가 스키마에 고정되어 있어 덧붙임(padding)과 가림(mask)이 필요 없습니다.
 
 ### Actor / Critic과 기울기
@@ -140,7 +149,8 @@ Actor와 Critic은 **각자 부호기를 하나씩** 가집니다
 (`agent.policy.encoder`, `agent.value.encoder`). 두 망은 이미 학습률과 Adam 상태가
 분리되어 있어, 부호기를 각 구조체 안에 두면 기존 최적화기 구성을 그대로 쓸 수
 있습니다. 공유 부호기로 만들면 서로 다른 학습률의 기울기를 한 파라미터에 합쳐야
-해서 변경 폭이 더 커집니다. 두 부호기는 같은 G_t를 받고 같은 구조를 씁니다.
+해서 변경 폭이 더 커집니다. 두 부호기는 같은 G_t를 받고 같은 구조를 쓰지만,
+정책 부호기는 PolicyNode를, 가치 부호기는 ValueNode를 읽습니다.
 
 기울기는 PPO 목적함수에서 부호기까지 이어집니다. 미리 계산해 얼리거나 중간에
 끊지 않습니다. `landing2d.rl.mlpBackward`가 입력 기울기를 함께 돌려주고,
@@ -234,11 +244,12 @@ FovMargin     = |오차| / (|오차| + 시야반폭)
 방향 부호 채널을 한 줄 추가했습니다. 노드 집합, 간선, 관계 유형은 바뀌지
 않으며, 보상 설계 경로가 쓰는 `buildGraph`도 그대로입니다.
 
-### 4.3 읽기 단계의 병목 (부호기 용량)
+### 4.3 이전 mean/max 읽기 단계의 병목 (과거 실험)
 
 두 수정을 적용한 뒤에도 교사 모방 손실이 0.0949로, 같은 노드 값과 부호에 일반
 MLP를 붙였을 때(0.0378)보다 나빴습니다. 노드 9개를 `g_t` 한 벡터로 모으는
-읽기 단계가 병목이었습니다.
+읽기 단계가 병목이었습니다. 아래 표는 가상 노드 구조로 교체하기 전 측정이며,
+현재 기본 경로의 성능 수치가 아닙니다.
 
 | hiddenDim / graphDim | 읽기 | 교사 모방 손실 |
 | --- | --- | --- |
@@ -247,7 +258,8 @@ MLP를 붙였을 때(0.0378)보다 나빴습니다. 노드 9개를 `g_t` 한 벡
 | 48 / 48 | mean+max | 0.0674 |
 | 32 / 32 | mean | 0.0821 |
 
-평균만 쓰는 읽기는 노드별 차이가 씻겨 나가므로 mean+max를 기본으로 합니다.
+이 결과가 전역 pooling을 제거하고 PolicyNode/ValueNode 직접 읽기로 바꾼 근거입니다.
+`meanmax`와 `mean`은 현재 제거 실험 옵션으로만 남아 있습니다.
 
 **폭은 모방 손실이 아니라 실제 착륙률로 정했습니다.** 처음 단일 시드로 돌렸을
 때는 폭 32가 오히려 나빠 보였지만(3/3 → 0/3), 시드를 바꿔 보니 그 시드가 운이
@@ -394,7 +406,7 @@ patience 15로 두면 1475반복 근처에서 멈춰 마지막 최고점을 통�
 | `baseline` | 기준 관측 벡터. 부호기가 항등이라 수치가 기존과 같습니다 |
 | `node_pool` | 노드 특징 + 읽기. 메시지 전달 없음 (간선 미사용) |
 | `gat` | 그래프 구조는 쓰되 관계 유형을 하나로 합침 |
-| `ontology_rgat` | 관계 유형을 유지한 R-GAT + 그래프 수준 읽기 (제안 모델) |
+| `ontology_rgat` | 관계 유형을 유지한 R-GAT + Policy/Value 가상 노드 읽기 (제안 모델) |
 
 ```matlab
 cfg = landing2d.graphstate.applyStateRepresentation(cfg,'ontology_rgat');
@@ -459,5 +471,5 @@ end
 landing2d.graphstate.inspectPipeline(agent,s,obs,memory,cfg);
 ```
 
-o_t, 노드별 값과 출처, 관계 유형, H_t의 노드별 노름, g_t, a_t를 한 번에
+o_t, 노드별 값과 출처, 관계 유형, H_t의 노드별 노름, h_policy/h_value, a_t를 한 번에
 보여 줍니다. H_t의 개별 성분에는 의미를 붙이지 않습니다.

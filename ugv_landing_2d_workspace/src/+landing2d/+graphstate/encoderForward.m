@@ -1,12 +1,15 @@
-function [g,cache] = encoderForward(params,spec,S)
-% ENCODERFORWARD  상태 표현 g_t = READOUT(R-GAT(G_t)).
+function [g,cache] = encoderForward(params,spec,S,head)
+% ENCODERFORWARD  상태 표현을 R-GAT Actor/Critic 입력으로 변환.
 %
 %   S : [stateDim x B]   펴 놓은 노드 특징 행렬 X_t (baseline이면 관측 벡터)
 %   g : [graphDim x B]   그래프 수준 표현 g_t
 %
 % 중간 결과 H_t는 [hiddenDim x nNodes x B]이며 모든 노드가 읽기에 들어갑니다.
-% 특정 노드(예: 목표 노드)를 골라 쓰지 않습니다. 그 점이 보상 설계에 쓰는
-% landing2d.rgat.potentialForward와 다릅니다.
+% decision_nodes readout에서는 Actor가 PolicyNode, Critic이 ValueNode의
+% 임베딩을 직접 읽습니다. mean/meanmax는 제거 실험용 전역 pooling입니다.
+if nargin < 4 || isempty(head)
+    head = 'policy';
+end
 if ismember(spec.mode,{'baseline','semantic_flat'})
     g = S;
     cache = struct('mode',spec.mode);
@@ -38,9 +41,23 @@ switch spec.mode
 end
 cache.H = H;
 
-% ---- 그래프 수준 읽기. 모든 노드에 대해 평균/최댓값을 취합니다.
+% ---- 의사결정 노드 직접 읽기 또는 제거 실험용 전역 pooling.
 hMean = reshape(mean(H,2),dh,B);
 switch spec.readout
+    case 'decision_nodes'
+        switch head
+            case 'policy'
+                node = spec.policyNode;
+            case 'value'
+                node = spec.valueNode;
+            otherwise
+                error('landing2d:DecisionHead', ...
+                    'Decision head must be policy or value, not %s.',head);
+        end
+        g = reshape(H(:,node,:),dh,B);
+        cache.readoutNode = node;
+        cache.head = head;
+        cache.g = g;
     case 'meanmax'
         [maxValue,argMax] = max(H,[],2);
         hMax = reshape(maxValue,dh,B);

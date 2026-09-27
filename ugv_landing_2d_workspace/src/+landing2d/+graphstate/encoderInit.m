@@ -25,6 +25,12 @@ end
 dh = gs.hiddenDim;
 spec.schema = schema;
 spec.T = T;
+spec.policyNode = [];
+spec.valueNode = [];
+if isfield(schema,'policyNode')
+    spec.policyNode = schema.policyNode;
+    spec.valueNode = schema.valueNode;
+end
 spec.inDim = schema.inDim;
 spec.nNodes = schema.nNodes;
 spec.hiddenDim = dh;
@@ -58,6 +64,14 @@ switch mode
             'encoderInit does not handle stateRepresentation %s.',mode);
 end
 switch gs.readout
+    case 'decision_nodes'
+        assert(ismember(mode,{'gat','ontology_rgat'}) ...
+            && ~isempty(spec.policyNode) && ~isempty(spec.valueNode), ...
+            'landing2d:DecisionNodeReadout', ...
+            'decision_nodes readout requires gat or ontology_rgat.');
+        % H(:,PolicyNode) / H(:,ValueNode)를 그대로 반환하므로 별도 pooling
+        % 파라미터가 없고 출력 폭은 노드 임베딩 폭과 같습니다.
+        spec.graphDim = dh;
     case 'meanmax'
         % g_t = tanh(Wg*[mean(H_t,2); max(H_t,2)]+bg)
         params.Wg = scale*randn(rs,gs.graphDim,2*dh);

@@ -1,7 +1,7 @@
 function report = inspectPipeline(agent,s,obs,memory,c,verbose)
 % INSPECTPIPELINE  상태 표현 경로를 한 시점에 대해 펼쳐 보는 디버깅 도구.
 %
-%   o_t  ->  G_t = (V_t, E_t, X_t)  ->  H_t  ->  g_t  ->  a_t
+%   o_t -> G_t=(V_t,E_t,X_t) -> H_t -> h_Policy / h_Value -> a_t,V(G_t)
 %
 % 노드 이름과 관계 유형, 현재 노드 값과 그 값이 어느 관측에서 왔는지까지 함께
 % 출력합니다. 정보경계 점검(요구사항 20번 Test 4)과 그래프 구조 점검(Test 5)에
@@ -33,6 +33,8 @@ else
     for i = 1:schema.nNodes
         if isfield(sources,nodeNames{i})
             source{i} = sources.(nodeNames{i});
+        elseif isfield(schema,'decisionNodes') && ismember(i,schema.decisionNodes)
+            source{i} = 'fixed virtual query (no sensor value)';
         else
             source{i} = '(not an observation channel)';
         end
@@ -45,9 +47,14 @@ else
 end
 report.state = state;
 
-% 부호기를 지나며 H_t와 g_t를 함께 꺼냅니다.
-[g,cache] = landing2d.graphstate.encoderForward(agent.policy.encoder,spec,state);
-report.g = g;
+% 부호기를 지나며 H_t와 두 의사결정 표현을 함께 꺼냅니다.
+[policyEmbedding,cache] = landing2d.graphstate.encoderForward( ...
+    agent.policy.encoder,spec,state,'policy');
+valueEmbedding = landing2d.graphstate.encoderForward( ...
+    agent.value.encoder,spec,state,'value');
+report.g = policyEmbedding; % 이전 디버깅 호출과의 호환 별칭
+report.policyEmbedding = policyEmbedding;
+report.valueEmbedding = valueEmbedding;
 if isfield(cache,'H')
     report.H = cache.H;
 else
@@ -79,7 +86,15 @@ else
     fprintf('       노드별 노름: %s\n', ...
         mat2str(sqrt(sum(report.H(:,:,1).^2,1)),3));
 end
-fprintf('g_t  : %d차원 그래프 수준 표현, 노름 %.4f\n',numel(g),norm(g));
+if strcmp(spec.readout,'decision_nodes')
+    fprintf('h_pi : PolicyNode %d차원 임베딩, 노름 %.4f\n', ...
+        numel(policyEmbedding),norm(policyEmbedding));
+    fprintf('h_V  : ValueNode  %d차원 임베딩, 노름 %.4f\n', ...
+        numel(valueEmbedding),norm(valueEmbedding));
+else
+    fprintf('g_t  : %d차원 그래프 수준 표현, 노름 %.4f\n', ...
+        numel(policyEmbedding),norm(policyEmbedding));
+end
 fprintf('a_t  : ax %.4f m/s^2, az %.4f m/s^2  (제한 전 명령 %s)\n', ...
     ax,az,mat2str(u(:)',4));
 fprintf('V    : %.4f\n',report.value);

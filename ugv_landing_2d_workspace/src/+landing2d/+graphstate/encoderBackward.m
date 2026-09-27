@@ -1,7 +1,7 @@
 function [grads,dS] = encoderBackward(params,spec,cache,dG)
 % ENCODERBACKWARD  encoderForward의 역전파. PPO 손실의 기울기를 부호기까지 보냅니다.
 %
-%   dG : [graphDim x B]  g_t에 대한 손실 기울기
+%   dG : [graphDim x B]  선택한 의사결정 표현에 대한 손실 기울기
 %
 % 정확성은 tests/test_graph_state_encoder.m에서 중앙 차분과 비교해 확인합니다.
 if ismember(spec.mode,{'baseline','semantic_flat'})
@@ -14,8 +14,11 @@ N = cache.N;
 dh = cache.dh;
 grads = struct();
 
-% ---- 읽기 역전파. 평균은 모든 노드에 고르게, 최댓값은 argmax 노드에만.
+% ---- 읽기 역전파. 가상 노드는 선택된 의사결정 노드에서만 시작합니다.
 switch spec.readout
+    case 'decision_nodes'
+        dH = zeros(dh,N,B);
+        dH(:,cache.readoutNode,:) = reshape(dG,dh,1,B);
     case 'meanmax'
         preOutput = dG.*(1-cache.g.^2);
         grads.Wg = preOutput*cache.readout';
@@ -27,12 +30,14 @@ switch spec.readout
         dMean = dG;
         dMax = [];
 end
-dH = repmat(reshape(dMean/N,dh,1,B),1,N,1);
-if ~isempty(dMax)
-    rowIndex = repmat((1:dh)',1,B);
-    batchIndex = repmat(1:B,dh,1);
-    linear = sub2ind([dh,N,B],rowIndex,cache.argMax,batchIndex);
-    dH(linear) = dH(linear)+dMax;
+if ~strcmp(spec.readout,'decision_nodes')
+    dH = repmat(reshape(dMean/N,dh,1,B),1,N,1);
+    if ~isempty(dMax)
+        rowIndex = repmat((1:dh)',1,B);
+        batchIndex = repmat(1:B,dh,1);
+        linear = sub2ind([dh,N,B],rowIndex,cache.argMax,batchIndex);
+        dH(linear) = dH(linear)+dMax;
+    end
 end
 
 % ---- 부호기 본체 역전파.

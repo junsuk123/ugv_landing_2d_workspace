@@ -145,11 +145,11 @@ end
 
 % ------------------------------------------------------------ 정책 갱신 한 단계
 % PPO 목적함수는 그대로입니다. 달라진 것은 망이 받는 것이 관측 벡터가 아니라
-% 그래프 수준 표현 g_t라는 점, 그리고 기울기가 부호기까지 이어진다는 점뿐입니다.
+% PolicyNode 임베딩이라는 점, 그리고 기울기가 부호기까지 이어진다는 점뿐입니다.
 function [agent,state,encoderState] = policyStep(agent,state,encoderState, ...
     X,U,oldLogProbability,A,rl,gs)
 [g,encoderCache] = landing2d.graphstate.encoderForward(agent.policy.encoder, ...
-    agent.encoderSpec,X);
+    agent.encoderSpec,X,'policy');
 [mu,cache] = landing2d.rl.mlpForward(agent.policy.mean,g);
 sigma = exp(agent.policy.logStd);
 z = (U-mu)./sigma;
@@ -175,7 +175,7 @@ end
 % ------------------------------------------------------------ 가치망 갱신 한 단계
 function [agent,state,encoderState] = valueStep(agent,state,encoderState,X,R,rl,gs)
 [g,encoderCache] = landing2d.graphstate.encoderForward(agent.value.encoder, ...
-    agent.encoderSpec,X);
+    agent.encoderSpec,X,'value');
 [prediction,cache] = landing2d.rl.mlpForward(agent.value.net,g);
 [grads,dG] = landing2d.rl.mlpBackward(agent.value.net,cache, ...
     2*(prediction-R)/numel(R));

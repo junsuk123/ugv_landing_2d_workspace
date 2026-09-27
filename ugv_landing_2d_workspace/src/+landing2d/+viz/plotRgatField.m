@@ -147,6 +147,8 @@ for i = 1:schema.nNodes
         case 'RelativeDistance',    x(i) = -1.4; y(i) = 0.0;
         case 'TouchdownSafety',     x(i) =  0.0; y(i) = -1.0;
         case 'SafeLanding',         x(i) =  0.0; y(i) = -2.0;
+        case 'PolicyNode',          x(i) = -0.8; y(i) = -3.0;
+        case 'ValueNode',           x(i) =  0.8; y(i) = -3.0;
     end
 end
 end
@@ -162,6 +164,8 @@ switch name
     case 'RelativeDistance',   text = 'Distance';
     case 'TouchdownSafety',    text = 'Safety';
     case 'SafeLanding',        text = 'Landing';
+    case 'PolicyNode',         text = 'Policy';
+    case 'ValueNode',          text = 'Value';
     otherwise, text = regexprep(name,'([a-z])([A-Z])','$1 $2');
 end
 end

@@ -24,6 +24,12 @@ for i = 1:numel(keys)
     end
     cfg.graphState.(keys{i}) = options.(keys{i});
 end
+% node_pool에는 message passing이 없으므로 빈 가상 노드가 다른 노드의 정보를
+% 모을 수 없습니다. readout 제거 실험을 명시하지 않은 경우 기존 meanmax를 씁니다.
+if strcmp(mode,'node_pool') && strcmp(cfg.graphState.readout,'decision_nodes') ...
+        && ~isfield(options,'readout')
+    cfg.graphState.readout = 'meanmax';
+end
 landing2d.graphstate.validateGraphStateConfig(cfg.graphState);
 if strcmp(mode,'baseline')
     return;

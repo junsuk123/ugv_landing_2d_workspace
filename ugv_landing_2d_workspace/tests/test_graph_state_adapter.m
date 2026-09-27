@@ -93,7 +93,16 @@ assert(nargin('landing2d.ontology.semanticState') == 5, ...
 for mode = {'ontology_rgat','gat','node_pool','semantic_flat'}
     name = mode{1};
     [modeSchema,T] = landing2d.graphstate.schemaFor(name);
-    assert(modeSchema.nNodes == 9,'The situation graph keeps the 9 ontology nodes.');
+    if ismember(name,{'ontology_rgat','gat'})
+        assert(modeSchema.nNodes == 11, ...
+            'R-GAT graphs need 9 ontology nodes plus PolicyNode/ValueNode.');
+        assert(isequal(modeSchema.ontologyNodes,1:9));
+        assert(strcmp(modeSchema.nodeNames{modeSchema.policyNode},'PolicyNode'));
+        assert(strcmp(modeSchema.nodeNames{modeSchema.valueNode},'ValueNode'));
+    else
+        assert(modeSchema.nNodes == 9, ...
+            'Flat/node-pool ablations keep the 9 ontology nodes.');
+    end
     assert(numel(modeSchema.src) == numel(modeSchema.dst) ...
         && numel(modeSchema.src) == numel(modeSchema.rel));
     assert(all(modeSchema.src >= 1 & modeSchema.src <= modeSchema.nNodes));
@@ -124,6 +133,11 @@ assert(collapsed.nRelations == 1, ...
     'The gat ablation collapses every relation into one adjacency.');
 assert(isequal(typed.src,collapsed.src) && isequal(typed.dst,collapsed.dst), ...
     'Collapsing relation types must not change the graph structure.');
+for destination = typed.decisionNodes
+    incoming = typed.src(typed.dst == destination);
+    assert(all(ismember(typed.ontologyNodes,incoming)), ...
+        'Every ontology node must send a message to each decision node.');
+end
 
 %% 대표 상태 몇 개에서 노드 값과 특징 행렬 점검.
 cases = representativeCases(c);
@@ -137,6 +151,8 @@ for k = 1:numel(cases)
         'Every ontology node value must stay inside [0,1].');
     assert(values(info.schema.goalNode) == 0, ...
         'The goal node must stay 0 so no future label leaks in.');
+    assert(all(values(info.schema.decisionNodes) == 0), ...
+        'Virtual decision nodes must not carry sensor values or labels.');
     X = info.X;
     assert(isequal(size(X),[info.schema.inDim,info.schema.nNodes]));
     assert(all(isfinite(X(:))));

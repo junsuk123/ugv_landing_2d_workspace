@@ -99,11 +99,10 @@ switch lower(source)
         meta.sourceFile = 'src/+landing2d/+ontology/nodeSchema.m (variant=core)';
         meta.viewKind = '온톨로지 의미 그래프';
         meta.scope = '노드 정의, 관계형 간선, 관계 유형, 보상항 대응 선언';
-        meta.mapping = {sprintf(['강화학습 입력 그래프는 이 스키마를 그대로 읽습니다. ' ...
-            'landing2d.graphstate.schemaFor가 nodeSchema(core)를 호출하며 ' ...
-            '노드와 간선을 바꾸지 않습니다(gat 표현만 관계 유형을 하나로 합침). ' ...
-            '노드 특징 행렬만 방향 부호 채널 하나가 더 붙어 inDim이 %d에서 %d가 됩니다.'], ...
-            4+schema.nNodes,5+schema.nNodes)};
+        meta.mapping = {sprintf(['강화학습 입력 그래프는 이 9개 의미 노드와 관계를 읽고, ' ...
+            'schemaFor가 PolicyNode/ValueNode를 덧붙입니다. 가상 노드는 센서값이 ' ...
+            '없고 모든 의미 노드의 메시지를 모읍니다. 의미 노드 특징에는 방향 및 ' ...
+            '시간 문맥 채널도 추가됩니다(core inDim %d).'],4+schema.nNodes)};
     case 'ontology_design'
         schema = landing2d.ontology.nodeSchema('design');
         meta.sourceKey = 'ontology_design';
@@ -128,9 +127,14 @@ switch lower(source)
             'src/+landing2d/+graphstate/schemaFor.m (mode=%s)',mode);
         meta.viewKind = '강화학습 입력 그래프 G_t';
         meta.scope = '노드 정의, 관계형 간선, 관계 유형, 노드 특징 구성';
-        meta.mapping = {['이 그래프의 노드 집합과 간선 집합은 ' ...
-            'landing2d.ontology.nodeSchema(core)에서 그대로 옵니다 ' ...
-            '(landing2d.graphstate.schemaFor). 새 노드나 새 관계를 만들지 않습니다.']};
+        if isfield(schema,'decisionNodes')
+            meta.mapping = {['9개 의미 노드와 그 관계는 nodeSchema(core)에서 오며, ' ...
+                'PolicyNode/ValueNode는 graphstate.schemaFor가 추가합니다. 두 가상 ' ...
+                '노드는 센서값 없이 의미 노드의 contributes 메시지만 집계합니다.']};
+        else
+            meta.mapping = {['이 제거 실험은 nodeSchema(core)의 9개 의미 노드와 ' ...
+                '간선을 사용합니다.']};
+        end
         if strcmpi(mode,'gat')
             meta.warnings{end+1} = ['제거 실험 표현입니다. 원본 관계 유형 4종이 ' ...
                 'adjacent 하나로 합쳐져 있습니다(schemaFor.m). ' ...
@@ -232,10 +236,12 @@ function role = elementRole(schema,i)
 % 원본 스키마가 명시한 필드만 근거로 삼습니다. 이름의 단어로 추측하지 않습니다.
 if isfield(schema,'goalNode') && ~isempty(schema.goalNode) && i == schema.goalNode
     role = '목표 노드 (schema.goalNode)';
+elseif isfield(schema,'policyNode') && ~isempty(schema.policyNode) && i == schema.policyNode
+    role = 'Actor 가상 노드 (schema.policyNode)';
 elseif isfield(schema,'weightNodes') && ismember(i,schema.weightNodes)
     role = '보상 가중치 노드 (schema.weightNodes)';
 elseif isfield(schema,'valueNode') && ~isempty(schema.valueNode) && i == schema.valueNode
-    role = '정책 가치 노드 (schema.valueNode)';
+    role = 'Critic/가치 노드 (schema.valueNode)';
 elseif isfield(schema,'riskNodes') && ismember(i,schema.riskNodes)
     role = '위험 노드 (schema.riskNodes)';
 elseif isfield(schema,'riskNodes')

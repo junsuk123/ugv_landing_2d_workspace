@@ -14,27 +14,27 @@ function gs = defaultGraphStateConfig()
 %   'gat'           제거 실험 C. 그래프 구조는 쓰되 관계 유형을 하나로 합칩니다.
 %                   자기 간선까지 같은 인접 행렬에 넣는 표준 GAT 구성입니다.
 %   'ontology_rgat' 제안 모델. 관계 유형을 유지한 R-GAT으로 그래프 전체를 부호화하고,
-%                   모든 노드를 읽어 그래프 수준 표현 g_t를 만듭니다.
+%                   PolicyNode/ValueNode 임베딩을 Actor/Critic이 직접 읽습니다.
 %
 % 네 설정 모두 같은 PPO 구현(landing2d.rl.ppoTrain)을 공유합니다.
 gs.stateRepresentation = 'baseline';
 
 %% 그래프 부호기 (stateRepresentation이 'baseline'이 아닐 때만 사용)
-% 노드 9개를 g_t 한 벡터로 모으므로 읽기 단계가 병목이 되기 쉽습니다.
-% 교사 모방 손실로 측정한 결과 16 -> 32에서 0.0949 -> 0.0667로 줄었고,
-% 48로 더 키워도 0.0674로 나아지지 않았습니다. 그래서 32를 기본값으로 둡니다.
+% 9개 의미 노드에 PolicyNode/ValueNode를 붙이고 두 층의 message passing으로
+% 정보를 모읍니다. hiddenDim은 각 노드와 두 의사결정 노드의 임베딩 폭입니다.
 gs.hiddenDim = 32;           % R-GAT 노드 임베딩 폭 d. H_t는 [d x N]
 gs.relationDim = 6;          % 관계 임베딩 폭
-gs.graphDim = 32;            % 그래프 수준 표현 g_t의 차원 d_g
+gs.graphDim = 32;            % mean/meanmax 제거 실험의 출력 폭 (가상 노드는 hiddenDim)
 gs.initScale = 0.12;         % 부호기 초기 가중치 배율
 gs.encoderLearnRate = 3e-4;  % 부호기 Adam 학습률
 
 %% 그래프 수준 읽기 (readout)
-%   'meanmax' g_t = tanh(Wg*[mean(H_t,2); max(H_t,2)]+bg)   (기본)
-%   'mean'    g_t = mean(H_t,2)                              (가장 단순한 형태)
-% 어느 쪽도 특정 노드를 골라 쓰지 않습니다. 모든 노드가 g_t에 기여합니다.
-% 평균만 쓰면 노드별 차이가 씻겨 나갑니다(모방 손실 0.0821 대 0.0667).
-gs.readout = 'meanmax';
+%   'decision_nodes' Actor는 PolicyNode, Critic은 ValueNode를 직접 읽음 (기본)
+%   'meanmax'        tanh(Wg*[mean(H_t,2); max(H_t,2)]+bg)   (제거 실험)
+%   'mean'           mean(H_t,2)                              (제거 실험)
+% decision_nodes에는 전역 pooling 파라미터 Wg가 없습니다. PPO 기울기가 각 가상
+% 노드에서 R-GAT 관계형 message passing으로 직접 전달됩니다.
+gs.readout = 'decision_nodes';
 
 %% 의미 채널 정규화 기준. landing2d.ontology.defaultOntologyConfig와 같은 뜻이지만
 % 여기서는 관측만으로 계산합니다(참값 없음). 별도로 두어 보상 설계 쪽 설정을

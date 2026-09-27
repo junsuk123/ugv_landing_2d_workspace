@@ -14,6 +14,11 @@ for mode = {'ontology_rgat','gat','node_pool'}
         checkGradients(gs,mode{1},readout{1});
     end
 end
+% 제안 모델의 기본 경로: Actor/Value 가상 노드 각각에서 시작한 기울기가
+% 두 R-GAT 층으로 전달되어야 합니다.
+checkGradients(gs,'ontology_rgat','decision_nodes','policy');
+checkGradients(gs,'ontology_rgat','decision_nodes','value');
+checkDecisionNodeReadout(gs);
 
 %% 기준 모델의 부호기는 항등이어야 함 (기준 수치 보존)
 baselineGs = gs;
@@ -58,7 +63,10 @@ checkEveryNodeMatters(gs,'ontology_rgat');
 end
 
 % ---------------------------------------------------------------- 기울기 점검
-function checkGradients(gs,mode,readout)
+function checkGradients(gs,mode,readout,head)
+if nargin < 4
+    head = 'policy';
+end
 gs.stateRepresentation = mode;
 gs.readout = readout;
 rs = RandStream('threefry','Seed',17);
@@ -66,7 +74,7 @@ rs = RandStream('threefry','Seed',17);
 batch = 3;
 S = 0.5*randn(rs,spec.stateDim,batch);
 W = randn(rs,spec.graphDim,batch);   % 고정 가중치로 스칼라 손실을 만듭니다.
-[loss,grads] = lossAndGrads(params,spec,S,W);
+[loss,grads] = lossAndGrads(params,spec,S,W,head);
 assert(isfinite(loss));
 names = fieldnames(params);
 assert(~isempty(names),'A graph encoder must have trainable parameters.');
@@ -79,8 +87,8 @@ for n = 1:numel(names)
         plus = params; minus = params;
         plus.(key)(i) = plus.(key)(i)+step;
         minus.(key)(i) = minus.(key)(i)-step;
-        numeric = (lossAndGrads(plus,spec,S,W) ...
-            -lossAndGrads(minus,spec,S,W))/(2*step);
+        numeric = (lossAndGrads(plus,spec,S,W,head) ...
+            -lossAndGrads(minus,spec,S,W,head))/(2*step);
         analytic = grads.(key)(i);
         tolerance = 1e-4*max(abs(numeric),1e-6)+1e-9;
         assert(abs(numeric-analytic) <= tolerance, ...
@@ -94,12 +102,32 @@ for n = 1:numel(names)
 end
 end
 
-function [loss,grads] = lossAndGrads(params,spec,S,W)
-[g,cache] = landing2d.graphstate.encoderForward(params,spec,S);
+function [loss,grads] = lossAndGrads(params,spec,S,W,head)
+[g,cache] = landing2d.graphstate.encoderForward(params,spec,S,head);
 loss = sum(sum(W.*g));
 if nargout > 1
     grads = landing2d.graphstate.encoderBackward(params,spec,cache,W);
 end
+end
+
+function checkDecisionNodeReadout(gs)
+gs.stateRepresentation = 'ontology_rgat';
+gs.readout = 'decision_nodes';
+rs = RandStream('threefry','Seed',19);
+[params,spec] = landing2d.graphstate.encoderInit(gs,11,rs);
+S = randn(rs,spec.stateDim,3);
+[policy,policyCache] = landing2d.graphstate.encoderForward( ...
+    params,spec,S,'policy');
+[value,valueCache] = landing2d.graphstate.encoderForward( ...
+    params,spec,S,'value');
+assert(~isfield(params,'Wg') && ~isfield(params,'bg'), ...
+    'Decision-node readout must not contain a global pooling projection.');
+assert(isequal(policy,reshape(policyCache.H(:,spec.policyNode,:), ...
+    spec.hiddenDim,[])));
+assert(isequal(value,reshape(valueCache.H(:,spec.valueNode,:), ...
+    spec.hiddenDim,[])));
+assert(norm(policy-value) > 0, ...
+    'PolicyNode and ValueNode must be distinct graph queries.');
 end
 
 % ------------------------------------------------------------- 치환 정합 점검
@@ -127,9 +155,19 @@ permutedSchema = schema;
 permutedSchema.src = inverse(schema.src);
 permutedSchema.dst = inverse(schema.dst);
 permutedSchema.goalNode = inverse(schema.goalNode);
+if isfield(schema,'policyNode')
+    permutedSchema.policyNode = inverse(schema.policyNode);
+    permutedSchema.valueNode = inverse(schema.valueNode);
+    permutedSchema.decisionNodes = inverse(schema.decisionNodes);
+    permutedSchema.ontologyNodes = inverse(schema.ontologyNodes);
+end
 permutedSpec = spec;
 permutedSpec.schema = permutedSchema;
 permutedSpec.T = landing2d.rgat.topology(permutedSchema);
+if isfield(schema,'policyNode')
+    permutedSpec.policyNode = permutedSchema.policyNode;
+    permutedSpec.valueNode = permutedSchema.valueNode;
+end
 gPermuted = landing2d.graphstate.encoderForward(params,permutedSpec,Xp(:));
 assert(norm(g-gPermuted) < 1e-10, ...
     sprintf(['Relabelling the nodes changed the graph representation ' ...
@@ -139,6 +177,7 @@ end
 % ------------------------------------------- 모든 노드가 읽기에 기여하는지 점검
 function checkEveryNodeMatters(gs,mode)
 gs.stateRepresentation = mode;
+gs.readout = 'decision_nodes';
 rs = RandStream('threefry','Seed',29);
 [params,spec] = landing2d.graphstate.encoderInit(gs,11,rs);
 % 무작위 초기값은 너무 작아 차이가 묻힐 수 있으므로 조금 키웁니다.
@@ -151,7 +190,7 @@ values(schema.goalNode) = 0;
 signed = signedSample(schema,[]);
 X = landing2d.graphstate.nodeFeatures(values,signed,schema);
 reference = landing2d.graphstate.encoderForward(params,spec,X(:));
-for i = 1:N
+for i = schema.ontologyNodes
     if i == schema.goalNode
         continue;   % 목표 노드 값은 언제나 0으로 고정입니다
     end
@@ -163,7 +202,10 @@ for i = 1:N
         sprintf(['Node %s does not reach the graph readout. The readout ' ...
         'must use every node.'],schema.nodeNames{i}));
 end
-% 덧붙임 노드가 없다는 사실을 명시적으로 기록합니다.
+% 입력값이 없는 가상 노드 두 개가 있고, Actor는 PolicyNode를 직접 읽습니다.
+assert(isequal(schema.decisionNodes,[schema.policyNode,schema.valueNode]));
+assert(spec.policyNode == schema.policyNode && spec.valueNode == schema.valueNode);
+% 가변 길이 padding은 없고, 두 가상 노드까지 포함한 크기가 항상 고정입니다.
 assert(spec.nNodes == schema.nNodes, ...
     'The situation graph has a fixed node count and needs no padding mask.');
 end

@@ -43,7 +43,7 @@ run_all
     │              │    ├─ ontology.nodeValues
     │              │    └─ graphstate.nodeFeatures          (X_t)
     │              ├─ graphstate.encoderForward   -> rgat.relationForward  (H_t)
-    │              │    └─ 그래프 수준 읽기 (mean+max)      -> g_t
+    │              │    └─ PolicyNode / ValueNode 직접 읽기 -> h_policy / h_value
     │              └─ graphstate.encoderBackward  -> rgat.relationBackward
     ├─ rl.evaluate -> rl.rolloutEpisode    (강화학습 결과)
     ├─ metrics.makeComparisonSummary
@@ -79,7 +79,7 @@ replot_results
 | PPO 상태 표현 방식 / 제거 실험 선택 | `+graphstate/defaultGraphStateConfig.m`, `+graphstate/applyStateRepresentation.m` |
 | 온톨로지 그래프 노드 값 (관측만 사용) | `+graphstate/observationSemantics.m` |
 | 온톨로지 그래프 노드 특징 행렬 X_t | `+graphstate/nodeFeatures.m` |
-| 그래프 부호기와 그래프 수준 읽기 | `+graphstate/encoderInit.m`, `encoderForward.m`, `encoderBackward.m` |
+| 그래프 부호기와 가상 의사결정 노드 읽기 | `+graphstate/encoderInit.m`, `encoderForward.m`, `encoderBackward.m` |
 | 상태 표현 경로 디버깅 출력 | `+graphstate/inspectPipeline.m` |
 | 새 옵션 검증 규칙 | `+config/validateConfig.m` |
 | 구간별 UGV 목표 속도/실제 가감속 | `+scenario/makeUgvTrajectory.m` |

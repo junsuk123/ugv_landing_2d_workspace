@@ -75,6 +75,10 @@ rs = RandStream('threefry','Seed',5);
 baselineAgent = landing2d.rl.agentInit(baselineCfg.rl,rs,baselineCfg.graphState);
 rs = RandStream('threefry','Seed',5);
 proposedAgent = landing2d.rl.agentInit(proposedCfg.rl,rs,proposedCfg.graphState);
+assert(strcmp(proposedAgent.encoderSpec.readout,'decision_nodes'));
+assert(~isfield(proposedAgent.policy.encoder,'Wg'), ...
+    'The proposed actor must not use mean/max pooling parameters.');
+assert(proposedAgent.encoderSpec.policyNode ~= proposedAgent.encoderSpec.valueNode);
 assert(baselineCfg.rl.actionDim == proposedCfg.rl.actionDim);
 assert(size(baselineAgent.policy.mean.W{end},1) == baselineCfg.rl.actionDim);
 assert(size(proposedAgent.policy.mean.W{end},1) == proposedCfg.rl.actionDim, ...
@@ -96,6 +100,12 @@ assert(norm(mu-direct) < 1e-15, ...
     'With the baseline state the actor path must be the plain MLP forward.');
 assert(landing2d.rl.valueForward(baselineAgent,o) ...
     == landing2d.rl.mlpForward(baselineAgent.value.net,o));
+graphState = randn(proposedAgent.encoderSpec.stateDim,1);
+valueEmbedding = landing2d.graphstate.encoderForward( ...
+    proposedAgent.value.encoder,proposedAgent.encoderSpec,graphState,'value');
+assert(landing2d.rl.valueForward(proposedAgent,graphState) == ...
+    landing2d.rl.mlpForward(proposedAgent.value.net,valueEmbedding), ...
+    'The critic must read ValueNode, not PolicyNode or a pooled vector.');
 % 같은 설정이면 학습 결과가 재현되어야 합니다.
 first = landing2d.rl.trainAgent(baselineCfg);
 second = landing2d.rl.trainAgent(baselineCfg);
