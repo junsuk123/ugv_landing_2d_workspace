@@ -10,6 +10,10 @@ rl.actionDim = 2;            % [수평 가속, 수직 가속] 이전의 무한�
 %% 보상 (두 항)
 rl.captureMode = 'margin';   % 포착 항 형태: 'margin' 시야 여유 기반, 'binary' 가시 여부
 rl.captureWeight = 0.20;     % 포착 항 가중치
+% FOV 밖에서도 수평 오차를 줄이는 행동에 학습 신호가 남도록 포화 대신
+% 경계값에서 -1로 부드럽게 점근하는 capture curve를 사용합니다.
+rl.captureBoundaryValue = -0.5;
+rl.captureOutsideScale = 1.0;
 rl.distanceWeight = 0.71;    % 접근 항 가중치
 % 'hybrid'에서는 거리 자체 성분이 (1-distanceRateShare) 배로 줄어듭니다. 착륙을
 % 성립시킨 유효 크기 0.50을 유지하려고 0.50/(1-0.30) = 0.71로 보정했습니다.
@@ -76,9 +80,9 @@ rl.parallelWorkers = 0;              % 0이면 min(물리 코어, 에피소드 �
 % 뽑으므로 직렬 실행과 결과가 같습니다.
 rl.curriculumFraction = 0;           % 출발 고도를 넓히는 데 쓰는 학습 비율 (0이면 끔)
 % 0.40으로 측정했더니 오히려 나빠졌습니다(배분 0.220 착륙률 100%% -> 0%%).
-% initialHeightRange가 이미 매 반복에서 접지 직전부터 공칭까지 섞어 뽑기 때문에
-% 그 자체가 커리큘럼 역할을 합니다. 앞 구간을 낮은 고도로 제한하면 그 혼합이
-% 사라져 높은 고도 거동을 잃습니다. 기능은 남기되 기본값은 끕니다.
+% initialHeightRange가 매 반복에서 0.7~1.3배를 섞어 뽑기 때문에 그 자체가
+% 제한된 커리큘럼 역할을 합니다. scratch 설정도 첫 급가속(t=3 s)을 경험하도록
+% 0.8배 이상에서 시작합니다. 기능은 남기되 기본값은 끕니다.
 rl.curriculumStartHeight = 0.25;     % 학습 시작 시점의 출발 고도 배율 상한
 
 %% 교사 없이 처음부터 학습할 때의 설정 (landing2d.rl.applyScratchSettings)
@@ -92,7 +96,7 @@ rl.scratch = struct( ...
     'ppoIterations',2500, ...   % 교사 없이 착륙을 찾는 데 필요한 예산 상한
     'evaluateEvery',25, ...
     'earlyStopPatience',0, ...   % 조기 종료 끔. 아래 근거 참고
-    'initialHeightRange',[0.01,1.30], ...  % 접지 직전 고도 출발을 섞어 착륙을 경험하게 함
+    'initialHeightRange',[0.80,1.30], ...  % t=3 s 급가속 사건 전에 착륙하지 않도록 함
     'initialOffsetFraction',0.5);          % 어떤 고도에서 출발해도 패드가 보이게
 % earlyStopPatience를 0(끔)으로 두는 근거.
 %

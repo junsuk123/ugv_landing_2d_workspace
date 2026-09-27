@@ -65,20 +65,9 @@ xlabel(st.axRate,'PPO iteration'); ylabel(st.axRate,'Rate [%]');
 ylim(st.axRate,[0,100]); title(st.axRate,'평가 성공률');
 
 st.axOntology = nexttile(st.layout,3);
-hold(st.axOntology,'on'); box(st.axOntology,'on');
-title(st.axOntology,'온톨로지 상태 G_t'); axis(st.axOntology,'off');
 schema = landing2d.graphstate.schemaFor('ontology_rgat');
-G = digraph(schema.src,schema.dst,[],schema.nodeNames);
-st.graph = plot(st.axOntology,G,'Layout','force','NodeLabel',schema.nodeNames, ...
-    'MarkerSize',2,'LineWidth',0.8,'ArrowSize',8);
-st.graph.NodeColor = [0.45,0.45,0.45];
-st.graph.EdgeColor = [0.72,0.72,0.72];
-st.nodeValues = scatter(st.axOntology,st.graph.XData,st.graph.YData,100, ...
-    0.5*ones(schema.nNodes,1),'filled','MarkerEdgeColor',[0.2,0.2,0.2]);
-colormap(st.axOntology,parula(64));
-clim(st.axOntology,[0,1]);
-st.colorbar = colorbar(st.axOntology);
-st.colorbar.Label.String = '정규화 노드 값';
+landing2d.viz.plotRgatField(st.axOntology,schema,zeros(schema.nNodes,1), ...
+    zeros(schema.nNodes,1),[],'surface','Waiting for R-GAT evaluation');
 st.schema = schema;
 
 st.axEval = nexttile(st.layout,4);
@@ -118,8 +107,20 @@ addpoints(item.score,p.iteration,p.score);
 if isfinite(p.trainReturn), addpoints(item.train,p.iteration,p.trainReturn); end
 addpoints(item.landing,p.iteration,100*p.landingRate);
 addpoints(item.capture,p.iteration,100*p.captureRate);
-st.status.String = sprintf('%s 학습 %d/%d | score %.2f | landing %.0f%% | capture %.0f%%', ...
-    p.label,p.iteration,p.maxIteration,p.score,100*p.landingRate,100*p.captureRate);
+if isfield(p,'nodeMean') && ~isempty(p.nodeMean) ...
+        && isfield(p,'graphSchema') && isfield(p,'edgeAttentionMean')
+    landing2d.viz.plotRgatField(st.axOntology,p.graphSchema,p.nodeMean, ...
+        p.nodeVariance,p.edgeAttentionMean,'surface', ...
+        sprintf('%s / PPO %d',p.label,p.iteration));
+end
+if isfield(p,'selectionScore') && isfinite(p.selectionScore)
+    selectionText = sprintf(' | select %.2f',p.selectionScore);
+else
+    selectionText = '';
+end
+st.status.String = sprintf('%s 학습 %d/%d | return %.2f%s | landing %.0f%% | capture %.0f%%', ...
+    p.label,p.iteration,p.maxIteration,p.score,selectionText, ...
+    100*p.landingRate,100*p.captureRate);
 end
 
 function st = updateOntologyTraining(st,p)
@@ -148,9 +149,13 @@ end
 item.meanLine = plot(st.axEval,p.meanX,p.meanZ,'Color',color, ...
     'LineStyle',style,'LineWidth',1.8, ...
     'DisplayName',sprintf('%s / S%d mean (n=%d)',p.label,p.scenario,p.nRuns));
-item.endMarker = plot(st.axEval,p.meanX(end),p.meanZ(end),'o','Color',color, ...
+last = find(isfinite(p.meanX) & isfinite(p.meanZ),1,'last');
+item.endMarker = plot(st.axEval,p.meanX(last),p.meanZ(last),'o','Color',color, ...
     'MarkerFaceColor',color,'HandleVisibility','off');
-ellipseIndex = unique(round(linspace(1,numel(p.time),10)));
+validIndex = find(isfinite(p.meanX) & isfinite(p.meanZ) ...
+    & isfinite(p.varX) & isfinite(p.varZ) & isfinite(p.covXZ));
+ellipseIndex = unique(round(linspace(validIndex(1),validIndex(end),10)));
+ellipseIndex = intersect(ellipseIndex,validIndex);
 theta = linspace(0,2*pi,48);
 item.ellipses = gobjects(1,numel(ellipseIndex));
 for q = 1:numel(ellipseIndex)
@@ -166,12 +171,13 @@ for q = 1:numel(ellipseIndex)
 end
 st.mcSeries.(key) = item;
 legend(st.axEval,'Location','best','Interpreter','none');
-if isfield(p,'nodeMean') && numel(p.nodeMean) == numel(st.graph.XData)
-    nodeStd = sqrt(max(p.nodeVariance(:),0));
-    set(st.nodeValues,'XData',st.graph.XData,'YData',st.graph.YData, ...
-        'CData',p.nodeMean(:),'SizeData',80+240*nodeStd);
-    title(st.axOntology,sprintf(['온톨로지 상태 G_t · %s / S%d\n' ...
-        '색=MC 평균, 크기=표준편차'],p.label,p.scenario),'Interpreter','none');
+if isfield(p,'nodeMean') && numel(p.nodeMean) == st.schema.nNodes
+    schema = st.schema;
+    if isfield(p,'graphSchema'), schema = p.graphSchema; end
+    edgeAttention = [];
+    if isfield(p,'edgeAttentionMean'), edgeAttention = p.edgeAttentionMean; end
+    landing2d.viz.plotRgatField(st.axOntology,schema,p.nodeMean, ...
+        p.nodeVariance,edgeAttention,'surface',sprintf('%s / S%d',p.label,p.scenario));
 end
 if isfinite(p.meanLandingTime)
     landingText = sprintf('mean touchdown %.2f s',p.meanLandingTime);

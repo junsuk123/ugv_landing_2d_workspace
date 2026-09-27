@@ -21,8 +21,28 @@ assert(any(a.varX > 0) && any(a.varZ > 0), ...
 assert(isfield(a,'eventMean') && isfield(a,'eventVariance') ...
     && size(a.eventSamples,2) == c.evaluationMonteCarloRuns);
 assert(all(a.eventVariance(isfinite(a.eventVariance)) >= 0));
+assert(isfield(a,'activeCount') && isfield(a,'terminalCount') ...
+    && all(diff(a.activeCount) <= 0) ...
+    && all(a.activeCount+a.terminalCount == a.nRuns), ...
+    'Monte Carlo trajectory moments must explicitly exclude terminal samples.');
 c.saveResults = false;
 fig = landing2d.viz.plotMonteCarloComparison(struct('guidance',a),c);
 cleanup = onCleanup(@()close(fig)); %#ok<NASGU>
 assert(isgraphics(fig));
+
+% R-GAT summaries must carry learned layer-2 edge attention, and the new
+% surface/matrix view must render directly from those measured quantities.
+gc = landing2d.graphstate.applyStateRepresentation(c,'ontology_rgat');
+gc.evaluationMonteCarloRuns = 2;
+rs = RandStream('threefry','Seed',19);
+agent = landing2d.rl.agentInit(gc.rl,rs,gc.graphState);
+g = landing2d.rl.evaluateMonteCarlo(agent,gc,'Ontology R-GAT');
+assert(isfield(g,'edgeAttentionMean') ...
+    && numel(g.edgeAttentionMean) == numel(g.graphSchema.src));
+assert(all(isfinite(g.edgeAttentionMean)) ...
+    && all(g.edgeAttentionMean >= 0 & g.edgeAttentionMean <= 1));
+figGraph = landing2d.viz.plotMonteCarloComparison(struct('graph',g),gc);
+cleanupGraph = onCleanup(@()close(figGraph)); %#ok<NASGU>
+assert(numel(findall(figGraph,'Type','axes')) >= 4, ...
+    'R-GAT Monte Carlo tab must include trajectory, surface and attention views.');
 end

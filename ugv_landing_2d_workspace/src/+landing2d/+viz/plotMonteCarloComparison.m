@@ -7,6 +7,14 @@ if isempty(fields)
     return;
 end
 nCases = numel(monteCarlo.(fields{1}));
+graphField = '';
+for i = 1:numel(fields)
+    probe = monteCarlo.(fields{i})(1);
+    if isfield(probe,'nodeMean') && isfield(probe,'edgeAttentionMean')
+        graphField = fields{i};
+        break;
+    end
+end
 colors = lines(max(numel(fields),3));
 visibility = 'on';
 if ~c.figureVisible, visibility = 'off'; end
@@ -19,7 +27,8 @@ layouts = gobjects(nCases,1);
 for j = 1:nCases
     tabs(j) = uitab(group,'Title',sprintf('Scenario %d',j), ...
         'BackgroundColor','w');
-    layouts(j) = tiledlayout(tabs(j),1,2,'TileSpacing','compact', ...
+    rows = 1+double(~isempty(graphField));
+    layouts(j) = tiledlayout(tabs(j),rows,2,'TileSpacing','compact', ...
         'Padding','compact');
     axX = nexttile(layouts(j));
     axZ = nexttile(layouts(j));
@@ -40,13 +49,24 @@ for j = 1:nCases
             'HandleVisibility','off');
         labels{i} = item.label;
     end
-    title(axX,'Horizontal trajectory: mean +/- 1 sigma');
+    title(axX,'Active-flight horizontal trajectory: mean +/- 1 sigma');
     xlabel(axX,'Time [s]'); ylabel(axX,'x [m]');
-    title(axZ,'Altitude trajectory: mean +/- 1 sigma');
+    title(axZ,'Active-flight altitude trajectory: mean +/- 1 sigma');
     xlabel(axZ,'Time [s]'); ylabel(axZ,'z [m]');
     legend(axX,handles,labels,'Location','best','Box','off');
+    if ~isempty(graphField)
+        graphItem = monteCarlo.(graphField)(j);
+        axField = nexttile(layouts(j));
+        axAttention = nexttile(layouts(j));
+        landing2d.viz.plotRgatField(axField,graphItem.graphSchema, ...
+            graphItem.nodeMean,graphItem.nodeVariance, ...
+            graphItem.edgeAttentionMean,'surface',graphItem.label);
+        landing2d.viz.plotRgatField(axAttention,graphItem.graphSchema, ...
+            graphItem.nodeMean,graphItem.nodeVariance, ...
+            graphItem.edgeAttentionMean,'attention',graphItem.label);
+    end
     title(layouts(j),sprintf(['Scenario %d Monte Carlo (%d samples/arm) | ' ...
-        'bands show trajectory variance only'],j,item.nRuns), ...
+        'post-terminal samples excluded from trajectory bands'],j,item.nRuns), ...
         'Interpreter','none');
 end
 group.SelectedTab = tabs(1);
@@ -59,6 +79,9 @@ end
 end
 
 function band(ax,t,mu,sigma,color)
+valid = isfinite(t) & isfinite(mu) & isfinite(sigma);
+t = t(valid); mu = mu(valid); sigma = sigma(valid);
+if isempty(t), return; end
 fill(ax,[t;flipud(t)],[mu-sigma;flipud(mu+sigma)],color, ...
     'FaceAlpha',0.12,'EdgeColor','none','HandleVisibility','off');
 end

@@ -38,10 +38,18 @@ if isfield(c,'dashboardAgentLabel') && ~isempty(c.dashboardAgentLabel)
 end
 for i = 1:numel(info.history)
     h = info.history(i);
+    selectionScore = NaN;
+    if isfield(h,'selectionScore'), selectionScore = h.selectionScore; end
     payload = struct('label',label,'iteration',h.iteration, ...
         'maxIteration',c.rl.ppoIterations,'score',h.score, ...
+        'selectionScore',selectionScore, ...
         'trainReturn',h.trainReturn,'landingRate',h.landingRate, ...
         'captureRate',h.captureRate);
+    diagnostics = {'nodeMean','nodeVariance','edgeAttentionMean','graphSchema'};
+    for k = 1:numel(diagnostics)
+        name = diagnostics{k};
+        if isfield(h,name), payload.(name) = h.(name); end
+    end
     landing2d.viz.liveDashboard('training',payload);
 end
 end

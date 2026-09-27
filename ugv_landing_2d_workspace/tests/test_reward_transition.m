@@ -37,6 +37,33 @@ opts = struct('deterministic',true,'collect',true,'rs',[], ...
 assert(all(abs(traj.reward) < 1e-12), ...
     'Constant distance must not receive a saturated negative rate reward.');
 
+% The capture term must preserve ordering outside FOV instead of clipping
+% every out-of-view state to -1.
+sCapture = struct('mode',1,'x',0);
+obsCapture = struct('visible',true,'halfWidth',1);
+q = [0,1,2,4];
+capture = zeros(size(q));
+for k = 1:numel(q)
+    capture(k) = landing2d.rl.captureSignal(sCapture,obsCapture,q(k),rl);
+end
+assert(abs(capture(1)-1) < 1e-12);
+assert(abs(capture(2)-rl.captureBoundaryValue) < 1e-12);
+assert(all(diff(capture) < 0) && capture(end) > -1, ...
+    'Capture reward must retain a bounded gradient outside FOV.');
+
+% A terminal state must not create transitions for the remainder of tEnd.
+[rTerminal,sTerminal] = landing2d.simulation.initializeCase(c,1);
+sTerminal.h = 0;
+sTerminal.vz = 0;
+sTerminal.x = rTerminal.xUgv(1);
+[~,terminalTrajectory] = landing2d.rl.rolloutEpisode(agent,rTerminal, ...
+    sTerminal,c,opts);
+assert(terminalTrajectory.count == 0 && terminalTrajectory.bootstrap == 0, ...
+    'Terminal rollout must stop reward collection and value bootstrapping.');
+
+assert(c.rl.scratch.initialHeightRange(1) >= 0.8, ...
+    'Scratch episodes must predominantly reach the t=3 s acceleration event.');
+
 signature = landing2d.rl.trainingSignature(c);
 assert(strcmp(signature.algorithmVersion,landing2d.rl.algorithmVersion()));
 end

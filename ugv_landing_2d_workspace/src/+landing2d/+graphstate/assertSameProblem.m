@@ -28,7 +28,8 @@ function differences = assertSameProblem(baselineCfg,proposedCfg)
 %% (1) 문제 정의 - 다르면 중단
 % 보상 (요구사항 4번: r_t_proposed == r_t_baseline)
 reward = {'captureWeight','distanceWeight','captureMode','distanceMode', ...
-    'distanceRateShare','distanceRateScale','distanceScale','distanceExponent'};
+    'captureBoundaryValue','captureOutsideScale','distanceRateShare', ...
+    'distanceRateScale','distanceScale','distanceExponent'};
 mustMatch(baselineCfg.rl,proposedCfg.rl,reward,'reward');
 
 % 행동 공간 (요구사항 5번)

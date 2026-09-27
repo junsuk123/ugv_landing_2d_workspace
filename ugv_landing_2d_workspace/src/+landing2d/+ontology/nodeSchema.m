@@ -11,7 +11,7 @@ function schema = nodeSchema(variant)
 % 두 값은 TouchdownSafety를 만드는 내부 항으로는 그대로 남아 있습니다.
 % 근거와 측정표는 docs/ONTOLOGY_RGAT_KO.md에 있습니다.
 %
-% PadMotion은 이 시나리오의 핵심 원인 노드입니다. UGV가 속도를 바꾸면 패드가
+% RelativeMotionRisk는 이 시나리오의 핵심 원인 노드입니다. UGV가 속도를 바꾸면 패드가
 % 시야 밖으로 밀려나므로 FovMargin으로 가는 간선을 갖습니다. 이 연결이 있어야
 % "패드 이동 -> 포착 실패"라는 인과가 온톨로지에 표현되고, 포착 항의 반사실
 % 중요도에 반영됩니다.
@@ -24,7 +24,7 @@ function schema = nodeSchema(variant)
 if nargin < 1 || isempty(variant)
     variant = 'core';
 end
-schema.nodeNames = {'PositionError','DescentSpeed','PadMotion','FovMargin', ...
+schema.nodeNames = {'PositionError','DescentSpeed','RelativeMotionRisk','FovMargin', ...
     'SearchDuration','PadVisibility','RelativeDistance','TouchdownSafety','SafeLanding'};
 schema.nNodes = numel(schema.nodeNames);
 schema.goalNode = 9;

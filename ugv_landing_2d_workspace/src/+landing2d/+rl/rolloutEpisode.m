@@ -26,7 +26,7 @@ collect = opts.collect;
 traceGraph = isfield(opts,'traceGraph') && opts.traceGraph && useGraph;
 traj = struct('observation',[],'state',[],'command',[],'logProbability',[], ...
     'value',[],'reward',[],'count',0,'bootstrap',0, ...
-    'captureRate',0,'return',0,'graphValues',[]);
+    'captureRate',0,'return',0,'graphValues',[],'graphStates',[]);
 if collect
     capacity = ceil(n/interval)+1;
     % observation은 기록과 정보경계 점검용으로 항상 남깁니다. PPO가 학습에 쓰는
@@ -42,6 +42,7 @@ if traceGraph
     graphSchema = landing2d.graphstate.schemaFor(spec.mode);
     graphCapacity = ceil(n/interval)+1;
     traj.graphValues = zeros(graphSchema.nNodes,graphCapacity);
+    traj.graphStates = zeros(stateDim,graphCapacity);
     graphCount = 0;
 end
 memory = landing2d.rl.initialMemory(r.vxUgv(1));
@@ -49,6 +50,7 @@ o = zeros(rl.observationDim,1);
 state = zeros(stateDim,1);
 ax = 0; az = 0;
 pending = 0;
+terminalReached = false;
 % Distance at the start of the pending action.  It is updated only after
 % the preceding transition reward has been calculated.
 previousDistance = NaN;
@@ -75,24 +77,28 @@ for k = 1:n
 
     if mod(k-1,interval) == 0 || k == n
         captured = s.mode == 3 || obs.visible;
-        decisionCount = decisionCount+1;
-        capturedCount = capturedCount+double(captured);
+        if ~terminalReached
+            decisionCount = decisionCount+1;
+            capturedCount = capturedCount+double(captured);
+        end
         distance = hypot(xp-s.x,max(s.h,0));
         if collect && pending > 0
             % 보상 항 1: 착륙 패드 포착.  보상 항 2: 착륙 지점과의 상대거리.
-            traj.reward(pending) = rl.captureWeight*captureSignal(s,obs,xp,rl) ...
+            traj.reward(pending) = rl.captureWeight*landing2d.rl.captureSignal(s,obs,xp,rl) ...
                 +rl.distanceWeight*landing2d.rl.distanceSignal( ...
                     distance,previousDistance,dtAction,rl);
             pending = 0;
         end
+        terminalReached = terminalReached || s.mode >= 3;
         [o,memory] = landing2d.rl.observation(s,obs,memory,c,dtAction);
         if useGraph
             % 갱신된 memory를 그대로 넘깁니다. 관측이 쓰는 것과 같은 기억입니다.
-            if traceGraph
+            if traceGraph && ~terminalReached
                 [state,graphDetail] = landing2d.graphstate.situationGraph(s,obs,memory,c);
                 graphCount = graphCount+1;
                 traj.graphValues(:,graphCount) = graphDetail.values(:);
-            else
+                traj.graphStates(:,graphCount) = state;
+            elseif ~traceGraph
                 state = landing2d.graphstate.situationGraph(s,obs,memory,c);
             end
         else
@@ -103,7 +109,7 @@ for k = 1:n
         if s.mode >= 3
             ax = 0; az = 0;
         end
-        if collect && k < n
+        if collect && k < n && ~terminalReached
             traj.count = traj.count+1;
             index = traj.count;
             traj.observation(:,index) = o;
@@ -135,7 +141,11 @@ for k = 1:n
 end
 if collect
     % 유한 지평선 부트스트랩: 마지막 관측의 가치로 잔여 보상을 근사.
-    traj.bootstrap = landing2d.rl.valueForward(agent,state);
+    if terminalReached
+        traj.bootstrap = 0;
+    else
+        traj.bootstrap = landing2d.rl.valueForward(agent,state);
+    end
     count = traj.count;
     traj.observation = traj.observation(:,1:count);
     traj.state = traj.state(:,1:count);
@@ -147,26 +157,7 @@ if collect
 end
 if traceGraph
     traj.graphValues = traj.graphValues(:,1:graphCount);
+    traj.graphStates = traj.graphStates(:,1:graphCount);
 end
 traj.captureRate = capturedCount/max(decisionCount,1);
-end
-
-function value = captureSignal(s,obs,xp,rl)
-% 포착 항의 값. [-1, +1] 범위입니다.
-%
-%   'margin' : 시야 중앙이면 +1, 시야 가장자리면 -1, 시야 밖이면 -1.
-%              가시 여부만 보면 중앙으로 모을 유인이 없어, 정책이 시야 가장자리에
-%              붙은 채 하강하지 못합니다. 시야 여유를 쓰면 중앙 정렬 자체에
-%              보상이 붙고, 그 결과가 고도에 비례해 오차가 줄어드는 하강입니다.
-%   'binary' : 이전 방식. 보이면 +1, 아니면 -1.
-if s.mode == 3
-    value = 1;   % 착륙 완료: 패드 위에 있으므로 최대
-    return;
-end
-if strcmp(rl.captureMode,'binary')
-    value = 2*double(obs.visible)-1;
-    return;
-end
-margin = abs(xp-s.x)/max(obs.halfWidth,1e-6);
-value = 1-2*min(margin,1);
 end

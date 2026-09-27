@@ -180,7 +180,7 @@ replot_results
 보상은 두 항의 합입니다.
 
 ```text
-r = captureWeight * (포착 중이면 +1, 아니면 -1)
+r = captureWeight * captureSignal(q)  % FOV 밖에서도 q 감소 방향의 기울기 유지
   + distanceWeight * clip(1 - (상대거리/distanceScale)^distanceExponent, -1, +1)
 ```
 

@@ -115,8 +115,12 @@ run_realtime_checkpoint_comparison;              % 저장 정책 3종을 한 탭
 
 - 기준/제안 정책의 PPO 학습 점수와 평균 학습 return
 - 평가 착륙률과 패드 포착률
-- 온톨로지 R-GAT 학습의 train/validation loss와 현재 `G_t` 노드 값
+- 온톨로지 R-GAT 학습의 train/validation loss와 현재 `G_t` 노드 상태 표면
+- 실제 노드 마커, R-GAT 2계층 어텐션 흐름 화살표와 출발→도착 어텐션 행렬
 - PN, baseline PPO, ontology graph PPO의 몬테카를로 평균 이동 궤적과 1σ 공분산 타원
+
+3D 표면은 9개 이산 노드 값을 읽기 쉽게 만든 Gaussian 보간 표시입니다. 실제 값은
+노드 마커이며, 화살표와 행렬은 Actor R-GAT 두 번째 계층의 어텐션 계수입니다.
 
 저장된 정책을 재사용할 때도 저장된 학습 이력을 곡선으로 복원합니다. 대시보드는
 표시 전용이며 정책 지문, 보상, 행동, 동역학 및 결과 저장값을 바꾸지 않습니다.
@@ -216,7 +220,8 @@ Vc_ref = min(pnApproachSpeed, pnApproachGain * R)
 r = captureWeight  * capture(s)
   + distanceWeight * distance(s)
 
-capture  : 'margin' 시야 중앙 +1, 시야 가장자리 -1, 시야 밖 -1 (착륙 완료는 +1)
+capture  : q=|e_x|/FOV_half. 중앙 +1, 경계 captureBoundaryValue(-0.5),
+           경계 밖에서는 오차가 커질수록 -1에 점근 (착륙 완료는 +1)
 distance : 'hybrid' = share * 변화율 + (1-share) * 근접도
            변화율  = clip((이전거리 - 현재거리)/(dt*distanceRateScale), -1, 1)
            근접도  = clip(1 - (상대거리/distanceScale)^distanceExponent, -1, 1)
@@ -230,6 +235,17 @@ distance : 'hybrid' = share * 변화율 + (1-share) * 근접도
 가치가 생겨 착륙이 목표가 됩니다. 즉 변화율은 유도(shaping), 근접도는 목표(objective)입니다.
 
 학습 설정은 `src/+landing2d/+rl/defaultRlConfig.m` 한 곳에 모여 있습니다.
+
+체크포인트는 평균 return 하나로 고르지 않습니다. `evaluate`가 시나리오별 착륙률을
+최우선으로 두고, FOV 가림 시간·안정 재포착 지연·추종 회복 지연·급가속 뒤 누적 상승과 수평 RMS 오차를
+합친 event-aware score로 동률 정책을 비교합니다. 착륙 또는 실패 뒤에는 보상 전이를
+더 만들지 않으며 critic bootstrap도 0으로 닫습니다.
+
+Monte Carlo 궤적의 평균과 분산은 각 시각에 아직 비행 중인 표본만 사용합니다.
+착륙/실패 표본 수는 `activeCount`, `terminalCount`로 따로 저장하고, 착륙률과 재포착
+지표는 별도 수치로 해석해야 합니다. `comparison_manifest.json`과 각 로그 CSV에는
+알고리즘 버전, `segmentTimes`, 시나리오 속도를 기록하므로 서로 다른 실행 결과를
+같은 실험으로 혼합하지 마십시오.
 
 ### 학습 조건은 실험 설계에 따라 고릅니다
 
@@ -287,7 +303,7 @@ run_all(struct('scratchBaseline',true));   % 실험 변수 = 상태 표현 하�
 노드와 간선은 기존 `landing2d.ontology.nodeSchema('core')` 그대로이며,
 새 온톨로지 클래스나 관계를 만들지 않았습니다.
 
-- 노드 9개: PositionError, DescentSpeed, PadMotion, FovMargin, SearchDuration,
+- 노드 9개: PositionError, DescentSpeed, RelativeMotionRisk, FovMargin, SearchDuration,
   PadVisibility, RelativeDistance, TouchdownSafety, SafeLanding
 - 관계 4종: `degrades`, `supports`, `contributes`, `self` (간선 22개)
 - 관계 유형은 합치지 않습니다. `gat` 제거 실험에서만 하나로 합칩니다.
@@ -434,7 +450,7 @@ options.scenarioSpeeds = [
     1.5, 5.5, 2.0
     2.0, 7.0, 2.5
 ];
-options.segmentTimes = [8,15];
+options.segmentTimes = [3,15];
 options.segmentColors = [
     0.27, 0.56, 0.88   % S1 파랑
     0.96, 0.61, 0.22   % S2 주황

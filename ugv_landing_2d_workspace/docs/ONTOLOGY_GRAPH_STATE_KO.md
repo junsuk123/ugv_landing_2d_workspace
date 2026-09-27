@@ -94,7 +94,7 @@ run_all(struct('scratchBaseline',true));   % 실험 변수 = 상태 표현 하�
 노드 집합 V_t와 간선 집합 E_t는 기존 `landing2d.ontology.nodeSchema('core')`
 그대로입니다. 새 온톨로지 클래스나 관계를 만들지 않았습니다.
 
-- 노드 9개: PositionError, DescentSpeed, PadMotion, FovMargin, SearchDuration,
+- 노드 9개: PositionError, DescentSpeed, RelativeMotionRisk, FovMargin, SearchDuration,
   PadVisibility, RelativeDistance, TouchdownSafety, SafeLanding
 - 관계 4종: `degrades`, `supports`, `contributes`, `self`
 - 간선 22개, 관계 유형을 유지한 채 `(i, r, j)`로 표현
@@ -157,7 +157,7 @@ Actor와 Critic은 **각자 부호기를 하나씩** 가집니다
 | --- | --- |
 | PositionError | `obs.xError` (가시) / `memory.lastError` (비가시) |
 | DescentSpeed | `s.vz` |
-| PadMotion | `memory.lastPadSpeed`, `obs.vError` / `memory.lastPadSpeed - s.vx` |
+| RelativeMotionRisk | `obs.vError` / `memory.lastPadSpeed - s.vx` |
 | FovMargin | `obs.xError`, `obs.halfWidth`, `obs.visible` |
 | SearchDuration | `memory.timeSinceSeen` |
 | PadVisibility | `obs.visible`, `s.mode` (추종/탐색 구간 = 기준 관측의 o2/o3) |
@@ -316,20 +316,19 @@ h < 1.5 m 구간에서 교사 az의 평균은 **mode 1에서 0.024, mode 2에서
 해상도**를 정하는 값이라 넓히면 착륙 직전 판단이 둔해집니다. 이득이 작고
 의미를 해치므로 기본값을 그대로 두었습니다.
 
-**온톨로지 구조.** 다음은 기준 관측 벡터에는 있지만 9개 노드로는 표현되지
-않습니다.
+**온톨로지 구조.** 다음은 기준 관측 벡터와 9개 노드의 표현 차이입니다.
 
-- `PadMotion`이 "마지막 관측 패드 속도"와 "맞추지 못한 상대 속도" 두 양을
-  0.5/0.5로 합쳐 하나의 값으로 만듭니다. 기준 모델은 둘을 따로 봅니다.
+- `RelativeMotionRisk`는 FOV 위험을 직접 만드는 상대 속도만 사용합니다. 절대 패드
+  속도는 위험에서 제외하고, 관측 가속 추세와 FOV 여유 변화율은 동적 문맥 채널로
+  관련 노드에 전달합니다.
 - 기준 모델은 수평 오차를 관측값(`o4`)과 추측 항법값(`o7`) 두 채널로 따로
   보지만, 그래프는 `PositionError` 하나로 합칩니다. 높은 고도(h >= 2.5 m)에서
   수평 명령 손실이 아직 기준 모델보다 큽니다(0.0245 대 0.0070).
 
-이를 메우려면 **새 온톨로지 노드**를 만들거나 한 노드에 서로 다른 물리량을 더
-얹어야 합니다. 요구사항상 근거 없이 온톨로지 클래스나 속성을 새로 만들지 않기로
-했으므로 그대로 두었습니다. 최종 교사 모방 손실은 **0.0667**이고 기준 모델은
-0.0071입니다. 이 차이는 구현 결함이 아니라 **9개 의미 채널로 상황을 요약한다는
-이 방법 자체의 성질**이며, 실험이 측정하려는 대상이기도 합니다.
+나머지 정보 차이를 메우려면 **새 온톨로지 노드**를 만들거나 한 노드에 서로 다른
+물리량을 더 얹어야 합니다. 요구사항상 근거 없이 온톨로지 클래스를 늘리지 않았고,
+대신 물리적으로 직접 연결되는 동적 문맥만 추가했습니다. 과거 교사 모방 손실 수치는
+현재 의미 정의와 호환되지 않으므로 새 알고리즘 버전에서 다시 측정해야 합니다.
 
 방향 부호 채널을 추가한 것은 이 원칙의 예외가 아닙니다. 새 물리량을 넣은 것이
 아니라, 노드가 이미 나타내는 바로 그 양의 부호를 되살린 것입니다. 부호가 없으면

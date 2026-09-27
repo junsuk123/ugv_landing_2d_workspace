@@ -69,6 +69,19 @@ for i = 1:numel(names)
         sprintf('Node %s claims a privileged source: %s',names{i},text));
 end
 
+% Absolute ground speed must not inflate motion risk when relative velocity
+% is unchanged.
+slow = s; slow.vx = 1.3;
+fast = s; fast.vx = 5.8;
+slowObs = landing2d.sensing.observePad(slow,slow.x+0.2,1.5,c);
+fastObs = landing2d.sensing.observePad(fast,fast.x+0.2,6.0,c);
+slowMemory = landing2d.rl.initialMemory(1.5);
+fastMemory = landing2d.rl.initialMemory(6.0);
+slowSem = landing2d.graphstate.observationSemantics(slow,slowObs,slowMemory,c);
+fastSem = landing2d.graphstate.observationSemantics(fast,fastObs,fastMemory,c);
+assert(abs(slowSem.RelativeMotionRisk-fastSem.RelativeMotionRisk) < 1e-12, ...
+    'RelativeMotionRisk must depend on relative velocity, not pad speed.');
+
 % 참값을 쓰는 옛 경로(semanticState)와 달리, 이 적응 계층은 truth 인자를 받지
 % 않습니다. 함수 서명 자체가 정보경계를 강제합니다.
 assert(nargin('landing2d.graphstate.observationSemantics') == 4, ...

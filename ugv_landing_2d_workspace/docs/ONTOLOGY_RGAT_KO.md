@@ -8,7 +8,7 @@
 1단계에서 설계한 보상은 두 항입니다.
 
 ```text
-r = w_capture * (착륙 패드를 포착 중이면 +1, 아니면 -1)
+r = w_capture * captureSignal(q)  % q=|e_x|/FOV_half, FOV 밖에서 -1로 점근
   + w_distance * clip(1 - 상대거리/distanceScale, -1, +1)
 ```
 
@@ -102,13 +102,14 @@ TouchdownSafety  -contributes-> SafeLanding
 | SearchDuration | 0.0604 | 유지 (capture 항) |
 | FovMargin | 0.0564 | 유지 (capture 항) |
 | PadVisibility | 0.0522 | 유지 (capture 항) |
-| **PadMotion** | 0.0447 | **제거** |
+| **PadMotion (legacy)** | 0.0447 | **제거** |
 | **Alignment** | 0.0134 | **제거** |
 | **TrackingStability** | 0.0003 | **제거** |
 
 Alignment는 `exp(-|ex|/1 m)`, TrackingStability는 여기에 속도 항을 더한 값으로,
 둘 다 PositionError의 단조 변환입니다. 같은 정보를 두 번 넣은 셈이라 기여가 거의 0입니다.
-PadMotion은 독립적인 양이지만 보상항 어느 쪽에도 속하지 않는 배경 노드입니다.
+이 표의 `PadMotion`은 절대 패드 속도와 상대 속도를 섞던 이전 11노드 설계입니다.
+현재 정책 입력의 `RelativeMotionRisk`는 별도 노드이며 상대 속도만 사용합니다.
 
 세 노드를 뺀 뒤 후보 스키마들을 같은 데이터로 학습해 비교했습니다.
 초기화 시드 7개로 학습해 capture 항 비율의 평균과 표준편차를 봤습니다.

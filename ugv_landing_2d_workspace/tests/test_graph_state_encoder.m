@@ -171,7 +171,7 @@ end
 function signed = signedSample(schema,rs)
 % 방향 부호 채널의 시험값. 방향이 없는 노드는 0으로 둡니다.
 signed = struct();
-directional = {'PositionError','DescentSpeed','PadMotion','FovMargin'};
+directional = {'PositionError','DescentSpeed','RelativeMotionRisk','FovMargin'};
 for i = 1:numel(schema.nodeNames)
     name = schema.nodeNames{i};
     if ~ismember(name,directional)
