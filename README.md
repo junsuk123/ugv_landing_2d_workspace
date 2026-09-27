@@ -184,6 +184,8 @@ run_all(struct('showLiveDashboard',false));   % 실시간 대시보드 비활성
 run_all(struct('figureVisible',false));       % GUI 없이 계산과 저장만 수행
 run_all(struct('stateRepresentation','semantic_flat')); % 의미정보만 추가한 MLP 대조군
 run_all(struct('scratchBaseline',false));     % 의도적으로 옛 혼합 초기화 조건 재현
+run_realtime_checkpoint_comparison;           % PN/PPO/R-GAT 체크포인트 실시간 비교
+run_realtime_checkpoint_comparison(struct('playbackSpeed',4)); % 4배속 재생
 ```
 
 > 기본값은 두 PPO 모델 모두 교사 없이 같은 학습 조건으로 시작합니다. 기본 몬테카를로 평가는 비교군마다 20회 수행하며, 모든 비교군이 같은 시드와 초기조건 표본을 사용합니다. 보상 전이 또는 의미 특징 구현 버전이 달라지면 기존 정책 파일은 자동으로 무효화됩니다.
