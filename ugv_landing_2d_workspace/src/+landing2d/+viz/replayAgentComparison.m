@@ -13,6 +13,7 @@ end
 visibility = 'on';
 if ~c.figureVisible, visibility = 'off'; end
 fig = figure('Name','PN vs PPO RL vs Ontology-RGAT RL - real-time', ...
+    'Tag','landing2dFinalTest', ...
     'NumberTitle','off','Position',[55,55,1540,820], ...
     'Color','w','Visible',visibility);
 group = uitabgroup(fig,'Units','normalized','Position',[0,0,1,1]);
@@ -25,6 +26,9 @@ for j = 1:nCases
     [xLimits,zLimits] = fixedBounds(runs,j,c);
     xlim(ax,xLimits); ylim(ax,zLimits);
     set(ax,'XLimMode','manual','YLimMode','manual');
+    speedSegments = landing2d.scenario.segmentMetadata( ...
+        runs(1).results(j),c);
+    landing2d.viz.addSegmentBackground(ax,speedSegments,'position',c);
     xlabel(ax,'Forward position x [m]');
     ylabel(ax,'Altitude z [m]');
     title(ax,sprintf('Scenario %d | target %.1f / %.1f / %.1f m/s', ...

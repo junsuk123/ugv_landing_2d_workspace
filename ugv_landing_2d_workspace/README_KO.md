@@ -90,6 +90,7 @@ run_all(struct('stateRepresentation','semantic_flat')); % 같은 의미 특징�
 run_all(struct('scratchBaseline',false));        % 옛 혼합 초기화 조건을 의도적으로 재현
 run_all(struct('useLegacyOntologyReward',true)); % 옛 보상 설계 비교군까지 포함
 run_realtime_checkpoint_comparison;              % 저장 정책 3종을 한 탭에서 실시간 비교
+run_finalTest;                                    % 최종 PN/RL/OntoRL 체크포인트 GUI 비교
 ```
 
 `run_demo`의 표시 배속은 4배속입니다. 함수의 기본 배속은 기존과 같은 1배속입니다.

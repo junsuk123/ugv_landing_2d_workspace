@@ -19,6 +19,9 @@ axesList = findobj(fig,'Type','axes');
 assert(numel(tabs) == 1 && numel(axesList) == 1);
 assert(strcmp(axesList.XLimMode,'manual') ...
     && strcmp(axesList.YLimMode,'manual'));
+speedBands = findall(axesList,'Type','patch', ...
+    'Tag','Landing2dSegmentBackground');
+assert(numel(speedBands) == 3);
 trails = findobj(axesList,'Type','line','-regexp','DisplayName','RL|guidance');
 assert(numel(trails) == 3);
 end
