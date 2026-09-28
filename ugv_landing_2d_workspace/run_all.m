@@ -166,7 +166,10 @@ summaryTable = landing2d.metrics.makeComparisonSummary(runs,cfg);
 disp(summaryTable);
 comparison.runs = runs;
 if cfg.saveResults
-    landing2d.io.saveComparison(runs,summaryTable,cfg,'comparison');
+    experiment = struct('baselineCfg',baselineCfg,'proposedCfg',proposedCfg, ...
+        'trainingDifferences',{trainingDiff}, ...
+        'stateRepresentation',stateRepresentation);
+    landing2d.io.saveComparison(runs,summaryTable,cfg,'comparison',experiment);
     monteCarlo = comparison.monteCarlo; %#ok<NASGU>
     save(fullfile(cfg.outputDir,'monte_carlo_summary.mat'), ...
         'monteCarlo','feasibilityTable');

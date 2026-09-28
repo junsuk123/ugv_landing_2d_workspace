@@ -9,6 +9,13 @@ if s.mode == 3
     detail = struct('normalizedError',0,'region','landed');
     return;
 end
+if s.mode == 4
+    % A centred but unsafe ground impact is not a successful capture.
+    % Keeping this inside the capture term preserves the two-term reward.
+    value = -1;
+    detail = struct('normalizedError',NaN,'region','failed');
+    return;
+end
 if strcmp(rl.captureMode,'binary')
     value = 2*double(obs.visible)-1;
     detail = struct('normalizedError',NaN,'region','binary');

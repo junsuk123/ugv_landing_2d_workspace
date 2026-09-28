@@ -51,6 +51,14 @@ assert(abs(capture(2)-rl.captureBoundaryValue) < 1e-12);
 assert(all(diff(capture) < 0) && capture(end) > -1, ...
     'Capture reward must retain a bounded gradient outside FOV.');
 
+% Terminal outcome must be distinguished inside the same two reward terms.
+failed = sCapture; failed.mode = 4;
+landed = sCapture; landed.mode = 3;
+assert(landing2d.rl.captureSignal(failed,obsCapture,0,rl) == -1);
+assert(landing2d.rl.captureSignal(landed,obsCapture,0,rl) == 1);
+assert(landing2d.rl.distanceSignal(0,0.1,dtAction,rl,4) == -1);
+assert(landing2d.rl.distanceSignal(0,0.1,dtAction,rl,3) == 1);
+
 % A terminal state must not create transitions for the remainder of tEnd.
 [rTerminal,sTerminal] = landing2d.simulation.initializeCase(c,1);
 sTerminal.h = 0;
@@ -60,6 +68,32 @@ sTerminal.x = rTerminal.xUgv(1);
     sTerminal,c,opts);
 assert(terminalTrajectory.count == 0 && terminalTrajectory.bootstrap == 0, ...
     'Terminal rollout must stop reward collection and value bootstrapping.');
+
+% A policy that dives into the ground must receive the discounted absorbing
+% failure outcome on its final valid transition. This prevents early failure
+% from avoiding the remaining finite-horizon cost.
+cFail = landing2d.config.defaultConfig();
+cFail.tEnd = 10;
+cFail.segmentTimes = [3,7];
+cFail.scenarioSpeeds = [1,4,1.5];
+cFail.animate = false;
+cFail.figureVisible = false;
+cFail.saveResults = false;
+cFail.rl.parallelEpisodes = false;
+rs = RandStream('threefry','Seed',2);
+diver = landing2d.rl.agentInit(cFail.rl,rs,cFail.graphState);
+for i = 1:numel(diver.policy.mean.W)
+    diver.policy.mean.W{i}(:) = 0;
+    diver.policy.mean.b{i}(:) = 0;
+end
+diver.policy.mean.b{end}(2) = -5;
+[rFail,sFail] = landing2d.simulation.initializeCase(cFail,1);
+[rFail,failTrajectory] = landing2d.rl.rolloutEpisode(diver,rFail,sFail, ...
+    cFail,opts);
+assert(isfinite(rFail.failureTime) && failTrajectory.bootstrap == 0);
+assert(failTrajectory.reward(end) < -(cFail.rl.captureWeight ...
+    +cFail.rl.distanceWeight), ...
+    'Unsafe contact must include the remaining absorbing failure return.');
 
 assert(c.rl.scratch.initialHeightRange(1) >= 0.8, ...
     'Scratch episodes must predominantly reach the t=3 s acceleration event.');

@@ -7,8 +7,9 @@ function [r,traj] = rolloutEpisode(agent,r,s,c,opts)
 %   opts.collect       : true면 학습용 전이와 보상 기록
 %   opts.rs            : RandStream (deterministic=true면 사용하지 않음)
 %
-% 에피소드는 착륙/실패 후에도 tEnd까지 진행합니다. 착륙 상태는 계속 포착 중이고
-% 거리가 0이므로 높은 보상이 유지되고, 실패 상태는 UGV가 멀어지며 벌점이 쌓입니다.
+% 표시 로그는 착륙/실패 뒤에도 tEnd까지 채우지만 PPO 전이는 종말에서 끝납니다.
+% 가짜 post-terminal 전이를 만들지 않으면서 조기 실패로 미래 벌점을 회피하지
+% 못하도록, 남은 유한 지평선의 흡수상태 보상을 마지막 전이에 lump-sum으로 넣습니다.
 %
 % 보상은 환경 참값으로 계산합니다. 참값은 보상과 로그에만 쓰고 정책 입력에는
 % 넣지 않습니다(landing2d.rl.observation 참고).
@@ -84,9 +85,20 @@ for k = 1:n
         distance = hypot(xp-s.x,max(s.h,0));
         if collect && pending > 0
             % 보상 항 1: 착륙 패드 포착.  보상 항 2: 착륙 지점과의 상대거리.
-            traj.reward(pending) = rl.captureWeight*landing2d.rl.captureSignal(s,obs,xp,rl) ...
-                +rl.distanceWeight*landing2d.rl.distanceSignal( ...
-                    distance,previousDistance,dtAction,rl);
+            captureReward = landing2d.rl.captureSignal(s,obs,xp,rl);
+            distanceReward = landing2d.rl.distanceSignal( ...
+                distance,previousDistance,dtAction,rl,s.mode);
+            if s.mode >= 3
+                % Equivalent to holding terminal capture/distance signals
+                % for the remaining action-time horizon, without recording
+                % invalid transitions after termination.
+                remaining = floor((n-k)/interval);
+                multiplier = discountedCount(remaining+1,rl.gamma);
+                captureReward = multiplier*captureReward;
+                distanceReward = multiplier*distanceReward;
+            end
+            traj.reward(pending) = rl.captureWeight*captureReward ...
+                +rl.distanceWeight*distanceReward;
             pending = 0;
         end
         terminalReached = terminalReached || s.mode >= 3;
@@ -160,4 +172,15 @@ if traceGraph
     traj.graphStates = traj.graphStates(:,1:graphCount);
 end
 traj.captureRate = capturedCount/max(decisionCount,1);
+end
+
+function value = discountedCount(count,gamma)
+% Sum_{j=0}^{count-1} gamma^j, evaluated stably near gamma=1.
+if count <= 0
+    value = 0;
+elseif abs(1-gamma) < 1e-12
+    value = count;
+else
+    value = (1-gamma^count)/(1-gamma);
+end
 end

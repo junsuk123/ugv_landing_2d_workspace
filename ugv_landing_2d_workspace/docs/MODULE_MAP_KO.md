@@ -181,11 +181,12 @@ replot_results
 
 ```text
 r = captureWeight * captureSignal(q)  % FOV 밖에서도 q 감소 방향의 기울기 유지
-  + distanceWeight * clip(1 - (상대거리/distanceScale)^distanceExponent, -1, +1)
+  + distanceWeight * distanceSignal   % 거리 변화율 + 근접도
 ```
 
-착륙 상태는 포착으로 간주하고 거리가 0이므로 두 항 모두 최대가 됩니다.
-접촉 실패 상태는 UGV가 멀어지면서 두 항 모두 최소가 됩니다.
+종말에서는 같은 두 항 안에서 안전 착륙을 `+1`, 실패 접촉을 `-1`로 두고,
+남은 유한 지평선의 할인된 흡수상태 값을 마지막 전이에 합산합니다. post-terminal
+전이나 별도 성공/실패 보상항은 만들지 않습니다.
 
 ### 결과 `r`
 
@@ -198,7 +199,7 @@ PD와 강화학습이 같은 필드를 채웁니다.
 
 ### 온톨로지 그래프
 
-`+ontology/nodeSchema.m`에 노드 8개, 간선 19개, 보상항 대응이 모여 있습니다.
+`+ontology/nodeSchema.m`에 core 의미 노드 9개와 의미 간선 22개가 모여 있습니다.
 노드별 반사실 기여도를 측정해 기여가 거의 없는 노드를 제거한 최소 구성입니다.
 노드 특징은 `[값; 1-값; 위험 표시; 편향] + 노드 정체성 one-hot`이며 `inDim = 4 + 노드 수`입니다.
 관계는 `degrades`, `supports`, `contributes`, `self` 네 가지입니다.
