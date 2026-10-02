@@ -18,15 +18,21 @@
 
 ```matlab
 run_tests(false)    % 기존 회귀 + 신규 계약 테스트 24개
-run_all             % A/B/C 각각 PPO 1회인 제한 스모크
+run_all             % A/B/C 전체 PPO 학습·평가(기본 full 모드)
 full_study_commands % 장시간 연구 실행 명령만 출력
 ```
 
-`run_all` 기본값은 통합 확인용이며 수렴 또는 성능 검증이 아닙니다. 장시간 학습은
-사용자가 명시적으로 아래를 실행할 때만 시작합니다.
+`run_all` 기본값은 전체 학습 및 평가입니다. 저장된 호환 체크포인트를 무시하고
+처음부터 다시 학습하려면 다음과 같이 실행합니다.
 
 ```matlab
 run_all(struct('executionMode','full','rlRetrain',true))
+```
+
+한 번의 PPO 반복으로 코드 연결만 빠르게 확인하려면 스모크 모드를 명시합니다.
+
+```matlab
+run_all(struct('executionMode','smoke'))
 ```
 
 기존 11차원·이중적분기 실험은 삭제하지 않았으며 명시적으로 실행할 수 있습니다.

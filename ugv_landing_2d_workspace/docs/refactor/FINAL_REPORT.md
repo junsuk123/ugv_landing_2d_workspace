@@ -27,7 +27,8 @@ and immutable reference tests remain available behind `legacy_v1`.
 
 ```matlab
 run_tests(false)
-[cmp,t,cfg] = run_all(struct('figureVisible',false,'animate',false,'saveResults',false));
+[cmp,t,cfg] = run_all(struct('executionMode','smoke','figureVisible',false, ...
+    'animate',false,'saveResults',false));
 ```
 
 Results:

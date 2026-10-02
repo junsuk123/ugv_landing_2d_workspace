@@ -1,7 +1,7 @@
 function [comparison, summaryTable, cfg] = run_all(options)
 % RUN_ALL  Versioned experiment entry point.
-% Default: planar_visibility_v2 bounded A/B/C PPO integration smoke.
-% Explicit long run: run_all(struct('executionMode','full','rlRetrain',true)).
+% Default: planar_visibility_v2 full A/B/C PPO experiment.
+% Explicit bounded check: run_all(struct('executionMode','smoke')).
 % Legacy reproduction: run_all(struct('experimentVersion','legacy_v1')).
 %
 % The Korean description below documents only the legacy_v1 compatibility path.

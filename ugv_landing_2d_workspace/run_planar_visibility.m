@@ -1,10 +1,11 @@
 function [comparison,summaryTable,cfg] = run_planar_visibility(options)
 % RUN_PLANAR_VISIBILITY  Primary A/B/C experiment using the common V2 API.
-% Default is a bounded integration smoke run, not a performance claim.
+% Default is the full A/B/C PPO experiment. Use executionMode='smoke' for a
+% bounded one-iteration integration check that is not a performance claim.
 if nargin < 1, options=struct(); end
 projectRoot=setup_project();
 cfg=landing2d.config.primaryConfig(projectRoot);
-executionMode='smoke';
+executionMode='full';
 if isfield(options,'executionMode')
     executionMode=char(options.executionMode); options=rmfield(options,'executionMode');
 end

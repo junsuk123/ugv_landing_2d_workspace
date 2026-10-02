@@ -53,6 +53,7 @@ Scenario, sensor, and policy random streams use separate deterministic seed
 offsets. A/B/C must reuse the same scenario/sensor seeds. `taskFingerprint`
 excludes representation-specific parameters and fails if the shared task differs.
 
-`run_all` defaults to a one-iteration bounded smoke. `executionMode='full'` is
-the explicit long-run switch. The eventual full study should use at least five
-independent training seeds and checkpoint selection on validation seeds only.
+`run_all` defaults to the full A/B/C PPO experiment. Use
+`executionMode='smoke'` explicitly for a one-iteration bounded integration
+check. The full study should use at least five independent training seeds and
+checkpoint selection on validation seeds only.
