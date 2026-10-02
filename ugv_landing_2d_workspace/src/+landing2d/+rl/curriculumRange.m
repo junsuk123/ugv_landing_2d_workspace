@@ -16,6 +16,7 @@ if rl.curriculumFraction <= 0
 end
 span = max(1,round(rl.curriculumFraction*rl.ppoIterations));
 progress = min(max((iteration-1)/span,0),1);
-high = rl.curriculumStartHeight+(range(2)-rl.curriculumStartHeight)*progress;
-range(2) = max(high,range(1));
+start = [rl.initialHeightRange(1),rl.curriculumStartHeight];
+range = start+(1-start)*progress;
+range = sort(range);
 end

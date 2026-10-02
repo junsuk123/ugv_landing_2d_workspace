@@ -5,6 +5,7 @@ The primary experiment uses one fixed reward for all policy representations:
 $$
 r_t=B(e_t)-\frac{\Delta t}{T_{ref}}
 \left(w_g c_{goal}+w_v c_{view}+w_u c_{control}\right)
++\frac{\Delta t}{T_{ref}}w_r q_{ready}
 + \gamma_{\Delta t}\Phi(s_{t+1})-\Phi(s_t),
 $$
 
@@ -28,9 +29,18 @@ c_{view}=\begin{cases}
 c_{control}=\tfrac12\|a_{norm}\|_2^2.
 $$
 
-Defaults are `Tref=70 s`, `Lx=3 m`, `Lh=4 m`, and weights
-`[1,0.1,0.02]`. Terminal bonuses are success `+10`, safe abort `-3`, timeout
-`-12`, and unsafe/unauthorized outcomes `-40`. The time-varying discount is
+`q_ready` is an exponential landing-readiness score. It is largest when
+horizontal error follows a bounded closing-speed target, vertical speed follows
+a height-dependent safe descent target, and relative speed, pitch, and pitch
+rate approach their touchdown limits. Unlike the potential difference, this is
+a genuine dense task preference and therefore addresses the observed one-success
+in roughly 15,000 episodes sparse-reward collapse.
+
+Defaults are `Tref=70 s`, `Lx=3 m`, `Lh=4 m`, and running weights
+`[goal,view,control,readiness]=[2,1,0.25,8]`. Terminal bonuses are success `+25`,
+safe abort `-4`, timeout `-12`, and unsafe/unauthorized outcomes `-40`. During
+training only, unsafe penalties start at `-5` and tighten with the common
+performance-gated curriculum; evaluation always uses `-40`. The discount is
 `exp(-dt/70 s)`.
 
 This is a literature-informed engineering design, not an equation copied from a
@@ -46,12 +56,11 @@ moving platform is an established experimental problem
 ([Lee et al., 2020](https://arxiv.org/abs/2008.05699)), but that work does not
 validate this simulator's estimator, reward, or safety thresholds.
 
-Truth `ex,h` is isolated inside the simulator reward and evaluator. It is not an
+Truth kinematics are isolated inside the simulator reward and evaluator. They are not an
 actor, critic, ontology, estimator, or supervisor feature. There is no positive
-visibility-survival reward, pitch penalty, climb reward, attention reward,
-adaptive ontology weight, or remaining-horizon absorption multiplier. The only
-dense progress term is the common potential difference above. Terminal reward
-is paid exactly once.
+attention reward, adaptive ontology weight, or remaining-horizon absorption
+multiplier. All three learned arms use exactly the same readiness and terminal
+reward. Terminal reward is paid exactly once.
 
 The code verifies local bounds, terminal ordering, and representative fixtures;
 the long audit-trajectory sensitivity study remains future validation work.

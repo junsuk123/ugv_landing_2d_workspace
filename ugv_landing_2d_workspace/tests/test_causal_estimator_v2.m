@@ -13,6 +13,7 @@ assert(info1.accepted && info2.idempotent && isequaln(track,same));
 [e,o,info] = landing2d.environment.reset(c,5); %#ok<ASGLU>
 assert(~isfield(info.packet,'phase') && ~isfield(info.packet,'truePadAcceleration'));
 assert(info.packet.trackInitialized && numel(o)==26);
+assert(abs((e.pad.vx-e.physicalState.vx)-info.packet.relativeVxEstimate)<1e-12);
 e.observationMemory.lastMeasurementTime = 0;
 e.observationMemory.timeSinceLastDetection = c.experiment.safety.prolongedLoss;
 status = landing2d.environment.updateDecisionContext(e.episodeStatus, ...

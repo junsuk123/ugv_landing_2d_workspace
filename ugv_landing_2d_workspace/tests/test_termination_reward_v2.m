@@ -24,7 +24,8 @@ assert(abs(ev1.preImpact.relativeVz-0.1)<1e-12);
 truth = struct('ex',0,'h',0);
 m = struct('detected',true,'bearingValid',true,'bearing',0);
 [safe,comp] = landing2d.rl.computeReward(truth,truth,m,[0;0],0.1,ev1,c);
-assert(abs(safe-c.experiment.reward.SUCCESS)<1e-12 && comp.goalCost==0);
+assert(safe>c.experiment.reward.SUCCESS && comp.goalCost==0 ...
+    && comp.landingReadiness==1 && comp.readinessReward>0);
 unsafeEvent=ev1; unsafeEvent.reason='UNSAFE_CONTACT';
 unsafe=landing2d.rl.computeReward(truth,truth,m,[0;0],0.1,unsafeEvent,c);
 assert(safe>unsafe);
@@ -32,6 +33,12 @@ far=struct('ex',3,'h',4); near=struct('ex',1,'h',1);
 noEvent=ev1; noEvent.occurred=false; noEvent.reason='';
 [progress,progressComp]=landing2d.rl.computeReward(far,near,m,[0;0],0.1,noEvent,c);
 assert(progressComp.potentialShaping>0 && progress>0);
+ready=struct('ex',0,'h',0.2,'relativeVx',0.05,'vz',-0.1, ...
+    'theta',0,'pitchRate',0);
+notReady=ready; notReady.relativeVx=2; notReady.vz=-1;
+[~,readyComp]=landing2d.rl.computeReward(ready,ready,m,[0;0],0.1,noEvent,c);
+[~,notReadyComp]=landing2d.rl.computeReward(notReady,notReady,m,[0;0],0.1,noEvent,c);
+assert(readyComp.landingReadiness>notReadyComp.landingReadiness);
 audit=landing2d.rl.rewardAudit(c);
 R=audit.DiscountedReturn;
 assert(all(R([1,2,10])>max(R([4,5]))));

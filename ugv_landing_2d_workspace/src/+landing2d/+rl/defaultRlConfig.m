@@ -90,6 +90,11 @@ rl.abortCurriculumFraction = 0;
 rl.abortCurriculumStart = 3.0;
 rl.motionCurriculumFraction = 0;
 rl.motionCurriculumStartScale = 1.0;
+rl.curriculumMode = 'iteration';
+rl.curriculumLandingThreshold = 0.05;
+rl.curriculumStep = 0.10;
+rl.curriculumRequiredWindows = 3;
+rl.unsafePenaltyCurriculumStart = -40;
 
 %% 교사 없이 처음부터 학습할 때의 설정 (landing2d.rl.applyScratchSettings)
 % 좋은 초기 정책이 없으므로 탐색을 키우고 학습량을 늘려야 합니다.

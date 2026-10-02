@@ -26,7 +26,15 @@ if isNew
     measuredPadX = own.x+measurement.relativeX;
     if ~track.initialized
         track.padX = measuredPadX;
-        track.padVx = 0;
+        % The reset contract starts the aircraft horizontally matched to the
+        % pad. Until two measurements exist, own velocity is the only causal
+        % velocity prior available; zero created a large fictitious relative
+        % speed on the very first policy observation.
+        if isfield(own,'vx') && isfinite(own.vx)
+            track.padVx = own.vx;
+        else
+            track.padVx = 0;
+        end
         track.padAx = 0;
         track.initialized = true;
         accepted = true;

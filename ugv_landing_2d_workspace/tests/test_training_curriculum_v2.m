@@ -1,40 +1,41 @@
-function tests=test_training_curriculum_v2
-tests=functiontests(localfunctions);
-end
-
-function testScratchScheduleAndCurriculum(testCase)
+function test_training_curriculum_v2()
+% TEST_TRAINING_CURRICULUM_V2  Executed directly by run_tests.
 root=fileparts(fileparts(mfilename('fullpath')));
 c=landing2d.config.primaryConfig(root);
-verifyEqual(testCase,c.rl.ppoIterations,2500);
-verifyFalse(testCase,c.rl.useImitationLearning);
+assert(c.rl.ppoIterations==2500);
+assert(~c.rl.useBehaviorClone);
+assert(strcmp(c.rl.curriculumMode,'performance'));
 
-[early,hEarly,pEarly]=landing2d.rl.trainingEpisodeConfig(c,1);
-[late,hLate,pLate]=landing2d.rl.trainingEpisodeConfig(c,c.rl.ppoIterations);
+[early,hEarly,pEarly]=landing2d.rl.trainingEpisodeConfig(c,1,0);
+[late,hLate,pLate]=landing2d.rl.trainingEpisodeConfig(c,c.rl.ppoIterations,1);
+assert(all(abs([pEarly.height,pEarly.abort,pEarly.motion])<eps));
+assert(all(abs([pLate.height,pLate.abort,pLate.motion]-1)<eps));
+assert(max(abs(hEarly-[0.4,0.8]))<1e-12);
+assert(max(abs(hLate-c.experiment.scenario.heightRange))<1e-12);
+assert(abs(early.experiment.safety.prolongedLoss- ...
+    c.rl.abortCurriculumStart)<1e-12);
+assert(max(abs(early.experiment.scenario.v1Range- ...
+    c.experiment.scenario.v1Range*c.rl.motionCurriculumStartScale))<1e-12);
+assert(abs(late.experiment.safety.prolongedLoss- ...
+    c.experiment.safety.prolongedLoss)<1e-12);
+assert(max(abs(late.experiment.scenario.v1Range- ...
+    c.experiment.scenario.v1Range))<1e-12);
+assert(early.experiment.reward.UNSAFE_CONTACT== ...
+    c.rl.unsafePenaltyCurriculumStart);
+assert(late.experiment.reward.UNSAFE_CONTACT== ...
+    c.experiment.reward.UNSAFE_CONTACT);
 
-verifyEqual(testCase,pEarly.height,0,'AbsTol',eps);
-verifyEqual(testCase,pEarly.abort,0,'AbsTol',eps);
-verifyEqual(testCase,pEarly.motion,0,'AbsTol',eps);
-verifyEqual(testCase,early.experiment.safety.prolongedLoss, ...
-    c.rl.abortCurriculumStart,'AbsTol',1e-12);
-verifyEqual(testCase,early.experiment.scenario.v1Range, ...
-    c.experiment.scenario.v1Range*c.rl.motionCurriculumStartScale, ...
-    'AbsTol',1e-12);
-verifyEqual(testCase,early.experiment.scenario.a2Range, ...
-    c.experiment.scenario.a2Range*c.rl.motionCurriculumStartScale, ...
-    'AbsTol',1e-12);
-verifyLessThan(testCase,max(hEarly),max(c.experiment.scenario.heightRange));
+level=0; streak=0;
+[level,streak]=landing2d.rl.advanceCurriculumLevel(c.rl,level, ...
+    c.rl.curriculumLandingThreshold-1e-3,streak);
+assert(level==0 && streak==0);
+for i=1:c.rl.curriculumRequiredWindows
+    [level,streak]=landing2d.rl.advanceCurriculumLevel(c.rl,level, ...
+        c.rl.curriculumLandingThreshold,streak);
+end
+assert(abs(level-c.rl.curriculumStep)<1e-12 && streak==0);
 
-verifyEqual(testCase,pLate.height,1,'AbsTol',eps);
-verifyEqual(testCase,pLate.abort,1,'AbsTol',eps);
-verifyEqual(testCase,pLate.motion,1,'AbsTol',eps);
-verifyEqual(testCase,late.experiment.safety.prolongedLoss, ...
-    c.experiment.safety.prolongedLoss,'AbsTol',1e-12);
-verifyEqual(testCase,late.experiment.scenario.v1Range, ...
-    c.experiment.scenario.v1Range,'AbsTol',1e-12);
-verifyEqual(testCase,late.experiment.scenario.a2Range, ...
-    c.experiment.scenario.a2Range,'AbsTol',1e-12);
-verifyEqual(testCase,hLate,c.experiment.scenario.heightRange,'AbsTol',1e-12);
-
-% Curriculum construction must not mutate nominal evaluation settings.
-verifyEqual(testCase,c.experiment.safety.prolongedLoss,3.0,'AbsTol',1e-12);
+% Nominal evaluation configuration is never mutated by curriculum creation.
+assert(abs(c.experiment.safety.prolongedLoss-3.0)<1e-12);
+assert(max(abs(c.experiment.scenario.heightRange-[4,8]))<1e-12);
 end

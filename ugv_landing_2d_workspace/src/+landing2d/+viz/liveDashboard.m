@@ -162,9 +162,13 @@ if isfield(p,'selectionScore') && isfinite(p.selectionScore)
 else
     selectionText = '';
 end
-st.status.String = sprintf('%s 학습 %d/%d | return %.2f%s | landing %.0f%% | capture %.0f%%', ...
+curriculumText = '';
+if isfield(p,'curriculumLevel') && isfinite(p.curriculumLevel)
+    curriculumText = sprintf(' | curriculum %.0f%%',100*p.curriculumLevel);
+end
+st.status.String = sprintf('%s 학습 %d/%d | return %.2f%s | landing %.0f%% | capture %.0f%%%s', ...
     p.label,p.iteration,p.maxIteration,p.score,selectionText, ...
-    100*p.landingRate,100*p.captureRate);
+    100*p.landingRate,100*p.captureRate,curriculumText);
 end
 
 function st = updateOntologyTraining(st,p)

@@ -29,6 +29,12 @@ cfg.rl.abortCurriculumFraction = 0.55;
 cfg.rl.abortCurriculumStart = 12.0;
 cfg.rl.motionCurriculumFraction = 0.65;
 cfg.rl.motionCurriculumStartScale = 0.15;
+% Do not increase task difficulty merely because iterations elapsed. Each
+% stage must first demonstrate repeatable landings on its current range.
+cfg.rl.curriculumMode = 'performance';
+cfg.rl.curriculumLandingThreshold = 0.01;
+cfg.rl.curriculumStep = 0.04;
+cfg.rl.unsafePenaltyCurriculumStart = -5.0;
 cfg.rl.observationDim = cfg.experiment.observationSchema.dimension;
 cfg.rl.actionInterval = round(cfg.experiment.policyDt/cfg.experiment.physicsDt);
 cfg.rl.gamma = exp(-cfg.experiment.policyDt/ ...

@@ -16,9 +16,12 @@
     "T10": "passed"
   },
   "tests": {
-    "non_graphics": {"passed": 24, "failed": 0},
+    "non_graphics": {"passed": 26, "failed": 0},
+    "graphics_inclusive": {"passed": 31, "failed": 0},
     "bounded_three_arm_smoke": "passed",
-    "long_training": "not_run",
+    "sparse_reward_diagnostic": "v2.2 failed: approximately 1 success in 15000 episodes",
+    "v2_3_bounded_training": "passed: repeated training landings and curriculum promotion",
+    "long_training": "v2.3 not_run",
     "held_out_multi_seed_evaluation": "not_run"
   },
   "claims": {

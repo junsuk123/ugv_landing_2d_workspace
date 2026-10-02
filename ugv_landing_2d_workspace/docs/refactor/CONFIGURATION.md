@@ -58,13 +58,17 @@ excludes representation-specific parameters and fails if the shared task differs
 check. The full study should use at least five independent training seeds and
 checkpoint selection on validation seeds only.
 
-Pure-RL training uses three common curricula for all three learned arms.
-Iteration 1 scales the nominal 4--8 m height range to 0.4--0.8 m, allowing a
-random policy to discover sparse but genuine safe touchdowns without a
-teacher. Height and pad motion then expand to the full nominal distribution,
-while the prolonged-loss timeout contracts from 12 s to the nominal 3 s.
-Validation/test always use the nominal task; the curriculum never changes
-evaluation or one method independently.
+Pure-RL training uses one shared performance-gated curriculum for all learned
+arms. It starts at 0.4--0.8 m, 15% pad motion, a 12 s loss threshold, and a
+training-only `-5` unsafe penalty. Three consecutive evaluation windows with at
+least 1% training landings promote difficulty by 4%. Height lower and upper
+bounds then converge to the nominal 4--8 m range, pad motion reaches 100%, the
+loss threshold contracts to 3 s, and the unsafe penalty reaches `-40`.
+Validation/test always use the nominal task and `-40` penalty.
+
+At reset, the first causal pad-velocity prior equals measured own velocity,
+consistent with the matched-velocity reset contract. This removes the former
+false initial relative speed (for example `-2.44 m/s` while truth was zero).
 
 At nominal evaluation, `prolongedLoss=3 s` starts a common supervised recovery,
 not an immediate terminal. The recovery follows only the causal pad-track
