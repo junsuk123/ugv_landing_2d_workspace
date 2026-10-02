@@ -18,8 +18,16 @@ e.observationMemory.timeSinceLastDetection = c.experiment.safety.prolongedLoss;
 status = landing2d.environment.updateDecisionContext(e.episodeStatus, ...
     e.observationMemory,3,c);
 assert(status.abortRequested && status.landingInhibited);
-% Reacquisition does not clear a latched abort.
+% Reacquisition during supervised backup clears the abort and resumes policy.
 e.observationMemory.timeSinceLastDetection = 0;
 status = landing2d.environment.updateDecisionContext(status,e.observationMemory,3.1,c);
-assert(status.abortRequested && status.landingInhibited);
+assert(~status.abortRequested && ~status.landingInhibited);
+
+% Backup horizontal control follows only the causal track and acts toward it.
+packet=info.packet;
+packet.abortRequested=true; packet.trackInitialized=true;
+packet.exEstimate=2; packet.relativeVxEstimate=0.5;
+[applied,supervisor]=landing2d.control.safetySupervisor([0;0], ...
+    e.physicalState,packet,c);
+assert(supervisor.intervened && applied(1)>0 && applied(1)<=c.axMax);
 end

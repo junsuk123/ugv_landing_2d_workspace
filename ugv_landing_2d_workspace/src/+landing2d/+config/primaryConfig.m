@@ -20,8 +20,15 @@ cfg.rl = landing2d.rl.applyScratchSettings(cfg.rl);
 % family and expand to the complete nominal height range.  Evaluation always
 % uses the untouched manifest distribution.
 cfg.rl.curriculumFraction = 0.45;
-cfg.rl.initialHeightRange = [0.35,1.00];
-cfg.rl.curriculumStartHeight = 0.35;
+% Iteration 1 starts 0.4--0.8 m above the pad. This is low enough for a
+% random policy to discover genuine safe touchdowns without a teacher; the
+% range then expands continuously to the nominal 4--8 m task distribution.
+cfg.rl.initialHeightRange = [0.10,1.00];
+cfg.rl.curriculumStartHeight = 0.10;
+cfg.rl.abortCurriculumFraction = 0.55;
+cfg.rl.abortCurriculumStart = 12.0;
+cfg.rl.motionCurriculumFraction = 0.65;
+cfg.rl.motionCurriculumStartScale = 0.15;
 cfg.rl.observationDim = cfg.experiment.observationSchema.dimension;
 cfg.rl.actionInterval = round(cfg.experiment.policyDt/cfg.experiment.physicsDt);
 cfg.rl.gamma = exp(-cfg.experiment.policyDt/ ...

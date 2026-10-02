@@ -20,7 +20,7 @@ and immutable reference tests remain available behind `legacy_v1`.
 | T06 common reward | passed | pure three-cost reward and one terminal bonus |
 | T07 compact ontology | passed | 9 semantic + 2 query nodes, 6 typed relations, C01–C12 support |
 | T08 PPO integration | passed | raw command likelihood, variable-time GAE, stored raw graph, terminal stop |
-| T09 bounded validation | passed | 24/24 tests and bounded three-arm run; long study not run |
+| T09 bounded validation | passed | 26/26 non-graphics tests, bounded three-arm run, and scratch-PPO diagnostic |
 | T10 docs/handoff | passed | root/project README, system/config/reward/module docs |
 
 ## Commands actually executed
@@ -34,11 +34,10 @@ run_tests(false)
 Results:
 
 - Existing pre-change baseline: 19/19 non-graphics tests passed.
-- Final suite: 24/24 non-graphics tests passed in MATLAB R2025b.
+- Final suite: 26/26 non-graphics tests passed in MATLAB R2025b.
 - Bounded A/B/C smoke: completed one PPO iteration per arm with finite results.
-- Smoke outcomes happened to be `SAFE_ABORT` for the single validation scenario
-  in all three arms. This is expected from untrained/random policies and is not
-  comparative performance evidence.
+- The former smoke result in which every arm immediately reached `SAFE_ABORT`
+  exposed an irreversible abort latch, not comparative model performance.
 
 No long training, push, global MATLAB configuration change, process termination,
 or real-vehicle action was performed.
@@ -47,8 +46,19 @@ or real-vehicle action was performed.
 
 - `run_all` now defaults to `executionMode='full'`.
 - All three V2 PPO arms use the same 2,500-iteration scratch schedule without
-  behavior cloning. A training-only initial-height curriculum expands to the
-  nominal scenario range; validation and test manifests remain unchanged.
+  behavior cloning. The former 60-iteration legacy fine-tuning default is no
+  longer used by the primary path.
+- A common training-only curriculum begins 0.4--0.8 m above the pad, scales pad
+  motion from 15% to 100%, and contracts the prolonged-loss threshold from 12 s
+  to the nominal 3 s. Validation and test manifests/configuration remain nominal.
+- Prolonged loss now starts a bounded common recovery maneuver instead of an
+  immediate irreversible terminal. The supervisor climbs and follows only the
+  causal pad-track estimate; reacquisition within 8 s clears the abort request,
+  otherwise the episode terminates as `SAFE_ABORT`.
+- A policy-invariant potential-difference term redistributes the shared reward
+  toward measurable approach progress without changing A/B/C reward parity.
+- Live/history logging now reports evaluation landing plus windowed training
+  landing and safe-abort rates, rather than only the last six episodes.
 - `run_finalTest` now compares causal V2 PN guidance with the V2 baseline and
   ontology R-GAT checkpoints and no longer routes through the incompatible
   legacy environment.
@@ -61,7 +71,7 @@ or real-vehicle action was performed.
 
 - `run_all` defaults to `planar_visibility_v2`; pass
   `experimentVersion='legacy_v1'` for the previous workflow.
-- Algorithm version is `planar-visibility-ppo-v2`; old checkpoints are rejected.
+- Algorithm version is `planar-visibility-ppo-v2.2`; old checkpoints are rejected.
 - Primary observation size is schema-derived 26, not legacy 11.
 - Primary reward and termination semantics intentionally invalidate old policies.
 

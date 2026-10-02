@@ -45,6 +45,11 @@ for i = 1:numel(info.history)
         'selectionScore',selectionScore, ...
         'trainReturn',h.trainReturn,'landingRate',h.landingRate, ...
         'captureRate',h.captureRate);
+    optional = {'trainLandingRate','trainSafeAbortRate'};
+    for k = 1:numel(optional)
+        name = optional{k};
+        if isfield(h,name), payload.(name) = h.(name); end
+    end
     diagnostics = {'nodeMean','nodeVariance','edgeAttentionMean','graphSchema'};
     for k = 1:numel(diagnostics)
         name = diagnostics{k};

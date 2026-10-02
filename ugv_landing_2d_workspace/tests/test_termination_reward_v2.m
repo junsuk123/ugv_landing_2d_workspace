@@ -23,16 +23,34 @@ assert(abs(ev1.preImpact.relativeVz-0.1)<1e-12);
 
 truth = struct('ex',0,'h',0);
 m = struct('detected',true,'bearingValid',true,'bearing',0);
-[safe,comp] = landing2d.rl.computeReward(truth,m,[0;0],0.1,ev1,c);
+[safe,comp] = landing2d.rl.computeReward(truth,truth,m,[0;0],0.1,ev1,c);
 assert(abs(safe-c.experiment.reward.SUCCESS)<1e-12 && comp.goalCost==0);
 unsafeEvent=ev1; unsafeEvent.reason='UNSAFE_CONTACT';
-unsafe=landing2d.rl.computeReward(truth,m,[0;0],0.1,unsafeEvent,c);
+unsafe=landing2d.rl.computeReward(truth,truth,m,[0;0],0.1,unsafeEvent,c);
 assert(safe>unsafe);
+far=struct('ex',3,'h',4); near=struct('ex',1,'h',1);
+noEvent=ev1; noEvent.occurred=false; noEvent.reason='';
+[progress,progressComp]=landing2d.rl.computeReward(far,near,m,[0;0],0.1,noEvent,c);
+assert(progressComp.potentialShaping>0 && progress>0);
 audit=landing2d.rl.rewardAudit(c);
 R=audit.DiscountedReturn;
 assert(all(R([1,2,10])>max(R([4,5]))));
 assert(min(R([4,5]))>R(3));
 assert(R(3)>max(R([6,7,8])));
+
+% Prolonged loss starts a bounded recovery maneuver; SAFE_ABORT is terminal
+% only after the complete recovery window has elapsed without reacquisition.
+backup=landing2d.environment.initialStatus();
+backup.abortRequested=true; backup.abortRequestTime=1;
+hold=prev; hold.z=p.padHeight+c.experiment.safety.abortHoldHeight;
+hold.vz=0;
+before=landing2d.environment.evaluateTermination(hold,hold,pad0,pad1, ...
+    backup,1.1,0.1,c,di);
+afterTime=1+c.experiment.safety.backupDurationLimit;
+after=landing2d.environment.evaluateTermination(hold,hold,pad0,pad1, ...
+    backup,afterTime,0.1,c,di);
+assert(~before.occurred);
+assert(after.occurred && strcmp(after.reason,'SAFE_ABORT'));
 
 % Named task outcomes are true terminals: no bootstrap or GAE leakage.
 traj=struct('count',1,'reward',1,'value',0.5,'bootstrap',999, ...

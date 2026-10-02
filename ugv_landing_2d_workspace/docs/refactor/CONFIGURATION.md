@@ -57,3 +57,16 @@ excludes representation-specific parameters and fails if the shared task differs
 `executionMode='smoke'` explicitly for a one-iteration bounded integration
 check. The full study should use at least five independent training seeds and
 checkpoint selection on validation seeds only.
+
+Pure-RL training uses three common curricula for all three learned arms.
+Iteration 1 scales the nominal 4--8 m height range to 0.4--0.8 m, allowing a
+random policy to discover sparse but genuine safe touchdowns without a
+teacher. Height and pad motion then expand to the full nominal distribution,
+while the prolonged-loss timeout contracts from 12 s to the nominal 3 s.
+Validation/test always use the nominal task; the curriculum never changes
+evaluation or one method independently.
+
+At nominal evaluation, `prolongedLoss=3 s` starts a common supervised recovery,
+not an immediate terminal. The recovery follows only the causal pad-track
+estimate while climbing/holding. Reacquisition clears the request; only a full
+`backupDurationLimit=8 s` without reacquisition produces `SAFE_ABORT`.

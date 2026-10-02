@@ -1,8 +1,8 @@
-function [reward,components] = computeReward(truth,measurement,aNorm,dt,event,c)
-% COMPUTEREWARD  Common bounded three-cost reward with one terminal outcome.
+function [reward,components] = computeReward(previousTruth,truth,measurement,aNorm,dt,event,c)
+% COMPUTEREWARD  Common costs, policy-invariant progress shaping and terminal.
 r = c.experiment.reward;
-zeta = (truth.ex/r.goalLengthX)^2+(truth.h/r.goalLengthH)^2;
-cGoal = zeta/(1+zeta);
+cGoal = goalCost(truth,r);
+previousGoalCost = goalCost(previousTruth,r);
 if measurement.detected && measurement.bearingValid
     cView = min(1,(measurement.bearing/(c.experiment.sensor.fov/2))^2);
 else
@@ -17,8 +17,22 @@ if event.occurred
         'No terminal reward configured for %s.',event.reason);
     terminalBonus = r.(event.reason);
 end
-reward = terminalBonus-runningCost;
+discount=exp(-dt/r.discountTimeConstant);
+phiPrevious=-r.potentialWeight*previousGoalCost;
+if event.occurred
+    phiNext=0;
+else
+    phiNext=-r.potentialWeight*cGoal;
+end
+potentialShaping=discount*phiNext-phiPrevious;
+reward = terminalBonus-runningCost+potentialShaping;
 components = struct('goalCost',cGoal,'viewCost',cView, ...
     'controlCost',cControl,'scaledRunningCost',runningCost, ...
+    'previousGoalCost',previousGoalCost,'potentialShaping',potentialShaping, ...
     'terminalBonus',terminalBonus,'dt',dt);
+end
+
+function value=goalCost(truth,r)
+zeta=(truth.ex/r.goalLengthX)^2+(truth.h/r.goalLengthH)^2;
+value=zeta/(1+zeta);
 end

@@ -4,8 +4,14 @@ The primary experiment uses one fixed reward for all policy representations:
 
 $$
 r_t=B(e_t)-\frac{\Delta t}{T_{ref}}
-\left(w_g c_{goal}+w_v c_{view}+w_u c_{control}\right).
+\left(w_g c_{goal}+w_v c_{view}+w_u c_{control}\right)
++ \gamma_{\Delta t}\Phi(s_{t+1})-\Phi(s_t),
 $$
+
+where $\Phi(s)=-w_p c_{goal}(s)$, $\gamma_{\Delta t}=\exp(-\Delta t/70)$,
+and terminal states have zero potential. The shaping terms telescope under the
+same variable-time discount used by PPO, so they redistribute progress credit
+without changing the terminal-task optimum. The default is `wp=2.0`.
 
 The three bounded running costs are
 
@@ -43,8 +49,9 @@ validate this simulator's estimator, reward, or safety thresholds.
 Truth `ex,h` is isolated inside the simulator reward and evaluator. It is not an
 actor, critic, ontology, estimator, or supervisor feature. There is no positive
 visibility-survival reward, pitch penalty, climb reward, attention reward,
-adaptive ontology weight, PBRS term, or remaining-horizon absorption multiplier.
-Terminal reward is paid exactly once.
+adaptive ontology weight, or remaining-horizon absorption multiplier. The only
+dense progress term is the common potential difference above. Terminal reward
+is paid exactly once.
 
 The code verifies local bounds, terminal ordering, and representative fixtures;
 the long audit-trajectory sensitivity study remains future validation work.

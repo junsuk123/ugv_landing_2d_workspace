@@ -45,7 +45,12 @@ if hardViolation
     event = makeSimple('SAFETY_ENVELOPE_VIOLATION',t0+dt);
     return;
 end
-if status.abortRequested && current.z-padCurrent.z >= s.abortHoldHeight ...
+abortElapsed = 0;
+if status.abortRequested && isfinite(status.abortRequestTime)
+    abortElapsed = t0+dt-status.abortRequestTime;
+end
+if status.abortRequested && abortElapsed >= s.backupDurationLimit ...
+        && current.z-padCurrent.z >= s.abortHoldHeight ...
         && abs(current.vz)<=s.abortVerticalSpeedTolerance
     event = makeSimple('SAFE_ABORT',t0+dt);
     return;

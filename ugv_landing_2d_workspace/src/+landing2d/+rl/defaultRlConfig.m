@@ -84,6 +84,12 @@ rl.curriculumFraction = 0;           % 출발 고도를 넓히는 데 쓰는 학
 % 제한된 커리큘럼 역할을 합니다. scratch 설정도 첫 급가속(t=3 s)을 경험하도록
 % 0.8배 이상에서 시작합니다. 기능은 남기되 기본값은 끕니다.
 rl.curriculumStartHeight = 0.25;     % 학습 시작 시점의 출발 고도 배율 상한
+% V2 순수-RL 전용: 초기에는 시야 복구를 더 오래 탐색하게 하고 공칭 3초
+% prolonged-loss 한계로 점진적으로 복귀합니다. 0이면 항상 공칭 안전 한계입니다.
+rl.abortCurriculumFraction = 0;
+rl.abortCurriculumStart = 3.0;
+rl.motionCurriculumFraction = 0;
+rl.motionCurriculumStartScale = 1.0;
 
 %% 교사 없이 처음부터 학습할 때의 설정 (landing2d.rl.applyScratchSettings)
 % 좋은 초기 정책이 없으므로 탐색을 키우고 학습량을 늘려야 합니다.

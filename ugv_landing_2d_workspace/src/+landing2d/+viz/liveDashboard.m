@@ -129,7 +129,11 @@ if ~isfield(st.series,key)
     item.train = animatedline(st.axScore,'Color',color,'LineStyle',':', ...
         'LineWidth',1.1,'DisplayName',[p.label,' train']);
     item.landing = animatedline(st.axRate,'Color',color,'LineWidth',1.8, ...
-        'DisplayName',[p.label,' landing']);
+        'DisplayName',[p.label,' eval landing']);
+    item.trainLanding = animatedline(st.axRate,'Color',color,'LineStyle',':', ...
+        'LineWidth',1.0,'DisplayName',[p.label,' train landing']);
+    item.abort = animatedline(st.axRate,'Color',color,'LineStyle','-.', ...
+        'LineWidth',1.0,'DisplayName',[p.label,' train abort']);
     item.capture = animatedline(st.axRate,'Color',color,'LineStyle','--', ...
         'LineWidth',1.2,'DisplayName',[p.label,' capture']);
     st.series.(key) = item;
@@ -140,6 +144,12 @@ item = st.series.(key);
 addpoints(item.score,p.iteration,p.score);
 if isfinite(p.trainReturn), addpoints(item.train,p.iteration,p.trainReturn); end
 addpoints(item.landing,p.iteration,100*p.landingRate);
+if isfield(p,'trainLandingRate') && isfinite(p.trainLandingRate)
+    addpoints(item.trainLanding,p.iteration,100*p.trainLandingRate);
+end
+if isfield(p,'trainSafeAbortRate') && isfinite(p.trainSafeAbortRate)
+    addpoints(item.abort,p.iteration,100*p.trainSafeAbortRate);
+end
 addpoints(item.capture,p.iteration,100*p.captureRate);
 if isfield(p,'nodeMean') && ~isempty(p.nodeMean) ...
         && isfield(p,'graphSchema') && isfield(p,'edgeAttentionMean')
