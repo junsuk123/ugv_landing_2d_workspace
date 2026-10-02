@@ -99,7 +99,7 @@ evidence. Full 2,500-iteration v2.3 multi-arm training remains required.
 
 - `run_all` defaults to `planar_visibility_v2`; pass
   `experimentVersion='legacy_v1'` for the previous workflow.
-- Algorithm version is `planar-visibility-ppo-v2.3`; old checkpoints are rejected.
+- Algorithm version is `planar-visibility-ppo-v2.4`; old checkpoints are rejected.
 - Primary observation size is schema-derived 26, not legacy 11.
 - Primary reward and termination semantics intentionally invalidate old policies.
 
@@ -130,3 +130,38 @@ evidence. Full 2,500-iteration v2.3 multi-arm training remains required.
   intervals, runtime profiling, and the complete reward audit trajectory sweep
   have not been run.
 - No universal optimality or guaranteed ontology advantage is claimed.
+
+## Full-run failure analysis and correction (v2.4)
+
+The completed 2,500-iteration v2.3 run did not validate performance. All three
+held-out success rates were zero. Estimated training success was 0.68% for the
+baseline, 0.98% for semantic-flat, and 0.69% for R-GAT. The curriculum stopped
+at 8%, 16%, and 12%, respectively.
+
+Three implementation defects explained the misleading final policies:
+
+- checkpoint selection penalized `SAFE_ABORT` by 100 points but gave
+  `TASK_TIMEOUT` no event penalty, so hovering until the deadline was preferred;
+- low-curriculum checkpoints were eligible as final models even though they had
+  only seen approximately 0.4--1.95 m starts rather than nominal 4--8 m starts;
+- absolute per-step landing-readiness reward could be accumulated by hovering
+  near the pad without making physical contact.
+
+Version 2.4 corrects these issues by ordering checkpoint outcomes as
+`SUCCESS > SAFE_ABORT > TASK_TIMEOUT > UNSAFE`, admitting final checkpoints
+only at 100% curriculum, and replacing absolute readiness with signed readiness
+progress. A hybrid curriculum now guarantees nominal-difficulty exposure while
+retaining easy and bridge replay episodes to prevent touchdown forgetting. The
+initial discovery range is 0.1--0.4 m, touchdown speed tolerance tightens from
+2x to nominal, and all three learned arms share exactly the same schedule.
+
+Verification after the correction:
+
+- 26/26 non-graphics and 31/31 graphics-inclusive tests pass in MATLAB R2025b;
+- a 120-iteration baseline diagnostic reached 13.3% windowed training landing,
+  compared with at most 5.3% in the prior bounded configuration;
+- the diagnostic reached 100% curriculum and selected iteration 110 at
+  curriculum 100%, never the easy initial checkpoint;
+- nominal held-out success remained zero in this intentionally short diagnostic,
+  so complete 2,500-iteration v2.4 training is still required before making a
+  comparative performance claim.

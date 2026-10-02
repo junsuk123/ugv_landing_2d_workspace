@@ -21,8 +21,10 @@
     "bounded_three_arm_smoke": "passed",
     "sparse_reward_diagnostic": "v2.2 failed: approximately 1 success in 15000 episodes",
     "v2_3_bounded_training": "passed: repeated training landings and curriculum promotion",
-    "long_training": "v2.3 not_run",
-    "held_out_multi_seed_evaluation": "not_run"
+    "v2_3_long_training": "failed: zero held-out success; curriculum stalled at 8-16 percent",
+    "v2_4_bounded_training": "passed: 13.3 percent peak window landing, 100 percent curriculum, eligible checkpoint selection",
+    "long_training": "v2.4 not_run",
+    "held_out_multi_seed_evaluation": "v2.3 failed; v2.4 pending full training"
   },
   "claims": {
     "integration_verified": true,

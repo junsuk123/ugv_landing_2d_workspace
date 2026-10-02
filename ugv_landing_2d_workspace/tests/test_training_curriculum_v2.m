@@ -6,18 +6,34 @@ assert(c.rl.ppoIterations==2500);
 assert(~c.rl.useBehaviorClone);
 assert(strcmp(c.rl.curriculumMode,'performance'));
 
+warm=max(1,round(c.rl.curriculumFloorStartFraction*c.rl.ppoIterations));
+full=round(c.rl.curriculumFullDifficultyFraction*c.rl.ppoIterations);
+assert(landing2d.rl.curriculumFloor(c.rl,warm)==0);
+middle=landing2d.rl.curriculumFloor(c.rl,round((warm+full)/2));
+assert(middle>0 && middle<1);
+assert(landing2d.rl.curriculumFloor(c.rl,full)==1);
+assert(~landing2d.rl.checkpointEligible(c.rl,0.99));
+assert(landing2d.rl.checkpointEligible(c.rl,1));
+levels=landing2d.rl.curriculumBatchLevels(c.rl,1,c.rl.episodesPerIteration);
+assert(all(levels(1:2)==0) && levels(3)==0.5);
+assert(all(levels(4:end)==1));
+
 [early,hEarly,pEarly]=landing2d.rl.trainingEpisodeConfig(c,1,0);
 [late,hLate,pLate]=landing2d.rl.trainingEpisodeConfig(c,c.rl.ppoIterations,1);
 assert(all(abs([pEarly.height,pEarly.abort,pEarly.motion])<eps));
 assert(all(abs([pLate.height,pLate.abort,pLate.motion]-1)<eps));
-assert(max(abs(hEarly-[0.4,0.8]))<1e-12);
+assert(max(abs(hEarly-[0.1,0.4]))<1e-12);
 assert(max(abs(hLate-c.experiment.scenario.heightRange))<1e-12);
 assert(abs(early.experiment.safety.prolongedLoss- ...
     c.rl.abortCurriculumStart)<1e-12);
+assert(abs(early.experiment.safety.touchdownSpeedZ- ...
+    c.experiment.safety.touchdownSpeedZ*c.rl.touchdownSpeedCurriculumScale)<1e-12);
 assert(max(abs(early.experiment.scenario.v1Range- ...
     c.experiment.scenario.v1Range*c.rl.motionCurriculumStartScale))<1e-12);
 assert(abs(late.experiment.safety.prolongedLoss- ...
     c.experiment.safety.prolongedLoss)<1e-12);
+assert(abs(late.experiment.safety.touchdownSpeedZ- ...
+    c.experiment.safety.touchdownSpeedZ)<1e-12);
 assert(max(abs(late.experiment.scenario.v1Range- ...
     c.experiment.scenario.v1Range))<1e-12);
 assert(early.experiment.reward.UNSAFE_CONTACT== ...

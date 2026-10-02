@@ -94,6 +94,12 @@ rl.curriculumMode = 'iteration';
 rl.curriculumLandingThreshold = 0.05;
 rl.curriculumStep = 0.10;
 rl.curriculumRequiredWindows = 3;
+rl.curriculumFloorStartFraction = 0.15;
+rl.curriculumFullDifficultyFraction = 0.65;
+rl.checkpointMinCurriculum = 1.0;
+rl.curriculumEasyReplayFraction = 0.15;
+rl.curriculumBridgeReplayFraction = 0.15;
+rl.touchdownSpeedCurriculumScale = 1.0;
 rl.unsafePenaltyCurriculumStart = -40;
 
 %% 교사 없이 처음부터 학습할 때의 설정 (landing2d.rl.applyScratchSettings)
@@ -101,9 +107,9 @@ rl.unsafePenaltyCurriculumStart = -40;
 % 온톨로지 비교군이 이 설정을 사용합니다.
 rl.scratch = struct( ...
     'useBehaviorClone',false, ...
-    'initialLogStd',-0.7, ...    % 탐색 잡음 확대
+    'initialLogStd',-1.1, ...    % safe-contact discovery noise
     'policyLearnRate',5e-4, ...  % 지킬 사전 정책이 없으므로 크게
-    'entropyWeight',0.005, ...
+    'entropyWeight',0.0025, ...
     'ppoIterations',2500, ...   % 교사 없이 착륙을 찾는 데 필요한 예산 상한
     'evaluateEvery',25, ...
     'earlyStopPatience',0, ...   % 조기 종료 끔. 아래 근거 참고

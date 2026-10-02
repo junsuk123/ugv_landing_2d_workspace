@@ -20,20 +20,29 @@ cfg.rl = landing2d.rl.applyScratchSettings(cfg.rl);
 % family and expand to the complete nominal height range.  Evaluation always
 % uses the untouched manifest distribution.
 cfg.rl.curriculumFraction = 0.45;
-% Iteration 1 starts 0.4--0.8 m above the pad. This is low enough for a
-% random policy to discover genuine safe touchdowns without a teacher; the
-% range then expands continuously to the nominal 4--8 m task distribution.
-cfg.rl.initialHeightRange = [0.10,1.00];
-cfg.rl.curriculumStartHeight = 0.10;
+% Iteration 1 starts 0.1--0.4 m above the pad so a random policy can produce
+% enough genuine safe contacts to learn touchdown without a teacher. The
+% range then expands continuously to the nominal 4--8 m distribution.
+cfg.rl.initialHeightRange = [0.025,1.00];
+cfg.rl.curriculumStartHeight = 0.05;
 cfg.rl.abortCurriculumFraction = 0.55;
 cfg.rl.abortCurriculumStart = 12.0;
 cfg.rl.motionCurriculumFraction = 0.65;
 cfg.rl.motionCurriculumStartScale = 0.15;
-% Do not increase task difficulty merely because iterations elapsed. Each
-% stage must first demonstrate repeatable landings on its current range.
+% Successful windows can promote early. A later scheduled floor prevents a
+% permanently stalled curriculum and guarantees nominal-task exposure.
 cfg.rl.curriculumMode = 'performance';
-cfg.rl.curriculumLandingThreshold = 0.01;
-cfg.rl.curriculumStep = 0.04;
+cfg.rl.curriculumLandingThreshold = 0.10;
+cfg.rl.curriculumStep = 0.10;
+cfg.rl.curriculumRequiredWindows = 3;
+% The last 20%% trains mostly on the complete 4--8 m distribution. One easy
+% and one bridge episode per six-episode batch prevent touchdown forgetting.
+cfg.rl.curriculumFloorStartFraction = 0.30;
+cfg.rl.curriculumFullDifficultyFraction = 0.80;
+cfg.rl.checkpointMinCurriculum = 1.0;
+cfg.rl.curriculumEasyReplayFraction = 1/3;
+cfg.rl.curriculumBridgeReplayFraction = 1/6;
+cfg.rl.touchdownSpeedCurriculumScale = 2.0;
 cfg.rl.unsafePenaltyCurriculumStart = -5.0;
 cfg.rl.observationDim = cfg.experiment.observationSchema.dimension;
 cfg.rl.actionInterval = round(cfg.experiment.policyDt/cfg.experiment.physicsDt);

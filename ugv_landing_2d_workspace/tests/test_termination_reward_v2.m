@@ -24,8 +24,8 @@ assert(abs(ev1.preImpact.relativeVz-0.1)<1e-12);
 truth = struct('ex',0,'h',0);
 m = struct('detected',true,'bearingValid',true,'bearing',0);
 [safe,comp] = landing2d.rl.computeReward(truth,truth,m,[0;0],0.1,ev1,c);
-assert(safe>c.experiment.reward.SUCCESS && comp.goalCost==0 ...
-    && comp.landingReadiness==1 && comp.readinessReward>0);
+assert(abs(safe-c.experiment.reward.SUCCESS)<1e-12 && comp.goalCost==0 ...
+    && comp.landingReadiness==1 && comp.readinessReward==0);
 unsafeEvent=ev1; unsafeEvent.reason='UNSAFE_CONTACT';
 unsafe=landing2d.rl.computeReward(truth,truth,m,[0;0],0.1,unsafeEvent,c);
 assert(safe>unsafe);
@@ -39,11 +39,27 @@ notReady=ready; notReady.relativeVx=2; notReady.vz=-1;
 [~,readyComp]=landing2d.rl.computeReward(ready,ready,m,[0;0],0.1,noEvent,c);
 [~,notReadyComp]=landing2d.rl.computeReward(notReady,notReady,m,[0;0],0.1,noEvent,c);
 assert(readyComp.landingReadiness>notReadyComp.landingReadiness);
+% Holding the same near-pad state must not farm readiness reward. Moving
+% toward readiness is positive and moving back returns the same gain.
+[~,towardComp]=landing2d.rl.computeReward(notReady,ready,m,[0;0],0.1,noEvent,c);
+[~,awayComp]=landing2d.rl.computeReward(ready,notReady,m,[0;0],0.1,noEvent,c);
+assert(towardComp.readinessReward>0 && awayComp.readinessReward<0);
+assert(abs(towardComp.readinessReward+awayComp.readinessReward)<1e-12);
 audit=landing2d.rl.rewardAudit(c);
 R=audit.DiscountedReturn;
 assert(all(R([1,2,10])>max(R([4,5]))));
 assert(min(R([4,5]))>R(3));
 assert(R(3)>max(R([6,7,8])));
+
+% Checkpoint ordering must match the configured terminal ordering. A hover
+% timeout may not outrank a bounded safe abort merely by lasting longer.
+[abortScore,abortRates]=landing2d.rl.selectionScoreV2({'SAFE_ABORT'},-4);
+[timeoutScore,timeoutRates]=landing2d.rl.selectionScoreV2({'TASK_TIMEOUT'},-12);
+[successScore,~]=landing2d.rl.selectionScoreV2({'SUCCESS'},25);
+[unsafeScore,~]=landing2d.rl.selectionScoreV2({'UNSAFE_CONTACT'},-40);
+assert(successScore>abortScore && abortScore>timeoutScore ...
+    && timeoutScore>unsafeScore);
+assert(abortRates.safeAbort==1 && timeoutRates.timeout==1);
 
 % Prolonged loss starts a bounded recovery maneuver; SAFE_ABORT is terminal
 % only after the complete recovery window has elapsed without reacquisition.
