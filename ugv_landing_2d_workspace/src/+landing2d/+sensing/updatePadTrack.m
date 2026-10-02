@@ -37,22 +37,25 @@ if isNew
         accepted = abs(innovation) <= max(gate,0.25);
         if accepted
             gap = t-track.lastMeasurementTime;
-            measuredVelocity = (measuredPadX-track.lastMeasurementPadX)/gap;
-            if isfinite(track.lastMeasuredVelocity)
-                measuredAcceleration = landing2d.sensing.differencedAcceleration( ...
-                    track.lastMeasuredVelocity,measuredVelocity, ...
-                    track.lastVelocityTime,t);
-                track.padAx = 0.5*track.padAx+0.5*measuredAcceleration;
-                track.accelerationStd = max(sensor.processAccelerationStd*0.25, ...
-                    0.6*track.accelerationStd);
-            end
-            track.padVx = 0.35*track.padVx+0.65*measuredVelocity;
-            track.padX = track.padX+0.75*innovation;
+            % Causal alpha-beta-gamma innovation update. Directly
+            % differencing 2-cm position noise at the 100-Hz physics rate
+            % amplified it into multi-m/s velocity and hundreds of m/s^2
+            % acceleration spikes. The predicted track above is corrected
+            % without using future samples or hidden simulator truth.
+            track.padX = track.padX+sensor.positionInnovationGain*innovation;
+            track.padVx = track.padVx+ ...
+                sensor.velocityInnovationGain*innovation/max(gap,eps);
+            track.padAx = track.padAx+sensor.accelerationInnovationGain* ...
+                2*innovation/max(gap^2,eps);
+            track.padAx = landing2d.util.saturate(track.padAx, ...
+                sensor.maxAccelerationEstimate);
             track.positionStd = max(sensor.relativePositionNoiseStd, ...
                 0.5*track.positionStd);
-            track.velocityStd = max(sensor.relativePositionNoiseStd/max(gap,eps), ...
-                0.65*track.velocityStd);
-            track.lastMeasuredVelocity = measuredVelocity;
+            track.velocityStd = max(sensor.relativePositionNoiseStd/ ...
+                max(gap,eps)*sensor.velocityInnovationGain,0.80*track.velocityStd);
+            track.accelerationStd = max(sensor.processAccelerationStd*0.25, ...
+                0.85*track.accelerationStd);
+            track.lastMeasuredVelocity = track.padVx;
             track.lastVelocityTime = t;
         end
     end

@@ -49,8 +49,9 @@ or real-vehicle action was performed.
 - All three V2 PPO arms use the same 2,500-iteration scratch schedule without
   behavior cloning. A training-only initial-height curriculum expands to the
   nominal scenario range; validation and test manifests remain unchanged.
-- `run_finalTest` now loads the three V2 checkpoint names and no longer routes
-  through the incompatible legacy environment.
+- `run_finalTest` now compares causal V2 PN guidance with the V2 baseline and
+  ontology R-GAT checkpoints and no longer routes through the incompatible
+  legacy environment.
 - The V2 visualization supports unequal terminal times, fixed full-trajectory
   bounds, body-fixed-camera FOV geometry, CV/CA/CV phase backgrounds, R-GAT
   relation attention, learning curves, inference cost, and Monte Carlo mean

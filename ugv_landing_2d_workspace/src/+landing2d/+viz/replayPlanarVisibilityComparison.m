@@ -7,7 +7,7 @@ if ~isfield(options,'animate'), options.animate=true; end
 if ~isfield(options,'playbackSpeed'), options.playbackSpeed=c.playbackSpeed; end
 runs=landing2d.viz.normalizeRuns(runs);
 assert(numel(runs)==3,'landing2d:V2ComparisonCount', ...
-    'The primary comparison requires baseline, semantic-flat and R-GAT runs.');
+    'The comparison view requires exactly three methods.');
 nCases=numel(runs(1).results);
 assert(nCases>0,'landing2d:V2ComparisonEmpty','No evaluation trajectories supplied.');
 for i=2:numel(runs)
