@@ -79,6 +79,20 @@ end
 if isfield(c,'graphState')
     landing2d.graphstate.validateGraphStateConfig(c.graphState);
 end
+if isfield(c,'experiment') && isfield(c.experiment,'enabled') && c.experiment.enabled
+    e = c.experiment;
+    assert(strcmp(e.schemaVersion,'planar_visibility_v2'), ...
+        'landing2d:ExperimentVersion','Unknown enabled experiment version.');
+    assert(abs(e.policyDt/e.physicsDt-round(e.policyDt/e.physicsDt))<1e-10, ...
+        'landing2d:TimingContract','policyDt must be a multiple of physicsDt.');
+    assert(e.observationSchema.dimension == numel(e.observationSchema.names), ...
+        'landing2d:ObservationSchema','Observation dimension/schema mismatch.');
+    assert(c.rl.observationDim == e.observationSchema.dimension, ...
+        'landing2d:ObservationSchema','RL dimension must come from named schema.');
+    assert(c.rl.actionDim == 2,'landing2d:ActionContract', ...
+        'The planar experiment has exactly two actions.');
+    landing2d.config.validatePrimaryConfig(c);
+end
 if isfield(c,'useLegacyOntologyReward')
     validateattributes(c.useLegacyOntologyReward,{'logical','numeric'}, ...
         {'scalar','real','finite','binary'},mfilename,'useLegacyOntologyReward');

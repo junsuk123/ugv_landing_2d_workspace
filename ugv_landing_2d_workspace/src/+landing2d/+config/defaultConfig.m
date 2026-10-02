@@ -133,4 +133,8 @@ cfg.useLegacyOntologyReward = false;
 % cloning and use the same scratch-training schedule.  Set false only when
 % intentionally reproducing the legacy mixed-initialization experiment.
 cfg.scratchBaseline = true;
+% Explicit compatibility marker. run_all selects primaryConfig unless the
+% caller requests this legacy contract.
+cfg.experiment = struct('schemaVersion','legacy_v1','enabled',false, ...
+    'legacyDynamics',true);
 end

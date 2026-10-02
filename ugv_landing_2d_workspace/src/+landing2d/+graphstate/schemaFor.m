@@ -10,6 +10,10 @@ function [schema,T] = schemaFor(mode)
 %   'gat'           제거 실험. 모든 간선을 관계 하나로 합칩니다. 자기 간선도 같은
 %                   인접 행렬에 들어가는 표준 GAT 구성입니다.
 %   'node_pool'     간선을 쓰지 않으므로 색인표는 구조 점검용으로만 돌려줍니다.
+if ismember(mode,{'context_rgat','context_gat','context_flat','context_node_pool'})
+    [schema,T] = landing2d.graphstate.contextSchema(mode);
+    return;
+end
 schema = landing2d.ontology.nodeSchema('core');
 switch mode
     case 'ontology_rgat'

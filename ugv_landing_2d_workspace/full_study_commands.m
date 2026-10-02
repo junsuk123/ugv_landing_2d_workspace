@@ -1,0 +1,9 @@
+function commands = full_study_commands()
+% FULL_STUDY_COMMANDS  Print reproducible commands; intentionally runs nothing.
+commands = { ...
+    "run_all(struct('executionMode','full','rlRetrain',true))", ...
+    "run_all(struct('executionMode','full','rlRetrain',false))", ...
+    "run_tests(false)"};
+fprintf('Commands are generated only; no long training was launched.\n');
+fprintf('  %s\n',commands{:});
+end

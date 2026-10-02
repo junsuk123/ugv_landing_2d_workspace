@@ -67,7 +67,7 @@ ylim(st.axRate,[0,100]); title(st.axRate,'평가 성공률');
 st.axOntology = nexttile(st.layout,3);
 schema = landing2d.graphstate.schemaFor('ontology_rgat');
 landing2d.viz.plotRgatField(st.axOntology,schema,zeros(schema.nNodes,1), ...
-    zeros(schema.nNodes,1),[],'surface','Waiting for R-GAT evaluation');
+    zeros(schema.nNodes,1),[],'attention','Waiting for R-GAT evaluation');
 st.schema = schema;
 
 st.axEval = nexttile(st.layout,4);

@@ -1,5 +1,13 @@
 # 후속 코드 수정 가이드
 
+> **우선 적용 — `planar_visibility_v2`:** `run_all`의 기본 실험은 아래 본문의
+> 레거시 11차원/고정 속도/2항 보상/모방학습 계약을 사용하지 않습니다. 새 기본
+> 계약은 `config.primaryConfig`, `environment.reset/step`, 26필드 named packet,
+> CV–CA–CV 패드, 실제 피치/추력 및 몸체 고정 카메라, 3개 실행 비용과 종말 보상,
+> `contextSchema`입니다. 행동은 여전히 `[ax,az]` 두 개입니다. 레거시 본문은
+> `experimentVersion='legacy_v1'` 회귀 경로에만 적용합니다. `tests/reference`와
+> 데이터 무결성·숨은 참값 금지·결과를 꾸며내지 않는 규칙은 두 버전에 모두 적용합니다.
+
 ## 프로젝트 범위
 
 UGV 패드 추종, 2차원 x-z 운동, FOV 상실 시 상승, 재포착 후 착륙만 다룹니다.

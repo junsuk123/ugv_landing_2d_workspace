@@ -1,0 +1,13 @@
+{
+  "schema_version": "scenario_manifest_v2",
+  "base_seed": 20261002,
+  "parameterization": "duration",
+  "units": {"duration": "s", "distance": "m", "speed": "m/s", "acceleration": "m/s^2"},
+  "splits": {
+    "train": {"start": 1, "count": 2000},
+    "validation": {"start": 2001, "count": 200},
+    "test": {"start": 2201, "count": 200},
+    "stress": {"start": 9001, "count": 100, "label": "out_of_range_extension"}
+  },
+  "note": "Each integer identifies a deterministic realized parameter record via scenario.createManifest. Test cases are never rejected based on policy performance."
+}

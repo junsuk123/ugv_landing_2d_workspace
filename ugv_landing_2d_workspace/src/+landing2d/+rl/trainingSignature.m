@@ -13,6 +13,12 @@ fields = {'dt','tEnd','segmentTimes','scenarioSpeeds','ugvAccelMax', ...
     'alignPositionTol','alignSpeedTol'};
 signature = struct('algorithmVersion',landing2d.rl.algorithmVersion(), ...
     'rl',c.rl);
+if isfield(c,'experiment') && isfield(c.experiment,'enabled') && c.experiment.enabled
+    signature.experiment = c.experiment;
+    if isfield(signature.experiment,'currentScenario')
+        signature.experiment = rmfield(signature.experiment,'currentScenario');
+    end
+end
 for i = 1:numel(fields)
     signature.(fields{i}) = c.(fields{i});
 end

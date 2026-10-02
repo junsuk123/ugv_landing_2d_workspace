@@ -35,7 +35,7 @@ spec.inDim = schema.inDim;
 spec.nNodes = schema.nNodes;
 spec.hiddenDim = dh;
 spec.stateDim = schema.inDim*schema.nNodes;
-if strcmp(mode,'semantic_flat')
+if ismember(mode,{'semantic_flat','context_flat'})
     % Same semantic features as the graph arms, passed directly to the MLP.
     % This separates added-information gains from graph-structure gains.
     params = struct();
@@ -45,11 +45,11 @@ if strcmp(mode,'semantic_flat')
 end
 scale = gs.initScale;
 switch mode
-    case 'node_pool'
+    case {'node_pool','context_node_pool'}
         % 메시지 전달 없이 노드별 사영만. 간선을 전혀 쓰지 않습니다.
         params.Wn = scale*randn(rs,dh,schema.inDim);
         params.bn = zeros(dh,1);
-    case {'gat','ontology_rgat'}
+    case {'gat','ontology_rgat','context_gat','context_rgat'}
         % 두 층 관계형 주의. 두 번째 층에 잔차 연결이 있어 두 층의 폭이 같아야 합니다.
         R = schema.nRelations;
         relDim = gs.relationDim;
@@ -65,7 +65,7 @@ switch mode
 end
 switch gs.readout
     case 'decision_nodes'
-        assert(ismember(mode,{'gat','ontology_rgat'}) ...
+        assert(ismember(mode,{'gat','ontology_rgat','context_gat','context_rgat'}) ...
             && ~isempty(spec.policyNode) && ~isempty(spec.valueNode), ...
             'landing2d:DecisionNodeReadout', ...
             'decision_nodes readout requires gat or ontology_rgat.');

@@ -1,5 +1,12 @@
 function [comparison, summaryTable, cfg] = run_all(options)
-% RUN_ALL  모든 비교군의 전체 시나리오와 학습을 한 번에 실행하는 통합 진입점.
+% RUN_ALL  Versioned experiment entry point.
+% Default: planar_visibility_v2 bounded A/B/C PPO integration smoke.
+% Explicit long run: run_all(struct('executionMode','full','rlRetrain',true)).
+% Legacy reproduction: run_all(struct('experimentVersion','legacy_v1')).
+%
+% The Korean description below documents only the legacy_v1 compatibility path.
+% It does not describe the default primary experiment.
+% LEGACY_V1  모든 비교군의 전체 시나리오와 학습을 한 번에 실행하는 통합 진입점.
 %
 %   1) PN guidance    비례 항법 유도 (기준)
 %   2) PPO RL         PN 유도를 교사로 모방 학습 + PPO. 기준 모델(baseline)
@@ -45,6 +52,17 @@ if nargin < 1
 end
 if ~(isstruct(options) && isscalar(options))
     error('landing2d:InvalidOptions','options must be a scalar struct.');
+end
+experimentVersion = 'planar_visibility_v2';
+if isfield(options,'experimentVersion')
+    experimentVersion = char(options.experimentVersion);
+    options = rmfield(options,'experimentVersion');
+end
+if ~strcmp(experimentVersion,'legacy_v1')
+    assert(strcmp(experimentVersion,'planar_visibility_v2'), ...
+        'landing2d:ExperimentVersion','Unknown experimentVersion %s.',experimentVersion);
+    [comparison,summaryTable,cfg] = run_planar_visibility(options);
+    return;
 end
 projectRoot = setup_project();
 cfg = landing2d.config.defaultConfig(projectRoot);

@@ -39,7 +39,8 @@ validateattributes(rl.initialLogStd,{'numeric'}, ...
 assert(rl.gamma > 0 && rl.gamma < 1,'rl.gamma must be in (0,1).');
 assert(rl.lambda >= 0 && rl.lambda <= 1,'rl.lambda must be in [0,1].');
 assert(rl.clipRatio < 1,'rl.clipRatio must be smaller than 1.');
-assert(rl.observationDim == 11,'rl.observationDim must match landing2d.rl.observation.');
+assert(rl.observationDim >= 1, ...
+    'rl.observationDim must be derived from the active named schema.');
 assert(rl.actionDim == 2,'rl.actionDim must be 2: horizontal and vertical command.');
 validateattributes(rl.teacherNoise,{'numeric'}, ...
     {'scalar','real','finite','nonnegative'},mfilename,'teacherNoise');

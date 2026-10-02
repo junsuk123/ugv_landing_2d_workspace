@@ -4,7 +4,7 @@ function [grads,dS] = encoderBackward(params,spec,cache,dG)
 %   dG : [graphDim x B]  선택한 의사결정 표현에 대한 손실 기울기
 %
 % 정확성은 tests/test_graph_state_encoder.m에서 중앙 차분과 비교해 확인합니다.
-if ismember(spec.mode,{'baseline','semantic_flat'})
+if ismember(spec.mode,{'baseline','semantic_flat','context_flat'})
     grads = struct();
     dS = dG;
     return;
@@ -42,12 +42,12 @@ end
 
 % ---- 부호기 본체 역전파.
 switch spec.mode
-    case 'node_pool'
+    case {'node_pool','context_node_pool'}
         dZn = reshape(dH.*(1-cache.H.^2),dh,N*B);
         grads.Wn = dZn*cache.Xf';
         grads.bn = sum(dZn,2);
         dS = reshape(params.Wn'*dZn,spec.inDim*N,B);
-    case {'gat','ontology_rgat'}
+    case {'gat','ontology_rgat','context_gat','context_rgat'}
         % 두 번째 층 출력의 tanh와 잔차 연결. potentialBackward와 같은 구조입니다.
         preH2 = dH.*(1-cache.H.^2);
         [dH1FromLayer2,grads2] = landing2d.rgat.relationBackward(preH2,cache.cache2);

@@ -6,13 +6,23 @@ count = traj.count;
 advantage = zeros(1,count);
 running = 0;
 for k = count:-1:1
-    if k == count
+    if isfield(traj,'discount') && numel(traj.discount)>=k
+        gamma = traj.discount(k);
+    else
+        gamma = rl.gamma;
+    end
+    if isfield(traj,'terminated') && traj.terminated(k)
+        nextValue = 0;
+        continuation = 0;
+    elseif k == count
         nextValue = traj.bootstrap;
+        continuation = 1;
     else
         nextValue = traj.value(k+1);
+        continuation = 1;
     end
-    delta = traj.reward(k)+rl.gamma*nextValue-traj.value(k);
-    running = delta+rl.gamma*rl.lambda*running;
+    delta = traj.reward(k)+gamma*nextValue-traj.value(k);
+    running = delta+gamma*rl.lambda*continuation*running;
     advantage(k) = running;
 end
 target = advantage+traj.value;

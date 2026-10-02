@@ -1,5 +1,27 @@
 # 모듈별 수정 위치
 
+## 기본 실험: planar_visibility_v2
+
+```text
+run_all -> run_planar_visibility
+  -> config.primaryConfig
+  -> environment.reset
+       -> scenario.sampleParameters / evaluateTrajectory (CV–CA–CV)
+       -> sensing.generateMeasurement -> projectPad
+       -> sensing.updatePadTrack -> buildPacket -> normalizePacket
+  -> A baseline | B context_flat | C context_rgat
+       -> graphstate.contextGraph -> contextSchema
+       -> independent policy/value encoder -> PPO heads
+  -> environment.step
+       -> control.safetySupervisor
+       -> dynamics.accelerationToThrustPitch -> stepPlanar
+       -> sensing/estimator update
+       -> environment.evaluateTermination
+       -> rl.computeReward
+```
+
+아래의 기존 흐름은 `experimentVersion='legacy_v1'` 호환 경로입니다.
+
 ## 실행 흐름
 
 ```text

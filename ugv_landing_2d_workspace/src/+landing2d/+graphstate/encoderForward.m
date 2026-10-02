@@ -10,7 +10,7 @@ function [g,cache] = encoderForward(params,spec,S,head)
 if nargin < 4 || isempty(head)
     head = 'policy';
 end
-if ismember(spec.mode,{'baseline','semantic_flat'})
+if ismember(spec.mode,{'baseline','semantic_flat','context_flat'})
     g = S;
     cache = struct('mode',spec.mode);
     return;
@@ -21,11 +21,11 @@ dh = spec.hiddenDim;
 X = reshape(S,spec.inDim,N,B);
 cache = struct('mode',spec.mode,'B',B,'N',N,'dh',dh);
 switch spec.mode
-    case 'node_pool'
+    case {'node_pool','context_node_pool'}
         Xf = reshape(X,spec.inDim,N*B);
         H = tanh(reshape(params.Wn*Xf+params.bn,dh,N,B));
         cache.Xf = Xf;
-    case {'gat','ontology_rgat'}
+    case {'gat','ontology_rgat','context_gat','context_rgat'}
         [Z1,cache1] = landing2d.rgat.relationForward(X,params.W1,params.a1, ...
             params.E1,spec.T);
         H1 = tanh(reshape(Z1,dh,N,B));

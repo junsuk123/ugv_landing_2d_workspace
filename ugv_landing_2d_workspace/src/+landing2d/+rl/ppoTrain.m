@@ -207,6 +207,16 @@ end
 function [state,command,logProbability,advantage,target,episodeReturn] = ...
     collectEpisode(agent,c,rl,index,seed,heightRange)
 localRs = RandStream('threefry','Seed',seed);
+if isfield(c,'experiment') && isfield(c.experiment,'enabled') && c.experiment.enabled
+    options = struct('deterministic',false,'collect',true,'rs',localRs);
+    [~,traj] = landing2d.rl.rolloutEpisodeV2(agent,c,seed,options);
+    [advantage,target] = landing2d.rl.computeAdvantage(traj,rl);
+    state = traj.state;
+    command = traj.command;
+    logProbability = traj.logProbability;
+    episodeReturn = traj.return;
+    return;
+end
 [r,s] = landing2d.rl.makeEpisode(c,index,rl,localRs,heightRange);
 options = struct('deterministic',false,'collect',true,'rs',localRs);
 [~,traj] = landing2d.rl.rolloutEpisode(agent,r,s,c,options);

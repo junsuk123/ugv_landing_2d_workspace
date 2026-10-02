@@ -1,0 +1,29 @@
+{
+  "schema_version": "refactor_progress_v2",
+  "branch": "codex/planar-visibility-ppo-v2",
+  "starting_head": "385e993aeda747db490f53c791934dc871029e2a",
+  "tasks": {
+    "T00": "passed",
+    "T01": "passed",
+    "T02": "passed",
+    "T03": "passed",
+    "T04": "passed",
+    "T05": "passed",
+    "T06": "passed",
+    "T07": "passed",
+    "T08": "passed",
+    "T09": "passed_bounded_only",
+    "T10": "passed"
+  },
+  "tests": {
+    "non_graphics": {"passed": 24, "failed": 0},
+    "bounded_three_arm_smoke": "passed",
+    "long_training": "not_run",
+    "held_out_multi_seed_evaluation": "not_run"
+  },
+  "claims": {
+    "integration_verified": true,
+    "performance_verified": false,
+    "real_flight_safety_verified": false
+  }
+}

@@ -1,6 +1,10 @@
 function [results,score,info] = evaluate(agent,c)
 % EVALUATE  공칭 초기 조건에서 결정론적 정책으로 모든 시나리오를 모사.
 % 비교 그림과 정책 선택 점수 모두 이 함수의 결과를 사용합니다.
+if isfield(c,'experiment') && isfield(c.experiment,'enabled') && c.experiment.enabled
+    [results,score,info] = landing2d.rl.evaluateV2(agent,c,[]);
+    return;
+end
 nCases = size(c.scenarioSpeeds,1);
 traceRgat = ismember(agent.encoderSpec.mode,{'gat','ontology_rgat'});
 options = struct('deterministic',true,'collect',true,'rs',[], ...

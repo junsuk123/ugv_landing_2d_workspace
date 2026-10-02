@@ -1,0 +1,26 @@
+function report = rewardAudit(c)
+% REWARDAUDIT  Canonical exact discounted fixtures for reward-order checks.
+names={'safe efficient landing','safe delayed landing', ...
+    'stable near-pad hover until deadline','unnecessary loss then abort', ...
+    'appropriate abort','fast impact','late impact','prohibited blind contact', ...
+    'oscillatory approach','recoverable short loss then landing'};
+duration=[10,40,70,20,5,2,60,12,55,25];
+terminal={'SUCCESS','SUCCESS','TASK_TIMEOUT','SAFE_ABORT','SAFE_ABORT', ...
+    'UNSAFE_CONTACT','UNSAFE_CONTACT','UNAUTHORIZED_CONTACT', ...
+    'TASK_TIMEOUT','SUCCESS'};
+costs=[.30,.05,.10; .45,.10,.10; .20,0,0; .55,1,.40; ...
+    .75,1,.25; 1,.4,.8; .8,.5,.5; .5,1,.2; .7,.6,.9; .4,.2,.2];
+returns=zeros(numel(names),1);
+r=c.experiment.reward; dt=c.experiment.policyDt;
+for i=1:numel(names)
+    n=ceil(duration(i)/dt);
+    actualDt=dt*ones(1,n); actualDt(end)=duration(i)-dt*(n-1);
+    running=-(actualDt/r.referenceTime)*(r.goalWeight*costs(i,1)+ ...
+        r.viewWeight*costs(i,2)+r.controlWeight*costs(i,3));
+    reward=running; reward(end)=reward(end)+r.(terminal{i});
+    elapsed=[0,cumsum(actualDt(1:end-1))];
+    returns(i)=sum(exp(-elapsed/r.discountTimeConstant).*reward);
+end
+report=table(names',duration',terminal',returns, ...
+    'VariableNames',{'Fixture','Duration_s','Terminal','DiscountedReturn'});
+end
