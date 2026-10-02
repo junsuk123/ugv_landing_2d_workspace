@@ -35,6 +35,21 @@ run_all(struct('executionMode','full','rlRetrain',true))
 run_all(struct('executionMode','smoke'))
 ```
 
+전체 학습은 세 비교군 모두 모방학습 없이 동일한 2,500회 scratch PPO 설정을
+사용합니다. 초기에는 같은 CV–CA–CV 분포의 낮은 고도 표본부터 학습하고 공칭 고도
+범위로 확장하며, 검증과 최종 시험에는 항상 원래 분포만 사용합니다.
+
+학습 완료 후 저장된 V2 체크포인트를 한 화면에서 재생합니다.
+
+```matlab
+run_finalTest                         % 실제 속도 재생
+run_finalTest(struct('playbackSpeed',4))   % 4배속
+run_finalTest(struct('playbackSpeed',Inf)) % 대기 없이 최종 궤적 표시
+```
+
+최종 창은 평가 seed별 고정 축 궤적, 실제 피치 기반 카메라 FOV, CV/CA/CV 배경,
+R-GAT relation attention과 Monte Carlo 평균·1σ 공분산을 함께 표시합니다.
+
 기존 11차원·이중적분기 실험은 삭제하지 않았으며 명시적으로 실행할 수 있습니다.
 
 ```matlab

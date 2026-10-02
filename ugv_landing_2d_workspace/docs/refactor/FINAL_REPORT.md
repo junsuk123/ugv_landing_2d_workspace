@@ -43,6 +43,19 @@ Results:
 No long training, push, global MATLAB configuration change, process termination,
 or real-vehicle action was performed.
 
+## Post-handoff integration fixes
+
+- `run_all` now defaults to `executionMode='full'`.
+- All three V2 PPO arms use the same 2,500-iteration scratch schedule without
+  behavior cloning. A training-only initial-height curriculum expands to the
+  nominal scenario range; validation and test manifests remain unchanged.
+- `run_finalTest` now loads the three V2 checkpoint names and no longer routes
+  through the incompatible legacy environment.
+- The V2 visualization supports unequal terminal times, fixed full-trajectory
+  bounds, body-fixed-camera FOV geometry, CV/CA/CV phase backgrounds, R-GAT
+  relation attention, learning curves, inference cost, and Monte Carlo mean
+  trajectories with 1-sigma covariance ellipses.
+
 ## Compatibility changes
 
 - `run_all` defaults to `planar_visibility_v2`; pass

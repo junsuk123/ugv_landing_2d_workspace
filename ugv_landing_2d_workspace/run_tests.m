@@ -20,7 +20,8 @@ tests = {@test_baseline_equivalence,@test_pn_guidance,@test_observation_boundary
     @test_context_graph_v2,@test_ppo_smoke_v2};
 if includeGraphics
     tests = [tests,{@test_segment_background,@test_plot_export, ...
-        @test_ontology_view_tab,@test_agent_comparison_replay}];
+        @test_ontology_view_tab,@test_agent_comparison_replay, ...
+        @test_planar_visibility_viz}];
 end
 names = cell(numel(tests),1);
 passed = false(numel(tests),1);

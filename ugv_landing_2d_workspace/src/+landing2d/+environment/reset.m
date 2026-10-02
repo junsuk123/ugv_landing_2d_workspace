@@ -7,7 +7,15 @@ assert(isfield(c,'experiment') && c.experiment.enabled, ...
 base = c.experiment.scenario.baseSeed+double(seed);
 scenarioSeed = base+c.experiment.randomStreams.scenarioOffset;
 sensorSeed = base+c.experiment.randomStreams.sensorOffset;
-scenario = landing2d.scenario.sampleParameters(c.experiment.scenario,scenarioSeed);
+scenarioConfig = c.experiment.scenario;
+if isfield(options,'scenarioHeightRange') && ~isempty(options.scenarioHeightRange)
+    validateattributes(options.scenarioHeightRange,{'numeric'}, ...
+        {'vector','numel',2,'positive','finite'});
+    assert(options.scenarioHeightRange(1)<=options.scenarioHeightRange(2), ...
+        'landing2d:ScenarioHeightRange','scenarioHeightRange must increase.');
+    scenarioConfig.heightRange = double(options.scenarioHeightRange(:)');
+end
+scenario = landing2d.scenario.sampleParameters(scenarioConfig,scenarioSeed);
 if isfield(options,'scenario'), scenario = options.scenario; end
 c.experiment.currentScenario = scenario;
 sensorStream = RandStream('threefry','Seed',sensorSeed);

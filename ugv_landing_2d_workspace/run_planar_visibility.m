@@ -49,6 +49,7 @@ for i=1:3
     arm=landing2d.graphstate.applyStateRepresentation(cfg,modes{i});
     arm.graphState.stateRepresentation=modes{i};
     arm.rl.policyFile=sprintf('ppo_%s_planar_visibility_v2.mat',modes{i});
+    arm.dashboardAgentLabel=labels{i};
     fingerprints{i}=landing2d.environment.taskFingerprint(arm);
     fprintf('[%d/3] %s (%s)\n',i,labels{i},modes{i});
     if strcmp(executionMode,'full')
@@ -61,6 +62,10 @@ for i=1:3
     end
     [results{i},~,infos{i}]=landing2d.rl.evaluateV2(agents{i},arm,[]);
     profiles{i}=landing2d.rl.profileAgent(agents{i},arm,1,25);
+    if dashboardOn
+        landing2d.viz.liveDashboard('v2evaluation',struct( ...
+            'label',labels{i},'results',results{i},'info',infos{i}));
+    end
 end
 assert(all(strcmp(fingerprints,fingerprints{1})), ...
     'landing2d:TaskFingerprint','A/B/C do not share the same task contract.');
@@ -87,6 +92,20 @@ if cfg.saveResults
     writetable(comparison.rewardAudit,fullfile(cfg.outputDir,'reward_audit_v2.csv'));
     save(fullfile(cfg.outputDir,sprintf('planar_visibility_%s.mat',executionMode)), ...
         'comparison','summaryTable','cfg');
+end
+if cfg.makeFinalPlots
+    vizRuns=struct('results',results,'label',labels,'info',infos, ...
+        'profile',profiles,'training',histories);
+    replayOptions=struct('animate',false,'playbackSpeed',Inf);
+    [fig,tabs,layouts]=landing2d.viz.replayPlanarVisibilityComparison( ...
+        vizRuns,cfg,replayOptions);
+    if cfg.saveResults
+        names=[arrayfun(@(k)sprintf('planar_visibility_eval_%02d',k), ...
+            1:numel(results{1}),'UniformOutput',false), ...
+            {'planar_visibility_monte_carlo'}];
+        landing2d.io.saveTabbedFigure(fig,tabs,layouts,cfg,names, ...
+            'planar_visibility_comparison');
+    end
 end
 if dashboardOn
     landing2d.viz.liveDashboard('done',struct('message', ...

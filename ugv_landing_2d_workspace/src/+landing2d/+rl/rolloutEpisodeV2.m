@@ -2,12 +2,17 @@ function [result,traj] = rolloutEpisodeV2(agent,c,seed,opts)
 % ROLLOUTEPISODEV2  PPO rollout through the versioned reset/step contract.
 if nargin < 4, opts = struct(); end
 opts = defaults(opts,struct('deterministic',false,'collect',true, ...
-    'rs',[],'maxDecisions',Inf,'traceGraph',false));
+    'rs',[],'maxDecisions',Inf,'traceGraph',false, ...
+    'scenarioHeightRange',[]));
 if isempty(opts.rs)
     opts.rs = RandStream('threefry','Seed',c.experiment.scenario.baseSeed+ ...
         c.experiment.randomStreams.policyOffset+double(seed));
 end
-[env,observation,resetInfo] = landing2d.environment.reset(c,seed);
+resetOptions = struct();
+if ~isempty(opts.scenarioHeightRange)
+    resetOptions.scenarioHeightRange = opts.scenarioHeightRange;
+end
+[env,observation,resetInfo] = landing2d.environment.reset(c,seed,resetOptions);
 capacity = min(ceil(env.scenario.deadline/c.experiment.policyDt)+1, ...
     opts.maxDecisions);
 if ~isfinite(capacity), capacity = ceil(env.scenario.deadline/c.experiment.policyDt)+1; end

@@ -39,10 +39,44 @@ switch lower(action)
         dashboard = updateMonteCarloProgress(dashboard,payload);
     case 'montecarlo'
         dashboard = updateMonteCarlo(dashboard,payload);
+    case 'v2evaluation'
+        dashboard = updateV2Evaluation(dashboard,payload);
     case 'done'
         dashboard.status.String = payload.message;
 end
 drawnow limitrate;
+end
+
+function st = updateV2Evaluation(st,p)
+key = matlab.lang.makeValidName(['v2_',p.label]);
+if isfield(st.mcSeries,key)
+    old=st.mcSeries.(key);
+    if isfield(old,'lines'), delete(old.lines(isgraphics(old.lines))); end
+end
+color=agentColor(st,p.label);
+q=linspace(0,1,100); X=nan(numel(q),numel(p.results)); Z=X;
+item.lines=gobjects(1,numel(p.results)+1);
+for j=1:numel(p.results)
+    r=p.results(j); u=(r.time-r.time(1))/max(r.time(end)-r.time(1),eps);
+    [u,keep]=unique(u,'stable');
+    X(:,j)=interp1(u,r.xDrone(keep),q,'linear','extrap');
+    Z(:,j)=interp1(u,r.zDrone(keep),q,'linear','extrap');
+    item.lines(j)=plot(st.axEval,r.xDrone,r.zDrone,':','Color',color, ...
+        'LineWidth',0.6,'HandleVisibility','off');
+end
+item.lines(end)=plot(st.axEval,mean(X,2,'omitnan'),mean(Z,2,'omitnan'), ...
+    'Color',color,'LineWidth',2,'DisplayName',[p.label,' mean']);
+st.mcSeries.(key)=item;
+legend(st.axEval,'Location','best','Interpreter','none','Box','off');
+if isfield(p.info,'graphSchema') && isstruct(p.info.graphSchema) ...
+        && isfield(p.info.graphSchema,'nNodes') && ~isempty(p.info.nodeMean)
+    landing2d.viz.plotRgatField(st.axOntology,p.info.graphSchema,p.info.nodeMean, ...
+        p.info.nodeVariance,p.info.edgeAttentionMean,'attention', ...
+        [p.label,' relation attention']);
+end
+st.status.String=sprintf('%s evaluation | success %.0f%% | safe abort %.0f%% | capture %.0f%%', ...
+    p.label,100*p.info.landingRate,100*p.info.safeAbortRate, ...
+    100*p.info.meanCaptureRate);
 end
 
 function st = createDashboard(c)
