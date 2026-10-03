@@ -6,8 +6,12 @@ if nargin < 1, options=struct(); end
 projectRoot=setup_project();
 cfg=landing2d.config.primaryConfig(projectRoot);
 executionMode='full';
+requestedModes={};
 if isfield(options,'executionMode')
     executionMode=char(options.executionMode); options=rmfield(options,'executionMode');
+end
+if isfield(options,'modes')
+    requestedModes=cellstr(options.modes); options=rmfield(options,'modes');
 end
 if isfield(options,'rlRetrain')
     cfg.rl.retrain=logical(options.rlRetrain); options=rmfield(options,'rlRetrain');
@@ -27,11 +31,19 @@ switch executionMode
         cfg.rl.parallelEpisodes=false;
         cfg.rl.verbose=false;
         cfg.experiment.validationEpisodeCount=1;
+        cfg.experiment.testEpisodeCount=1;
+        cfg.graphState.pretrain.episodes=1;
+        cfg.graphState.pretrain.maxDecisions=5;
+        cfg.graphState.pretrain.epochs=1;
+        cfg.graphState.pretrain.batchSize=16;
         cfg.makeFinalPlots=false;
-        fprintf(['planar_visibility_v2 bounded smoke: 3 methods, 1 PPO ' ...
+        fprintf(['planar_visibility_v2 bounded smoke: each method gets 1 PPO ' ...
             'iteration each. This is not convergence/performance validation.\n']);
     case 'full'
-        cfg.experiment.validationEpisodeCount=5;
+        % Checkpoint selection sees validation only. The held-out test split
+        % is evaluated once after training and never influences selection.
+        cfg.experiment.validationEpisodeCount=20;
+        cfg.experiment.testEpisodeCount=100;
         warning('landing2d:LongTraining', ...
             'Explicit full mode can take a long time and writes checkpoints.');
     otherwise
@@ -41,48 +53,65 @@ landing2d.config.validateConfig(cfg);
 dashboardOn=cfg.showLiveDashboard && cfg.figureVisible;
 if dashboardOn, landing2d.viz.liveDashboard('init',cfg); end
 modes={'baseline','context_flat','context_rgat'};
-labels={'Low-level MLP PPO','Semantic-flat MLP PPO','Ontology R-GAT PPO'};
-agents=cell(1,3); histories=cell(1,3); results=cell(1,3); infos=cell(1,3);
-profiles=cell(1,3);
-fingerprints=cell(1,3);
-for i=1:3
+if ~isempty(requestedModes), modes=requestedModes; end
+validModes={'baseline','context_flat','context_node_pool','context_gat','context_rgat'};
+assert(all(ismember(modes,validModes)),'landing2d:AblationMode', ...
+    'Unsupported V2 comparison mode requested.');
+labels=cellfun(@labelForMode,modes,'UniformOutput',false);
+nMethods=numel(modes);
+agents=cell(1,nMethods); histories=cell(1,nMethods);
+results=cell(1,nMethods); infos=cell(1,nMethods);
+testResults=cell(1,nMethods); testInfos=cell(1,nMethods);
+profiles=cell(1,nMethods); fingerprints=cell(1,nMethods);
+for i=1:nMethods
     arm=landing2d.graphstate.applyStateRepresentation(cfg,modes{i});
     arm.graphState.stateRepresentation=modes{i};
     arm.rl.policyFile=sprintf('ppo_%s_planar_visibility_v2.mat',modes{i});
     arm.dashboardAgentLabel=labels{i};
     fingerprints{i}=landing2d.environment.taskFingerprint(arm);
-    fprintf('[%d/3] %s (%s)\n',i,labels{i},modes{i});
+    fprintf('[%d/%d] %s (%s)\n',i,nMethods,labels{i},modes{i});
     if strcmp(executionMode,'full')
         [agents{i},histories{i}]=landing2d.rl.loadOrTrainAgent(arm);
     else
-        rs=RandStream('threefry','Seed',arm.rl.seed);
-        agents{i}=landing2d.rl.agentInit(arm.rl,rs,arm.graphState);
-        [agents{i},history]=landing2d.rl.ppoTrain(agents{i},arm,rs);
-        histories{i}=struct('history',history,'smokeOnly',true);
+        [agents{i},trainInfo]=landing2d.rl.trainAgent(arm);
+        histories{i}=trainInfo;
+        histories{i}.smokeOnly=true;
     end
     [results{i},~,infos{i}]=landing2d.rl.evaluateV2(agents{i},arm,[]);
+    testCount=min(arm.experiment.testEpisodeCount, ...
+        numel(arm.experiment.manifest.testSeeds));
+    testSeeds=arm.experiment.manifest.testSeeds(1:testCount);
+    [testResults{i},~,testInfos{i}]=landing2d.rl.evaluateV2( ...
+        agents{i},arm,testSeeds);
     profiles{i}=landing2d.rl.profileAgent(agents{i},arm,1,25);
     if dashboardOn
         landing2d.viz.liveDashboard('v2evaluation',struct( ...
             'label',labels{i},'results',results{i},'info',infos{i}));
     end
 end
+
 assert(all(strcmp(fingerprints,fingerprints{1})), ...
     'landing2d:TaskFingerprint','A/B/C do not share the same task contract.');
-meanReturn=cellfun(@(x)x.meanReturn,infos)';
-successRate=cellfun(@(x)x.landingRate,infos)';
-unsafeRate=cellfun(@(x)x.unsafeRate,infos)';
-safeAbortRate=cellfun(@(x)x.safeAbortRate,infos)';
+reportInfo=testInfos;
+meanReturn=cellfun(@(x)x.meanReturn,reportInfo)';
+successRate=cellfun(@(x)x.landingRate,reportInfo)';
+unsafeRate=cellfun(@(x)x.unsafeRate,reportInfo)';
+safeAbortRate=cellfun(@(x)x.safeAbortRate,reportInfo)';
+timeoutRate=cellfun(@(x)x.timeoutRate,reportInfo)';
 parameterCount=cellfun(@(x)x.parameterCount,profiles)';
-inferenceMs=cellfun(@(x)x.totalInferenceMs,profiles)';
+inferenceMs=cellfun(@(x)x.policyInferenceMs,profiles)';
 summaryTable=table(labels',modes',meanReturn,successRate,unsafeRate,safeAbortRate, ...
-    parameterCount,inferenceMs, ...
+    timeoutRate,parameterCount,inferenceMs, ...
     'VariableNames',{'Method','StateRepresentation','MeanReturn', ...
-    'SuccessRate','UnsafeRate','SafeAbortRate','ParameterCount','InferenceMs'});
+    'SuccessRate','UnsafeRate','SafeAbortRate','TimeoutRate', ...
+    'ParameterCount','InferenceMs'});
 disp(summaryTable);
 comparison=struct('schemaVersion','planar_visibility_comparison_v2', ...
     'executionMode',executionMode,'agents',{agents},'training',{histories}, ...
-    'results',{results},'info',{infos},'profiles',{profiles}, ...
+    'results',{results},'info',{infos},'validationResults',{results}, ...
+    'validationInfo',{infos},'testResults',{testResults}, ...
+    'testInfo',{testInfos},'selectionSplit','validation', ...
+    'reportedSplit','test','profiles',{profiles}, ...
     'taskFingerprint',fingerprints{1});
 comparison.rewardAudit=landing2d.rl.rewardAudit(cfg);
 if cfg.saveResults
@@ -93,6 +122,7 @@ if cfg.saveResults
     save(fullfile(cfg.outputDir,sprintf('planar_visibility_%s.mat',executionMode)), ...
         'comparison','summaryTable','cfg');
 end
+
 if cfg.makeFinalPlots
     vizRuns=struct('results',results,'label',labels,'info',infos, ...
         'profile',profiles,'training',histories);
@@ -110,5 +140,16 @@ end
 if dashboardOn
     landing2d.viz.liveDashboard('done',struct('message', ...
         sprintf('planar_visibility_v2 %s complete',executionMode)));
+end
+end
+
+function label=labelForMode(mode)
+switch mode
+    case 'baseline', label='Low-level MLP PPO';
+    case 'context_flat', label='Semantic-flat MLP PPO';
+    case 'context_node_pool', label='Ontology node-pool PPO';
+    case 'context_gat', label='Single-relation GAT PPO';
+    case 'context_rgat', label='Ontology R-GAT PPO';
+    otherwise, label=mode;
 end
 end

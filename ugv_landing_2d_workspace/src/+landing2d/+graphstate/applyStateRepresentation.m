@@ -30,6 +30,13 @@ if strcmp(mode,'node_pool') && strcmp(cfg.graphState.readout,'decision_nodes') .
         && ~isfield(options,'readout')
     cfg.graphState.readout = 'meanmax';
 end
+if ismember(mode,{'context_node_pool','context_gat','context_rgat'}) ...
+        && ~isfield(options,'readout')
+    cfg.graphState.readout = 'grouped';
+end
+if ismember(mode,{'gat','ontology_rgat'}) && ~isfield(options,'readout')
+    cfg.graphState.readout = 'decision_nodes';
+end
 landing2d.graphstate.validateGraphStateConfig(cfg.graphState);
 if strcmp(mode,'baseline')
     return;

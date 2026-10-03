@@ -1,5 +1,9 @@
 # 모듈별 수정 위치
 
+> v2.6 현재 경로는 9개 의미 노드 → 1층 R-GAT → 지각/추적/기체/안전
+> 그룹 readout입니다. 아래 PolicyNode/ValueNode 표기는 v2.5 이전 호환
+> 경로에 대한 기록입니다.
+
 ## 기본 실험: planar_visibility_v2
 
 ```text

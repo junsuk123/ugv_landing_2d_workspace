@@ -49,7 +49,7 @@ switch mode
         % 메시지 전달 없이 노드별 사영만. 간선을 전혀 쓰지 않습니다.
         params.Wn = scale*randn(rs,dh,schema.inDim);
         params.bn = zeros(dh,1);
-    case {'gat','ontology_rgat','context_gat','context_rgat'}
+    case {'gat','ontology_rgat'}
         % 두 층 관계형 주의. 두 번째 층에 잔차 연결이 있어 두 층의 폭이 같아야 합니다.
         R = schema.nRelations;
         relDim = gs.relationDim;
@@ -59,6 +59,18 @@ switch mode
         params.W2 = scale*randn(rs,dh,dh,R);
         params.a2 = scale*randn(rs,1,2*dh+relDim,R);
         params.E2 = scale*randn(rs,relDim,R);
+    case {'context_gat','context_rgat'}
+        % A single relation layer is enough for this compact graph: its
+        % semantic edges already connect each downstream decision context
+        % to the causal evidence it needs. W0 is the fixed local residual;
+        % a1 is the state-dependent gate adapted by PPO.
+        R = schema.nRelations;
+        relDim = gs.relationDim;
+        params.W1 = scale*randn(rs,dh,schema.inDim,R);
+        params.a1 = scale*randn(rs,1,2*dh+relDim,R);
+        params.E1 = scale*randn(rs,relDim,R);
+        params.W0 = scale*randn(rs,dh,schema.inDim);
+        params.b0 = zeros(dh,1);
     otherwise
         error('landing2d:UnknownStateRepresentation', ...
             'encoderInit does not handle stateRepresentation %s.',mode);
@@ -80,6 +92,15 @@ switch gs.readout
     case 'mean'
         % g_t = mean(H_t,2). 추가 파라미터가 없습니다.
         spec.graphDim = dh;
+    case 'grouped'
+        assert(isfield(schema,'groupMatrix'),'landing2d:GroupedReadout', ...
+            'Grouped readout requires schema.groupMatrix.');
+        spec.groupMatrix = schema.groupMatrix;
+        spec.groupNames = schema.groupNames;
+        spec.groupCount = size(schema.groupMatrix,1);
+        params.Wg = scale*randn(rs,gs.graphDim,dh*spec.groupCount);
+        params.bg = zeros(gs.graphDim,1);
+        spec.graphDim = gs.graphDim;
     otherwise
         error('landing2d:UnknownReadout','Unknown readout: %s',gs.readout);
 end

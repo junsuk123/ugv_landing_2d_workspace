@@ -16,6 +16,13 @@ if nargin < 3 || isempty(gs)
 end
 [policyEncoder,spec] = landing2d.graphstate.encoderInit(gs,rl.observationDim,rs);
 valueEncoder = landing2d.graphstate.encoderInit(gs,rl.observationDim,rs);
+if gs.freezeStaticBackbone && ismember(gs.stateRepresentation, ...
+        {'context_gat','context_rgat'})
+    % Actor and critic use the same causal representation at initialization.
+    % PPO may adapt their small attention/readout heads independently, while
+    % the shared static transforms remain frozen.
+    valueEncoder = policyEncoder;
+end
 inputDim = spec.graphDim;
 sizes = [inputDim,rl.hiddenSize,rl.hiddenSize,rl.actionDim];
 agent.policy.mean = landing2d.rl.mlpInit(sizes,0.1,rs);

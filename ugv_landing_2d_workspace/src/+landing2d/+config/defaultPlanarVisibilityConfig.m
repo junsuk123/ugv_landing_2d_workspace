@@ -64,5 +64,5 @@ v2.randomStreams = struct('scenarioOffset',0,'sensorOffset',1000000, ...
 v2.manifest = struct('trainSeeds',1:2000,'validationSeeds',2001:2200, ...
     'testSeeds',2201:2400,'stressSeeds',9001:9100);
 v2.observationSchema = landing2d.sensing.observationSchema();
-v2.contextSchemaVersion = 'compact_context_graph_v2';
+v2.contextSchemaVersion = 'compact_context_graph_v3_grouped';
 end

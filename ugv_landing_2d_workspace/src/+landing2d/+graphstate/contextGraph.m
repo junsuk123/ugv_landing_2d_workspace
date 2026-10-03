@@ -2,6 +2,7 @@ function [S,detail] = contextGraph(packet,c)
 % CONTEXTGRAPH  Feature-rich causal graph; query nodes contain no labels.
 mode = c.graphState.stateRepresentation;
 [schema,~] = landing2d.graphstate.contextSchema(mode);
+landing2d.graphstate.assertCausalPacket(packet);
 N = schema.nNodes; X = zeros(schema.inDim,N);
 theta = atan2(packet.sinTheta,packet.cosTheta);
 age = min(packet.timeSinceLastDetection/c.experiment.safety.prolongedLoss,1);
@@ -50,14 +51,11 @@ put(8,descentEvidence,descentEvidence,1-speedRisk,-speedRisk, ...
 put(9,inhibit,double(packet.abortRequested),age, ...
     double(packet.landingInhibited),1,1,max([posU,velU,age]), ...
     double(packet.abortRequested),inhibit);
-% Query nodes receive bias/type only, never actions, outcomes, or future labels.
 for node = 1:N
     X(10,node) = remaining;
     X(11,node) = 1;
     X(12,node) = node/N;
 end
-X(:,schema.policyNode) = [zeros(10,1);1;schema.policyNode/N];
-X(:,schema.valueNode) = [zeros(10,1);1;schema.valueNode/N];
 X = min(max(X,-1),1);
 S = X(:);
 if nargout > 1

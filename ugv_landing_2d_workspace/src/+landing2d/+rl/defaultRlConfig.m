@@ -58,6 +58,7 @@ rl.policyLearnRate = 2e-4;
 rl.valueLearnRate = 1e-3;
 rl.entropyWeight = 0.002;
 rl.initialLogStd = -1.6;     % 탐색 잡음 log 표준편차 (제한 이전 명령 기준)
+rl.minimumLogStd = -2.5;     % Common exploration floor for all compared arms.
 rl.maxGradNorm = 1.0;
 rl.valueWarmup = 2;          % 처음 몇 번은 가치망만 학습해 정책 붕괴를 줄임
 rl.evaluateEvery = 3;        % 몇 번마다 결정론적 성능을 확인해 최고 정책 보관

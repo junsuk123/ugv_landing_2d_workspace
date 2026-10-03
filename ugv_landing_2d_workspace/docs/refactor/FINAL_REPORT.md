@@ -1,5 +1,24 @@
 # Final refactor report
 
+## v2.6 real-time causal R-GAT update
+
+The proposed encoder is now a one-layer 16-wide typed R-GAT over nine meaningful
+nodes and 26 edges, followed by Perception/Tracking/Vehicle/Safety group
+readout. Empty query nodes, homogeneous `contributes` edges, and the second
+message-passing layer were removed. The resulting agent has 14,917 parameters.
+
+Current-time masked-node pretraining uses train seeds only and explicitly has no
+action, reward, outcome, future, teacher, or hidden-truth target. Actor and
+Critic begin from the same pretrained static transforms; PPO freezes those
+transforms and adapts only dynamic attention gates and small heads. All arms use
+the same exploration floor. Selection now uses 20 validation seeds, and final
+reporting uses 100 held-out test seeds.
+
+The 26/26 non-graphics suite, A/B/C smoke, and four-stage ablation smoke pass.
+The bounded proposed control-path profile was approximately 0.16 ms per 100 ms
+decision period. This is integration/runtime evidence, not a performance claim;
+a fresh v2.6 full training run is still required.
+
 ## Outcome
 
 The primary path is now a versioned planar visibility experiment rather than the
@@ -18,7 +37,7 @@ and immutable reference tests remain available behind `legacy_v1`.
 | T04 causal memory | passed | timestamped track, uncertainty, masks, idempotence and 2 s differencing fixture |
 | T05 safety/boundaries | passed | physical contact separated from authorization, interpolation, terminal enum |
 | T06 common reward | passed | pure three-cost reward and one terminal bonus |
-| T07 compact ontology | passed | 9 semantic + 2 query nodes, 6 typed relations, C01–C12 support |
+| T07 compact ontology | passed | v2.6: 9 semantic nodes, 26 edges, 5 relation types, 4 readout groups |
 | T08 PPO integration | passed | raw command likelihood, variable-time GAE, stored raw graph, terminal stop |
 | T09 bounded validation | passed | 26/26 non-graphics tests, bounded three-arm run, and scratch-PPO diagnostic |
 | T10 docs/handoff | passed | root/project README, system/config/reward/module docs |
@@ -99,7 +118,7 @@ evidence. Full 2,500-iteration v2.3 multi-arm training remains required.
 
 - `run_all` defaults to `planar_visibility_v2`; pass
   `experimentVersion='legacy_v1'` for the previous workflow.
-- Algorithm version is `planar-visibility-ppo-v2.5`; old checkpoints are rejected.
+- Algorithm version is `planar-visibility-ppo-v2.6`; old checkpoints are rejected.
 - Primary observation size is schema-derived 26, not legacy 11.
 - Primary reward and termination semantics intentionally invalidate old policies.
 

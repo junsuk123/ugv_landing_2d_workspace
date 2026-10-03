@@ -22,8 +22,8 @@ gs.stateRepresentation = 'baseline';
 %% 그래프 부호기 (stateRepresentation이 'baseline'이 아닐 때만 사용)
 % 9개 의미 노드에 PolicyNode/ValueNode를 붙이고 두 층의 message passing으로
 % 정보를 모읍니다. hiddenDim은 각 노드와 두 의사결정 노드의 임베딩 폭입니다.
-gs.hiddenDim = 32;           % R-GAT 노드 임베딩 폭 d. H_t는 [d x N]
-gs.relationDim = 6;          % 관계 임베딩 폭
+gs.hiddenDim = 16;           % Lightweight one-layer R-GAT node embedding.
+gs.relationDim = 4;          % Compact relation embedding.
 gs.graphDim = 32;            % mean/meanmax 제거 실험의 출력 폭 (가상 노드는 hiddenDim)
 gs.initScale = 0.12;         % 부호기 초기 가중치 배율
 gs.encoderLearnRate = 3e-4;  % 부호기 Adam 학습률
@@ -34,7 +34,15 @@ gs.encoderLearnRate = 3e-4;  % 부호기 Adam 학습률
 %   'mean'           mean(H_t,2)                              (제거 실험)
 % decision_nodes에는 전역 pooling 파라미터 Wg가 없습니다. PPO 기울기가 각 가상
 % 노드에서 R-GAT 관계형 message passing으로 직접 전달됩니다.
-gs.readout = 'decision_nodes';
+gs.readout = 'meanmax';
+
+%% Causal graph pretraining and PPO-time adaptation
+% Pretraining reconstructs masked current-time node features only. It never
+% consumes actions, rewards, outcomes, future samples, or simulator truth.
+gs.freezeStaticBackbone = true;
+gs.pretrain = struct('enabled',true,'episodes',12,'maxDecisions',80, ...
+    'epochs',8,'batchSize',128,'maskProbability',0.25, ...
+    'learnRate',1e-3,'seedOffset',7000000);
 
 %% 의미 채널 정규화 기준. landing2d.ontology.defaultOntologyConfig와 같은 뜻이지만
 % 여기서는 관측만으로 계산합니다(참값 없음). 별도로 두어 보상 설계 쪽 설정을

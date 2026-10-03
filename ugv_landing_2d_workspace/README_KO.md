@@ -1,5 +1,29 @@
 # 이동 UGV 착륙 — Planar Visibility PPO v2
 
+## v2.6 현재 제안 모델
+
+현재 제안 모델은 9개 의미 노드와 26개 간선만 사용하는 1층 경량
+R-GAT입니다. 빈 `PolicyNode`/`ValueNode`와 획일적인 `contributes` 간선을
+제거하고, 지각·추적·기체·안전의 네 관계군을 각각 풀링하여 Actor/Critic에
+전달합니다. hidden 크기는 16, 관계 임베딩은 4이며 전체 파라미터는 현재
+설정에서 14,917개입니다.
+
+R-GAT 백본은 train seed의 현재 시점 노드 특성만 마스킹 복원하여 먼저
+학습합니다. 행동·보상·성공 여부·미래 샘플·교사 명령·시뮬레이터 참값은
+입력이나 목표로 사용하지 않습니다. PPO 단계에서는 불변 관계 변환을
+고정하고 상황 의존 attention gate와 작은 readout/head만 갱신합니다.
+
+```matlab
+run_all                                      % 기본: 전체 A/B/C 학습
+run_graph_ablation(struct('executionMode','smoke', ...
+    'figureVisible',false,'animate',false,'saveResults',false))
+```
+
+체크포인트 선택은 validation 20 seed, 최종 보고는 학습/선택에 사용하지
+않은 test 100 seed를 사용합니다. 상세 설계는
+[`docs/refactor/REALTIME_CAUSAL_RGAT_V26.md`](docs/refactor/REALTIME_CAUSAL_RGAT_V26.md)에
+정리되어 있습니다. 아래의 query-node 설명은 v2.5 이전 구조 기록입니다.
+
 연속 가속하는 이동 패드에서 기체 고정 하향 카메라의 시야 상실을 다루는 MATLAB
 2차원 `x-z` 연구 시뮬레이터입니다. 기본 실험은 환경·관측 기억·행동·안전 감독기·
 보상·종료 조건을 완전히 공유하고 상태 표현만 다른 세 PPO를 비교합니다.

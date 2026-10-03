@@ -12,6 +12,18 @@ c.rl = rl;
 rs = RandStream('threefry','Seed',rl.seed);
 started = tic;
 agent = landing2d.rl.agentInit(rl,rs,c.graphState);
+pretrainInfo = struct('enabled',false,'sampleCount',0,'finalLoss',NaN, ...
+    'usesActions',false,'usesRewards',false,'usesOutcomes',false, ...
+    'usesFuture',false,'seedSplit','train');
+if ismember(agent.encoderSpec.mode,{'context_gat','context_rgat'}) ...
+        && c.graphState.pretrain.enabled
+    [agent.policy.encoder,pretrainInfo] = ...
+        landing2d.graphstate.pretrainCausalEncoder( ...
+        agent.policy.encoder,agent.encoderSpec,c,rs);
+    % The fixed causal backbone is shared by construction. Heads start from
+    % the same pretrained point and adapt independently during PPO.
+    agent.value.encoder = agent.policy.encoder;
+end
 cloneInfo = struct('finalLoss',NaN);
 teacherSamples = 0;
 if rl.useBehaviorClone
@@ -30,16 +42,32 @@ if rl.useBehaviorClone
 elseif rl.verbose
     fprintf('모방 학습 없음: 무작위 초기 정책에서 시작합니다.\n');
 end
+staticReference = staticBackbone(agent.policy.encoder,agent.encoderSpec.mode);
 if rl.verbose
     fprintf('PPO 학습 (%d 반복 x %d 에피소드)...\n', ...
         rl.ppoIterations,rl.episodesPerIteration);
 end
 [agent,history] = landing2d.rl.ppoTrain(agent,c,rs);
+staticFrozen = isequal(staticReference, ...
+    staticBackbone(agent.policy.encoder,agent.encoderSpec.mode));
+if c.graphState.freezeStaticBackbone
+    assert(staticFrozen,'landing2d:StaticBackboneChanged', ...
+        'A frozen causal graph backbone changed during PPO.');
+end
 info = struct('teacherSamples',teacherSamples, ...
     'useBehaviorClone',rl.useBehaviorClone, ...
     'cloneLoss',cloneInfo.finalLoss,'history',history, ...
+    'pretraining',pretrainInfo,'staticBackboneFrozen',staticFrozen, ...
     'trainingSeconds',toc(started));
 if rl.verbose
     fprintf('학습 시간: %.1f s\n',info.trainingSeconds);
+end
+
+function value=staticBackbone(encoder,mode)
+value=struct();
+if ~ismember(mode,{'context_gat','context_rgat'}), return; end
+for name={'W1','E1','W0','b0'}
+    value.(name{1})=encoder.(name{1});
+end
 end
 end

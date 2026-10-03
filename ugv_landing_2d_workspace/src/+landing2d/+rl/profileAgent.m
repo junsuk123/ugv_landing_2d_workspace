@@ -35,8 +35,13 @@ end
 criticMs=1000*toc/repetitions;
 profile=struct('observationMs',observationMs,'graphMs',graphMs, ...
     'actorMs',actorMs,'criticMs',criticMs, ...
+    'policyInferenceMs',actorMs+runtimeStateMs(mode,observationMs,graphMs), ...
     'totalInferenceMs',observationMs+graphMs+actorMs+criticMs, ...
     'parameterCount',countNumeric(agent.policy)+countNumeric(agent.value));
+end
+
+function ms=runtimeStateMs(mode,observationMs,graphMs)
+if strcmp(mode,'baseline'), ms=observationMs; else, ms=graphMs; end
 end
 
 function n=countNumeric(x)

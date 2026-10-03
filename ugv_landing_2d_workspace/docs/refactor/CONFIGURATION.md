@@ -36,7 +36,8 @@ disjoint train/validation/test/stress seed lists and records SI units.
 
 ## Compact graph
 
-Nine semantic nodes are followed by label-free `PolicyNode` and `ValueNode`.
+Version 2.6 uses nine semantic nodes only. It has no query placeholders; four
+explicit Perception/Tracking/Vehicle/Safety groups form the Actor/Critic readout.
 Each node has the same 12-channel feature layout:
 
 `primary, signedPrimary, secondary, signedSecondary, validity, confidence,

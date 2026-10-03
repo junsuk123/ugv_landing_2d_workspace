@@ -4,17 +4,14 @@ if nargin < 1, mode = 'context_rgat'; end
 semantic = {'PadVisibility','PadMotion','DroneTranslation','DroneAttitude', ...
     'RelativeTracking','TrackingCorrection','ViewRecovery', ...
     'DescentEligibility','LandingInhibit'};
-queries = {'PolicyNode','ValueNode'};
-schema.nodeNames = [semantic,queries];
+schema.nodeNames = semantic;
 schema.nNodes = numel(schema.nodeNames);
 schema.ontologyNodes = 1:numel(semantic);
-schema.policyNode = 10; schema.valueNode = 11;
-schema.decisionNodes = [10,11];
 schema.nodeClasses = {'ObservationState','MotionEstimate','OwnState', ...
     'OwnState','RelativeState','DecisionContext','DecisionContext', ...
-    'DecisionContext','DecisionContext','ReadoutQuery','ReadoutQuery'};
+    'DecisionContext','DecisionContext'};
 schema.relationNames = {'informs','affects_visibility','supports', ...
-    'inhibits','contributes','self'};
+    'inhibits','self'};
 schema.nRelations = numel(schema.relationNames);
 edges = { ...
     'PadMotion','RelativeTracking','informs'; ...
@@ -40,13 +37,7 @@ for i = 1:size(edges,1)
     dst(i) = find(strcmp(schema.nodeNames,edges{i,2}));
     rel(i) = find(strcmp(schema.relationNames,edges{i,3}));
 end
-contributes = find(strcmp(schema.relationNames,'contributes'));
 self = find(strcmp(schema.relationNames,'self'));
-for node = schema.ontologyNodes
-    src = [src,node,node]; %#ok<AGROW>
-    dst = [dst,schema.policyNode,schema.valueNode]; %#ok<AGROW>
-    rel = [rel,contributes,contributes]; %#ok<AGROW>
-end
 src = [src,1:schema.nNodes];
 dst = [dst,1:schema.nNodes];
 rel = [rel,self*ones(1,schema.nNodes)];
@@ -65,7 +56,14 @@ schema.inDim = numel(schema.featureNames);
 schema.neutralValue = zeros(1,schema.nNodes);
 schema.riskNodes = [7,9];
 schema.goalNode = 8;
-schema.variant = 'compact_context_graph_v2';
+schema.groupNames = {'Perception','Tracking','Vehicle','Safety'};
+schema.readoutGroups = {[1,7],[2,5,6],[3,4],[8,9]};
+schema.groupMatrix = zeros(numel(schema.readoutGroups),schema.nNodes);
+for g = 1:numel(schema.readoutGroups)
+    nodes = schema.readoutGroups{g};
+    schema.groupMatrix(g,nodes) = 1/numel(nodes);
+end
+schema.variant = 'compact_context_graph_v3_grouped';
 schema.edgeTable = edges;
 schema.provenance = featureProvenance();
 if nargout > 1, T = landing2d.rgat.topology(schema); end

@@ -25,7 +25,7 @@ switch spec.mode
         Xf = reshape(X,spec.inDim,N*B);
         H = tanh(reshape(params.Wn*Xf+params.bn,dh,N,B));
         cache.Xf = Xf;
-    case {'gat','ontology_rgat','context_gat','context_rgat'}
+    case {'gat','ontology_rgat'}
         [Z1,cache1] = landing2d.rgat.relationForward(X,params.W1,params.a1, ...
             params.E1,spec.T);
         H1 = tanh(reshape(Z1,dh,N,B));
@@ -35,6 +35,14 @@ switch spec.mode
         cache.cache1 = cache1;
         cache.cache2 = cache2;
         cache.H1 = H1;
+    case {'context_gat','context_rgat'}
+        Xf = reshape(X,spec.inDim,N*B);
+        [Z1,cache1] = landing2d.rgat.relationForward(X,params.W1,params.a1, ...
+            params.E1,spec.T);
+        local = reshape(params.W0*Xf+params.b0,dh,N,B);
+        H = tanh(reshape(Z1,dh,N,B)+local);
+        cache.cache1 = cache1;
+        cache.Xf = Xf;
     otherwise
         error('landing2d:UnknownStateRepresentation', ...
             'encoderForward does not handle stateRepresentation %s.',spec.mode);
@@ -68,6 +76,16 @@ switch spec.readout
         cache.g = g;
     case 'mean'
         g = hMean;
+    case 'grouped'
+        K = spec.groupCount;
+        grouped = zeros(dh,K,B);
+        for b = 1:B
+            grouped(:,:,b) = H(:,:,b)*spec.groupMatrix';
+        end
+        readout = reshape(grouped,dh*K,B);
+        g = tanh(params.Wg*readout+params.bg);
+        cache.readout = readout;
+        cache.g = g;
     otherwise
         error('landing2d:UnknownReadout','Unknown readout: %s',spec.readout);
 end

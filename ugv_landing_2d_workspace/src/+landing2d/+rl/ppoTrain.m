@@ -272,6 +272,7 @@ core = policyCore(agent);
 [core,state] = landing2d.util.adamUpdate(core,grads,state,rl.policyLearnRate);
 agent.policy.mean = core.mean;
 agent.policy.logStd = core.logStd;
+agent.policy.logStd = max(agent.policy.logStd,rl.minimumLogStd);
 [agent.policy.encoder,encoderState] = encoderStep(agent.policy.encoder, ...
     agent.encoderSpec,encoderCache,dG,encoderState,rl,gs);
 end
@@ -297,6 +298,13 @@ if isempty(fieldnames(params))
     return;
 end
 grads = landing2d.graphstate.encoderBackward(params,spec,cache,dG);
+if gs.freezeStaticBackbone && ismember(spec.mode,{'context_gat','context_rgat'})
+    % Invariant ontology transforms are pretrained once. Runtime-state
+    % adaptation is confined to attention gates and the grouped readout.
+    for name = {'W1','E1','W0','b0'}
+        if isfield(grads,name{1}), grads.(name{1})(:) = 0; end
+    end
+end
 grads = landing2d.util.clipGradient(grads,rl.maxGradNorm);
 [params,state] = landing2d.util.adamUpdate(params,grads,state, ...
     gs.encoderLearnRate);

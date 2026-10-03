@@ -36,7 +36,11 @@ for i = 1:numel(seeds)
         if hasAttention
             [~,cache]=landing2d.graphstate.encoderForward(agent.policy.encoder, ...
                 agent.encoderSpec,traj.state(:,end),'policy');
-            edgeAttention(:,i)=cache.cache2.alpha(:,1);
+            if isfield(cache,'cache2')
+                edgeAttention(:,i)=cache.cache2.alpha(:,1);
+            else
+                edgeAttention(:,i)=cache.cache1.alpha(:,1);
+            end
         end
     end
 end
