@@ -19,6 +19,10 @@ end
 if isfield(options,'ppoIterations')
     cfg.rl.ppoIterations=options.ppoIterations; options=rmfield(options,'ppoIterations');
 end
+if isfield(options,'rlSeed')
+    validateattributes(options.rlSeed,{'numeric'},{'scalar','integer','nonnegative'});
+    cfg.rl.seed=double(options.rlSeed); options=rmfield(options,'rlSeed');
+end
 cfg=landing2d.config.applyOptions(cfg,options);
 switch executionMode
     case 'smoke'
@@ -42,7 +46,7 @@ switch executionMode
     case 'full'
         % Checkpoint selection sees validation only. The held-out test split
         % is evaluated once after training and never influences selection.
-        cfg.experiment.validationEpisodeCount=20;
+        cfg.experiment.validationEpisodeCount=100;
         cfg.experiment.testEpisodeCount=100;
         warning('landing2d:LongTraining', ...
             'Explicit full mode can take a long time and writes checkpoints.');

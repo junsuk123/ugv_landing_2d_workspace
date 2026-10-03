@@ -166,6 +166,36 @@ evidence. Full 2,500-iteration v2.3 multi-arm training remains required.
   have not been run.
 - No universal optimality or guaranteed ontology advantage is claimed.
 
+## Safety-constrained relation policy (v2.8)
+
+The completed v2.7 run showed a real but unsafe trade-off: R-GAT improved the
+100-seed test success rate from 80% to 82% and reduced common-success landing
+time by 5.42 s, but unsafe contact rose from 5% to 9%. On a separate 100-seed
+stress split it achieved 82% success / 6% unsafe versus semantic-flat at 86% /
+1%. The 2-point test success difference was not significant (paired McNemar
+`p=0.791`).
+
+All nine R-GAT test unsafe outcomes were `UNAUTHORIZED_CONTACT`. The learned
+Safety context added downward vertical residual while the public causal packet
+reported `landingInhibited=1`. Final-state attention was also dominated by self
+edges, while the explicit `inhibits` edge received low attention. Thus typed
+relations did not preserve their action semantics by construction.
+
+V2.8 fixes the mechanism rather than relabeling these contacts. Additional
+descent from the relation head is multiplied by causal `DescentEligibility`;
+positive braking/climb and horizontal recovery remain available. PPO backward
+propagation uses the identical gate. Rollouts now persist the base action,
+relation residual, eligibility, and gate activation for audit.
+
+Checkpoint selection now uses 100 rather than 20 validation seeds and penalizes
+unsafe outcomes 2.5 times as strongly as successes. The old test split was used
+during diagnosis and is therefore retired; fresh test seeds are `3001:3200`.
+`run_multiseed_study` provides the required five-independent-seed experiment and
+aggregate mean/standard-deviation report. V2.8 has passed 26/26 non-graphics,
+31/31 graphics-inclusive, three-arm smoke, and multi-seed-driver smoke tests.
+Fresh full training and one-time held-out evaluation remain pending, so no v2.8
+performance advantage is claimed yet.
+
 ## Full-run failure analysis and correction (v2.4)
 
 The completed 2,500-iteration v2.3 run did not validate performance. All three

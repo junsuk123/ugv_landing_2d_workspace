@@ -1,4 +1,4 @@
-function [u,logProbability,mu] = policyAction(agent,S,rs,deterministic)
+function [u,logProbability,mu,detail] = policyAction(agent,S,rs,deterministic)
 % POLICYACTION  상태 하나에 대한 행동 표본과 log 확률.
 %
 % S는 정책이 받는 상태입니다. 기준 모델에서는 landing2d.rl.observation의 관측
@@ -10,10 +10,17 @@ g = landing2d.graphstate.encoderForward(agent.policy.encoder, ...
 if isfield(agent.policy,'relation')
     raw = g(1:agent.encoderSpec.stateDim,:);
     context = g(agent.encoderSpec.stateDim+1:end,:);
-    mu = landing2d.rl.mlpForward(agent.policy.mean,raw)+ ...
-        agent.policy.relation.W*context;
+    baseMean = landing2d.rl.mlpForward(agent.policy.mean,raw);
+    [relationResidual,~,relationDetail] = ...
+        landing2d.rl.relationPolicyResidual(agent.policy.relation.W, ...
+        agent.encoderSpec,raw,context);
+    mu = baseMean+relationResidual;
 else
-    mu = landing2d.rl.mlpForward(agent.policy.mean,g);
+    baseMean = landing2d.rl.mlpForward(agent.policy.mean,g);
+    relationResidual = zeros(size(baseMean));
+    relationDetail = struct('descentEligibility',ones(1,size(baseMean,2)), ...
+        'verticalGateActive',false(1,size(baseMean,2)));
+    mu = baseMean;
 end
 sigma = exp(agent.policy.logStd);
 if deterministic
@@ -23,4 +30,7 @@ else
 end
 logProbability = sum(-0.5*((u-mu)./sigma).^2-agent.policy.logStd ...
     -0.5*log(2*pi));
+detail = struct('baseMean',baseMean,'relationResidual',relationResidual, ...
+    'descentEligibility',relationDetail.descentEligibility, ...
+    'verticalGateActive',relationDetail.verticalGateActive);
 end

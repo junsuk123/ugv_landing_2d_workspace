@@ -1,5 +1,5 @@
 {
-  "schema_version": "refactor_progress_v2_7",
+  "schema_version": "refactor_progress_v2_8",
   "branch": "codex/planar-visibility-ppo-v2",
   "starting_head": "385e993aeda747db490f53c791934dc871029e2a",
   "tasks": {
@@ -15,7 +15,10 @@
     "T09": "passed_bounded_only",
     "T10": "passed",
     "T11_realtime_causal_rgat": "passed_bounded_only",
-    "T12_semantic_residual_rgat": "passed_bounded_only"
+    "T12_semantic_residual_rgat": "passed_bounded_only",
+    "T13_semantic_action_constraint": "passed_bounded_only",
+    "T14_safety_aware_selection": "passed_bounded_only",
+    "T15_multiseed_driver": "passed_bounded_only"
   },
   "tests": {
     "non_graphics": {"passed": 26, "failed": 0},
@@ -27,15 +30,21 @@
     "v2_4_bounded_training": "passed: 13.3 percent peak window landing, 100 percent curriculum, eligible checkpoint selection",
     "v2_5_physics_diagnostic": "passed: causal PN validation landing improved from 0/20 to 13/20 after authority, estimator, contact-plane, and FOV-aware descent corrections",
     "v2_5_bounded_training": "passed diagnostic: 200-iteration compressed schedule reached 100 percent validation capture and produced a landing at 90 percent curriculum; nominal landing remained 0 percent",
-    "long_training": "v2.7 pending fresh 2500-iteration run",
-    "held_out_multi_seed_evaluation": "v2.6 complete: baseline 73%, flat 78%, R-GAT 15%; v2.7 pending fresh full training",
+    "long_training": "v2.7 complete but not robust: test flat 80%/5% unsafe, R-GAT 82%/9% unsafe; v2.8 fresh run pending",
+    "held_out_multi_seed_evaluation": "v2.8 fresh test manifest and five-seed driver ready; long runs pending",
     "v2_6_non_graphics": "26/26 passed",
     "v2_6_three_arm_smoke": "passed",
     "v2_6_four_stage_ablation_smoke": "passed",
     "v2_6_policy_inference": "approximately 0.16 ms in bounded local profile; machine dependent",
     "v2_7_root_cause": "v2.6 graph output effective rank approximately 2-3; lossy compression and frozen backbone",
     "v2_7_flat_equivalence": "passed: identical smoke return and exact base Actor/Critic weights before relation stage",
-    "v2_7_policy_inference": "approximately 0.18 ms with 17001 parameters; machine dependent"
+    "v2_7_policy_inference": "approximately 0.18 ms with 17001 parameters; machine dependent",
+    "v2_8_semantic_gate": "passed: inhibited descent residual is zero while braking/climb remains available",
+    "v2_8_validation": "100 selection seeds, unsafe weighted 2.5x success, fresh test seeds 3001:3200",
+    "v2_8_non_graphics": "26/26 passed",
+    "v2_8_graphics_inclusive": "31/31 passed",
+    "v2_8_three_arm_smoke": "passed",
+    "v2_8_multiseed_driver_smoke": "passed"
   },
   "claims": {
     "integration_verified": true,

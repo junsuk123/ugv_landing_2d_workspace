@@ -15,7 +15,7 @@ The proposed graph has 9 meaningful nodes and 26 edges. Its four readout groups
 are Perception, Tracking, Vehicle, and Safety. It uses one 8-wide relation
 layer and four-dimensional relation embeddings; there are no empty query nodes.
 
-## What changed in v2.7
+## What changed in v2.8
 
 - Causal masked-node pretraining uses **train seeds and same-time packet data
   only**. It does not use actions, rewards, outcomes, future samples, teacher
@@ -27,8 +27,12 @@ layer and four-dimensional relation embeddings; there are no empty query nodes.
   random streams. The last 10% freezes that base and tunes only the relational
   residual. A relation checkpoint must clear a validation improvement margin.
 - A common `minimumLogStd=-2.5` prevents exploration collapse in every PPO arm.
-- Checkpoint selection uses 20 validation seeds. The final reported result uses
-  100 held-out test seeds and never feeds back into checkpoint selection.
+- Negative vertical relation residuals are gated by the causal
+  `DescentEligibility` node. When landing is inhibited the graph cannot add
+  descent, while braking/climb and horizontal recovery remain available.
+- Checkpoint selection uses 100 validation seeds and weights unsafe contact 2.5
+  times more strongly than success. Final reporting uses the fresh held-out
+  test manifest `3001:3200` and never feeds it back into selection.
 - The proposed agent has 17,001 parameters and no runtime backpropagation.
 
 ## Quick start
@@ -43,6 +47,7 @@ run_all(struct('executionMode','smoke', ...  % bounded integration check
 run_graph_ablation(struct('executionMode','smoke', ...
     'figureVisible',false,'animate',false,'saveResults',false))
 run_finalTest                                % compare saved final agents
+run_multiseed_study(struct('executionMode','full')) % five PPO seeds
 ```
 
 Force fresh full training after an algorithm change:
@@ -78,7 +83,7 @@ validation, and test manifests are disjoint. At deployment, the graph path is
 forward-only; self-supervised reconstruction and PPO backpropagation are
 training-time operations.
 
-See the [v2.7 design note](ugv_landing_2d_workspace/docs/refactor/SEMANTIC_RESIDUAL_RGAT_V27.md),
+See the [v2.8 design note](ugv_landing_2d_workspace/docs/refactor/SEMANTIC_RESIDUAL_RGAT_V28.md),
 [system specification](ugv_landing_2d_workspace/docs/refactor/SYSTEM_SPEC.md),
 and [implementation report](ugv_landing_2d_workspace/docs/refactor/FINAL_REPORT.md).
 
@@ -88,6 +93,6 @@ and [implementation report](ugv_landing_2d_workspace/docs/refactor/FINAL_REPORT.
 - A/B/C smoke and four-stage graph ablation smoke passed.
 - Measured proposed policy path in the bounded smoke: approximately 0.18 ms per
   decision (machine-dependent; the policy period is 100 ms).
-- v2.7 invalidates older checkpoints. A fresh 2,500-iteration run is required
+- v2.8 invalidates older checkpoints. A fresh 2,500-iteration run is required
   before making comparative performance claims.
 - Simulation parameters are not a real-flight safety certificate.

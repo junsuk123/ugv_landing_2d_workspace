@@ -68,6 +68,23 @@ assert(norm(flatMu-graphMu)<1e-12);
 flatV=landing2d.rl.mlpForward(flatAgent.value.net,S);
 graphV=landing2d.rl.valueForward(agent,S);
 assert(norm(flatV-graphV)<1e-12);
+
+% Typed semantic action gate: relational context may add descent only when
+% the causal DescentEligibility node permits it. Horizontal recovery and
+% positive vertical braking remain unconstrained.
+raw=zeros(spec.stateDim,2);
+raw(spec.descentEligibilityIndex,:)=[0,1];
+context=ones(spec.groupCount,2);
+W=[ones(1,spec.groupCount);-ones(1,spec.groupCount)];
+[residual,slope,detail]=landing2d.rl.relationPolicyResidual( ...
+    W,spec,raw,context);
+assert(residual(2,1)==0 && residual(2,2)<0);
+assert(slope(2,1)==0 && slope(2,2)==1);
+assert(all(residual(1,:)>0));
+assert(detail.verticalGateActive(1) && ~detail.verticalGateActive(2));
+W(2,:)=1;
+residual=landing2d.rl.relationPolicyResidual(W,spec,raw,context);
+assert(all(residual(2,:)>0),'The gate must never suppress braking/climb.');
 end
 
 function y=loss(params,spec,S,W)

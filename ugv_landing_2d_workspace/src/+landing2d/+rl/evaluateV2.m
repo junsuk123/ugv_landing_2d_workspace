@@ -13,6 +13,8 @@ returns = zeros(1,numel(seeds)); success = false(size(returns));
 capture = zeros(size(returns)); unsafe = false(size(returns));
 abort = false(size(returns));
 timeout = false(size(returns));
+relationResidualMean = zeros(2,numel(seeds));
+verticalGateFraction = zeros(size(returns));
 traceGraph=~strcmp(agent.encoderSpec.mode,'baseline');
 if traceGraph
     graphSchema=landing2d.graphstate.schemaFor(agent.encoderSpec.mode);
@@ -30,6 +32,12 @@ for i = 1:numel(seeds)
         'UNAUTHORIZED_CONTACT','MISSED_PAD_CONTACT','SAFETY_ENVELOPE_VIOLATION'});
     abort(i) = strcmp(resultCells{i}.terminalReason,'SAFE_ABORT');
     timeout(i) = strcmp(resultCells{i}.terminalReason,'TASK_TIMEOUT');
+    if isfield(resultCells{i},'policyDiagnostics')
+        relationResidualMean(:,i) = ...
+            resultCells{i}.policyDiagnostics.meanAbsRelationResidual;
+        verticalGateFraction(i) = ...
+            resultCells{i}.policyDiagnostics.verticalGateFraction;
+    end
     if traceGraph && traj.count>0
         X=reshape(traj.state(:,end),graphSchema.inDim,graphSchema.nNodes);
         finalNodeValues(:,i)=X(1,:)';
@@ -54,7 +62,9 @@ info = struct('returns',returns,'captureRate',capture,'landed',success, ...
     'selectionScore',selectionScore,'unsafeRate',mean(unsafe), ...
     'safeAbortRate',mean(abort),'timeoutRate',mean(timeout), ...
     'outcomeRates',outcomeRates,'nodeMean',[],'nodeVariance',[], ...
-    'edgeAttentionMean',[],'graphSchema',struct());
+    'edgeAttentionMean',[],'graphSchema',struct(), ...
+    'meanAbsRelationResidual',mean(relationResidualMean,2), ...
+    'meanVerticalGateFraction',mean(verticalGateFraction));
 if traceGraph
     info.nodeMean=mean(finalNodeValues,2,'omitnan');
     info.nodeVariance=var(finalNodeValues,0,2,'omitnan');

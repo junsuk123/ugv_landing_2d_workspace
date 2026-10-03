@@ -35,6 +35,18 @@ spec.inDim = schema.inDim;
 spec.nNodes = schema.nNodes;
 spec.hiddenDim = dh;
 spec.stateDim = schema.inDim*schema.nNodes;
+spec.descentEligibilityIndex = [];
+spec.landingInhibitIndex = [];
+if isfield(schema,'nodeNames')
+    descentNode = find(strcmp(schema.nodeNames,'DescentEligibility'),1);
+    inhibitNode = find(strcmp(schema.nodeNames,'LandingInhibit'),1);
+    if ~isempty(descentNode)
+        spec.descentEligibilityIndex = (descentNode-1)*schema.inDim+1;
+    end
+    if ~isempty(inhibitNode)
+        spec.landingInhibitIndex = (inhibitNode-1)*schema.inDim+1;
+    end
+end
 if ismember(mode,{'semantic_flat','context_flat'})
     % Same semantic features as the graph arms, passed directly to the MLP.
     % This separates added-information gains from graph-structure gains.

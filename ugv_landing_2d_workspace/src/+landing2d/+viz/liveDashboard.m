@@ -137,6 +137,8 @@ if ~isfield(st.series,key)
         'DisplayName',[p.label,' nominal train landing']);
     item.abort = animatedline(st.axRate,'Color',color,'LineStyle','-.', ...
         'LineWidth',1.0,'DisplayName',[p.label,' train abort']);
+    item.unsafe = animatedline(st.axRate,'Color',color,'LineStyle','none', ...
+        'Marker','x','LineWidth',1.2,'DisplayName',[p.label,' eval unsafe']);
     item.capture = animatedline(st.axRate,'Color',color,'LineStyle','--', ...
         'LineWidth',1.2,'DisplayName',[p.label,' capture']);
     st.series.(key) = item;
@@ -156,6 +158,9 @@ end
 if isfield(p,'trainSafeAbortRate') && isfinite(p.trainSafeAbortRate)
     addpoints(item.abort,p.iteration,100*p.trainSafeAbortRate);
 end
+if isfield(p,'unsafeRate') && isfinite(p.unsafeRate)
+    addpoints(item.unsafe,p.iteration,100*p.unsafeRate);
+end
 addpoints(item.capture,p.iteration,100*p.captureRate);
 if isfield(p,'nodeMean') && ~isempty(p.nodeMean) ...
         && isfield(p,'graphSchema') && isfield(p,'edgeAttentionMean')
@@ -172,9 +177,13 @@ curriculumText = '';
 if isfield(p,'curriculumLevel') && isfinite(p.curriculumLevel)
     curriculumText = sprintf(' | curriculum %.0f%%',100*p.curriculumLevel);
 end
-st.status.String = sprintf('%s 학습 %d/%d | return %.2f%s | landing %.0f%% | capture %.0f%%%s', ...
+unsafeText = '';
+if isfield(p,'unsafeRate') && isfinite(p.unsafeRate)
+    unsafeText = sprintf(' | unsafe %.0f%%',100*p.unsafeRate);
+end
+st.status.String = sprintf('%s 학습 %d/%d | return %.2f%s | landing %.0f%%%s | capture %.0f%%%s', ...
     p.label,p.iteration,p.maxIteration,p.score,selectionText, ...
-    100*p.landingRate,100*p.captureRate,curriculumText);
+    100*p.landingRate,unsafeText,100*p.captureRate,curriculumText);
 end
 
 function st = updateOntologyTraining(st,p)

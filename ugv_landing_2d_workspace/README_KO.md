@@ -1,6 +1,6 @@
 # 이동 UGV 착륙 — Planar Visibility PPO v2
 
-## v2.7 현재 제안 모델
+## v2.8 현재 제안 모델
 
 현재 제안 모델은 semantic-flat의 108차원 상태를 손실 없이 그대로
 Actor/Critic에 전달하고, 9노드·26간선 1층 R-GAT이 만든 지각·추적·기체·안전
@@ -17,15 +17,22 @@ R-GAT 백본은 train seed의 현재 시점 노드 특성만 마스킹 복원하
 입력이나 목표로 사용하지 않습니다. PPO 단계에서는 불변 관계 변환을
 고정하고 상황 의존 attention gate와 작은 readout/head만 갱신합니다.
 
+v2.8에서는 관계 residual을 수평 복구와 수직 착륙 채널로 분리했습니다.
+수직 관계 출력이 추가 하강을 요구할 때는 `DescentEligibility`만큼만 통과하며,
+`LandingInhibit`가 활성화되면 추가 하강 residual은 0이 됩니다. 상승·제동과
+수평 복구는 억제하지 않습니다. 따라서 온톨로지의 `supports`/`inhibits` 의미가
+attention 이름에만 머무르지 않고 실제 행동 제약으로 보존됩니다.
+
 ```matlab
 run_all                                      % 기본: 전체 A/B/C 학습
 run_graph_ablation(struct('executionMode','smoke', ...
     'figureVisible',false,'animate',false,'saveResults',false))
 ```
 
-체크포인트 선택은 validation 20 seed, 최종 보고는 학습/선택에 사용하지
-않은 test 100 seed를 사용합니다. 상세 설계는
-[`docs/refactor/SEMANTIC_RESIDUAL_RGAT_V27.md`](docs/refactor/SEMANTIC_RESIDUAL_RGAT_V27.md)에
+체크포인트 선택은 validation 100 seed를 사용하며 unsafe에는 성공보다 2.5배
+큰 선택 페널티를 적용합니다. 최종 보고는 개발 과정에서 사용하지 않은 새 test
+구간 `3001:3200` 중 100 seed를 사용합니다. 상세 설계는
+[`docs/refactor/SEMANTIC_RESIDUAL_RGAT_V28.md`](docs/refactor/SEMANTIC_RESIDUAL_RGAT_V28.md)에
 정리되어 있습니다. 아래의 query-node 설명은 v2.5 이전 구조 기록입니다.
 
 연속 가속하는 이동 패드에서 기체 고정 하향 카메라의 시야 상실을 다루는 MATLAB
@@ -55,6 +62,13 @@ full_study_commands % 장시간 연구 실행 명령만 출력
 
 ```matlab
 run_all(struct('executionMode','full','rlRetrain',true))
+```
+
+최종 연구 주장은 한 번의 학습 seed가 아니라 기본 5개 독립 PPO seed의 평균과
+표준편차로 검증합니다. 이 실행은 매우 오래 걸리므로 별도 명령으로 분리했습니다.
+
+```matlab
+run_multiseed_study(struct('executionMode','full'))
 ```
 
 한 번의 PPO 반복으로 코드 연결만 빠르게 확인하려면 스모크 모드를 명시합니다.

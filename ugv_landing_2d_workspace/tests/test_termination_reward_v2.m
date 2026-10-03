@@ -79,6 +79,13 @@ assert(min(R([4,5]))>max(R([6,7,8])));
 assert(successScore>timeoutScore && timeoutScore>abortScore ...
     && timeoutScore>unsafeScore);
 assert(abortRates.safeAbort==1 && timeoutRates.timeout==1);
+% Checkpoint selection is explicitly safety-asymmetric: ten unsafe contacts
+% cannot be compensated by ten additional successes.
+safer=[repmat({'SUCCESS'},1,80),repmat({'SAFE_ABORT'},1,20)];
+riskier=[repmat({'SUCCESS'},1,90),repmat({'UNSAFE_CONTACT'},1,10)];
+saferScore=landing2d.rl.selectionScoreV2(safer,zeros(1,100));
+riskierScore=landing2d.rl.selectionScoreV2(riskier,zeros(1,100));
+assert(saferScore>riskierScore);
 
 % Prolonged loss starts a bounded recovery maneuver; SAFE_ABORT is terminal
 % only after the complete recovery window has elapsed without reacquisition.

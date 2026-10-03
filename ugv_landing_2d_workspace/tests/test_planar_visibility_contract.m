@@ -3,12 +3,15 @@ function test_planar_visibility_contract()
 c = landing2d.config.primaryConfig(fileparts(fileparts(mfilename('fullpath'))));
 landing2d.config.validateConfig(c);
 assert(c.rl.actionDim==2 && c.rl.observationDim==26);
-assert(c.experiment.validationEpisodeCount==20);
+assert(c.experiment.validationEpisodeCount==100);
 assert(c.experiment.testEpisodeCount==100);
+assert(c.experiment.manifest.testSeeds(1)==3001);
+assert(isempty(intersect(c.experiment.manifest.testSeeds, ...
+    c.experiment.manifest.validationSeeds)));
 % The independently constructed final-test configuration must have the
 % same signature as the full-training configuration.
 fullMode=c;
-fullMode.experiment.validationEpisodeCount=20;
+fullMode.experiment.validationEpisodeCount=100;
 fullMode.experiment.testEpisodeCount=100;
 assert(isequal(landing2d.rl.trainingSignature(c), ...
     landing2d.rl.trainingSignature(fullMode)));

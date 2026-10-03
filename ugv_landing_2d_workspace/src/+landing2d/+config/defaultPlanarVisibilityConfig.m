@@ -62,11 +62,11 @@ v2.reward = struct( ...
 v2.randomStreams = struct('scenarioOffset',0,'sensorOffset',1000000, ...
     'policyOffset',2000000);
 v2.manifest = struct('trainSeeds',1:2000,'validationSeeds',2001:2200, ...
-    'testSeeds',2201:2400,'stressSeeds',9001:9100);
+    'testSeeds',3001:3200,'stressSeeds',9001:9200);
 % Keep split sizes in the versioned experiment contract so every entry
 % point (training, checkpoint replay, and final GUI) builds the same
 % training signature. run_planar_visibility reduces these only in smoke mode.
-v2.validationEpisodeCount = 20;
+v2.validationEpisodeCount = 100;
 v2.testEpisodeCount = 100;
 v2.observationSchema = landing2d.sensing.observationSchema();
 v2.contextSchemaVersion = 'compact_context_graph_v3_grouped';
