@@ -22,7 +22,7 @@ gs.stateRepresentation = 'baseline';
 %% 그래프 부호기 (stateRepresentation이 'baseline'이 아닐 때만 사용)
 % 9개 의미 노드에 PolicyNode/ValueNode를 붙이고 두 층의 message passing으로
 % 정보를 모읍니다. hiddenDim은 각 노드와 두 의사결정 노드의 임베딩 폭입니다.
-gs.hiddenDim = 16;           % Lightweight one-layer R-GAT node embedding.
+gs.hiddenDim = 8;            % Compact relational residual; raw semantics bypass it.
 gs.relationDim = 4;          % Compact relation embedding.
 gs.graphDim = 32;            % mean/meanmax 제거 실험의 출력 폭 (가상 노드는 hiddenDim)
 gs.initScale = 0.12;         % 부호기 초기 가중치 배율
@@ -40,6 +40,14 @@ gs.readout = 'meanmax';
 % Pretraining reconstructs masked current-time node features only. It never
 % consumes actions, rewards, outcomes, future samples, or simulator truth.
 gs.freezeStaticBackbone = true;
+% The raw semantic path trains from iteration one. Relational adaptation is
+% enabled only after this fraction, so the proposal first learns the same
+% control problem as semantic-flat PPO without imitation or checkpoint reuse.
+gs.graphAdaptationWarmupFraction = 0.90;
+gs.preserveRawPolicyDuringGraphAdaptation = true;
+% A relational checkpoint replaces the flat-equivalent anchor only when its
+% validation score improves by a meaningful margin, limiting seed overfit.
+gs.graphSelectionMargin = 5.0;
 gs.pretrain = struct('enabled',true,'episodes',12,'maxDecisions',80, ...
     'epochs',8,'batchSize',128,'maskProbability',0.25, ...
     'learnRate',1e-3,'seedOffset',7000000);

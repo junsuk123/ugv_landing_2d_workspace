@@ -12,22 +12,24 @@ termination identical and changes only the Actor/Critic state representation.
 | Proposed | nine-node typed situation graph → lightweight R-GAT → grouped Actor/Critic heads |
 
 The proposed graph has 9 meaningful nodes and 26 edges. Its four readout groups
-are Perception, Tracking, Vehicle, and Safety. It uses one 16-wide relation
+are Perception, Tracking, Vehicle, and Safety. It uses one 8-wide relation
 layer and four-dimensional relation embeddings; there are no empty query nodes.
 
-## What changed in v2.6
+## What changed in v2.7
 
 - Causal masked-node pretraining uses **train seeds and same-time packet data
   only**. It does not use actions, rewards, outcomes, future samples, teacher
   commands, or hidden pad truth.
-- Actor and Critic start from the same pretrained static relation transforms.
-  During PPO those invariant transforms are frozen; only state-dependent
-  attention gates, grouped readouts, and policy/value heads adapt.
+- The complete 108-value semantic-flat state now bypasses the graph unchanged.
+  R-GAT adds four relation-context values through separate residual heads, so
+  graph pooling can no longer erase the successful flat-policy information.
+- The first 90% of PPO trains the exact semantic-flat base policy on paired
+  random streams. The last 10% freezes that base and tunes only the relational
+  residual. A relation checkpoint must clear a validation improvement margin.
 - A common `minimumLogStd=-2.5` prevents exploration collapse in every PPO arm.
 - Checkpoint selection uses 20 validation seeds. The final reported result uses
   100 held-out test seeds and never feeds back into checkpoint selection.
-- The lightweight proposed agent has 14,917 parameters in the current config
-  (below the semantic-flat agent's 15,317) and no runtime backpropagation.
+- The proposed agent has 17,001 parameters and no runtime backpropagation.
 
 ## Quick start
 
@@ -76,7 +78,7 @@ validation, and test manifests are disjoint. At deployment, the graph path is
 forward-only; self-supervised reconstruction and PPO backpropagation are
 training-time operations.
 
-See the [v2.6 design note](ugv_landing_2d_workspace/docs/refactor/REALTIME_CAUSAL_RGAT_V26.md),
+See the [v2.7 design note](ugv_landing_2d_workspace/docs/refactor/SEMANTIC_RESIDUAL_RGAT_V27.md),
 [system specification](ugv_landing_2d_workspace/docs/refactor/SYSTEM_SPEC.md),
 and [implementation report](ugv_landing_2d_workspace/docs/refactor/FINAL_REPORT.md).
 
@@ -84,8 +86,8 @@ and [implementation report](ugv_landing_2d_workspace/docs/refactor/FINAL_REPORT.
 
 - MATLAB R2025b: 26/26 non-graphics regression tests passed.
 - A/B/C smoke and four-stage graph ablation smoke passed.
-- Measured proposed policy path in the bounded smoke: approximately 0.16 ms per
+- Measured proposed policy path in the bounded smoke: approximately 0.18 ms per
   decision (machine-dependent; the policy period is 100 ms).
-- v2.6 invalidates older checkpoints. A fresh 2,500-iteration run is required
+- v2.7 invalidates older checkpoints. A fresh 2,500-iteration run is required
   before making comparative performance claims.
 - Simulation parameters are not a real-flight safety certificate.

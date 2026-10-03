@@ -32,7 +32,7 @@ if strcmp(mode,'node_pool') && strcmp(cfg.graphState.readout,'decision_nodes') .
 end
 if ismember(mode,{'context_node_pool','context_gat','context_rgat'}) ...
         && ~isfield(options,'readout')
-    cfg.graphState.readout = 'grouped';
+    cfg.graphState.readout = 'raw_plus_groups';
 end
 if ismember(mode,{'gat','ontology_rgat'}) && ~isfield(options,'readout')
     cfg.graphState.readout = 'decision_nodes';

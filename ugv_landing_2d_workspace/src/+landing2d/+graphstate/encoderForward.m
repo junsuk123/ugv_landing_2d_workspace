@@ -86,6 +86,18 @@ switch spec.readout
         g = tanh(params.Wg*readout+params.bg);
         cache.readout = readout;
         cache.g = g;
+    case 'raw_plus_groups'
+        K = spec.groupCount;
+        grouped = zeros(dh,K,B);
+        for b = 1:B
+            grouped(:,:,b) = H(:,:,b)*spec.groupMatrix';
+        end
+        readout = reshape(grouped,dh*K,B);
+        relationContext = tanh(params.Wg*readout+params.bg);
+        g = [S;relationContext];
+        cache.readout = readout;
+        cache.relationContext = relationContext;
+        cache.g = g;
     otherwise
         error('landing2d:UnknownReadout','Unknown readout: %s',spec.readout);
 end

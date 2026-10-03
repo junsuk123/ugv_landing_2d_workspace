@@ -1,5 +1,21 @@
 # Final refactor report
 
+## v2.7 semantic-residual R-GAT correction
+
+The completed v2.6 held-out result was 78% success for semantic-flat versus 15%
+for R-GAT. R-GAT produced 47% safe abort and 29% timeout, and its nominal
+32-dimensional output had only about 2–3 effective dimensions. The lossy group
+compression and frozen reconstruction backbone—not missing sensor information—
+were the primary failure.
+
+Version 2.7 keeps all 108 semantic-flat values unchanged and adds only four
+R-GAT relation-context residuals. Actor/Critic base networks and PPO random
+streams are paired exactly with semantic-flat. The base trains for 90% of the
+run; it is then frozen while only the relational residual is fine-tuned. A
+relational checkpoint must exceed the flat-equivalent validation anchor by a
+configured margin. Bounded tests confirm exact flat/R-GAT equality before the
+relation stage, 17,001 parameters, and approximately 0.18 ms policy inference.
+
 ## v2.6 real-time causal R-GAT update
 
 The proposed encoder is now a one-layer 16-wide typed R-GAT over nine meaningful
@@ -118,7 +134,7 @@ evidence. Full 2,500-iteration v2.3 multi-arm training remains required.
 
 - `run_all` defaults to `planar_visibility_v2`; pass
   `experimentVersion='legacy_v1'` for the previous workflow.
-- Algorithm version is `planar-visibility-ppo-v2.6`; old checkpoints are rejected.
+- Algorithm version is `planar-visibility-ppo-v2.7`; old checkpoints are rejected.
 - Primary observation size is schema-derived 26, not legacy 11.
 - Primary reward and termination semantics intentionally invalidate old policies.
 

@@ -9,9 +9,12 @@ function [agent,info] = trainAgent(c)
 rl = c.rl;
 rl = landing2d.rl.ensurePool(rl);
 c.rl = rl;
-rs = RandStream('threefry','Seed',rl.seed);
+initRs = RandStream('threefry','Seed',rl.seed+101);
+pretrainRs = RandStream('threefry','Seed',rl.seed+202);
+teacherRs = RandStream('threefry','Seed',rl.seed+303);
+ppoRs = RandStream('threefry','Seed',rl.seed+404);
 started = tic;
-agent = landing2d.rl.agentInit(rl,rs,c.graphState);
+agent = landing2d.rl.agentInit(rl,initRs,c.graphState);
 pretrainInfo = struct('enabled',false,'sampleCount',0,'finalLoss',NaN, ...
     'usesActions',false,'usesRewards',false,'usesOutcomes',false, ...
     'usesFuture',false,'seedSplit','train');
@@ -19,7 +22,7 @@ if ismember(agent.encoderSpec.mode,{'context_gat','context_rgat'}) ...
         && c.graphState.pretrain.enabled
     [agent.policy.encoder,pretrainInfo] = ...
         landing2d.graphstate.pretrainCausalEncoder( ...
-        agent.policy.encoder,agent.encoderSpec,c,rs);
+        agent.policy.encoder,agent.encoderSpec,c,pretrainRs);
     % The fixed causal backbone is shared by construction. Heads start from
     % the same pretrained point and adapt independently during PPO.
     agent.value.encoder = agent.policy.encoder;
@@ -30,12 +33,12 @@ if rl.useBehaviorClone
     if rl.verbose
         fprintf('%s 교사 시연 수집 (%d 에피소드)...\n',upper(c.controller),rl.bcEpisodes);
     end
-    data = landing2d.rl.teacherDataset(c,rl,rs);
+    data = landing2d.rl.teacherDataset(c,rl,teacherRs);
     teacherSamples = data.sampleCount;
     if rl.verbose
         fprintf('모방 학습 (%d 표본, %d 반복)...\n',data.sampleCount,rl.bcEpochs);
     end
-    [agent,cloneInfo] = landing2d.rl.behaviorClone(agent,data,rs);
+    [agent,cloneInfo] = landing2d.rl.behaviorClone(agent,data,teacherRs);
     if rl.verbose
         fprintf('  모방 학습 최종 손실: %.4f\n',cloneInfo.finalLoss);
     end
@@ -47,7 +50,7 @@ if rl.verbose
     fprintf('PPO 학습 (%d 반복 x %d 에피소드)...\n', ...
         rl.ppoIterations,rl.episodesPerIteration);
 end
-[agent,history] = landing2d.rl.ppoTrain(agent,c,rs);
+[agent,history] = landing2d.rl.ppoTrain(agent,c,ppoRs);
 staticFrozen = isequal(staticReference, ...
     staticBackbone(agent.policy.encoder,agent.encoderSpec.mode));
 if c.graphState.freezeStaticBackbone
@@ -66,7 +69,7 @@ end
 function value=staticBackbone(encoder,mode)
 value=struct();
 if ~ismember(mode,{'context_gat','context_rgat'}), return; end
-for name={'W1','E1','W0','b0'}
+for name={'E1','W0','b0'}
     value.(name{1})=encoder.(name{1});
 end
 end

@@ -8,7 +8,7 @@ nCases = size(c.scenarioSpeeds,1);
 % 기준 모델에서는 부호기가 비어 있어 아래 두 줄이 아무 일도 하지 않고,
 % 본체 쪽 갱신은 부호기를 넣기 전과 완전히 같습니다.
 policyState = landing2d.util.adamInit(policyCore(agent));
-valueState = landing2d.util.adamInit(agent.value.net);
+valueState = landing2d.util.adamInit(valueCore(agent));
 policyEncoderState = landing2d.util.adamInit(agent.policy.encoder);
 valueEncoderState = landing2d.util.adamInit(agent.value.encoder);
 best = agent;
@@ -49,6 +49,7 @@ history = struct('iteration',0,'score',bestScore, ...
     'trainCurriculumLandingRate',NaN, ...
     'trainSafeAbortRate',NaN, ...
     'curriculumLevel',curriculumLevel, ...
+    'graphAdaptation',false, ...
     'checkpointEligible',initialEligible,'selected',false, ...
     'nodeMean',bestInfo.nodeMean, ...
     'nodeVariance',bestInfo.nodeVariance, ...
@@ -114,6 +115,9 @@ for iteration = 1:rl.ppoIterations
     A = (A-mean(A))/(std(A)+1e-8);
     n = size(X,2);
     updatePolicy = iteration > rl.valueWarmup;
+    gsUpdate = gs;
+    gsUpdate.enableGraphAdaptation = iteration > ceil( ...
+        gs.graphAdaptationWarmupFraction*rl.ppoIterations);
     for epoch = 1:rl.ppoEpochs
         order = randperm(rs,n);
         for start = 1:rl.miniBatch:n
@@ -121,10 +125,10 @@ for iteration = 1:rl.ppoIterations
             if updatePolicy
                 [agent,policyState,policyEncoderState] = policyStep(agent, ...
                     policyState,policyEncoderState,X(:,index),U(:,index), ...
-                    oldLogProbability(index),A(index),rl,gs);
+                    oldLogProbability(index),A(index),rl,gsUpdate);
             end
             [agent,valueState,valueEncoderState] = valueStep(agent,valueState, ...
-                valueEncoderState,X(:,index),R(index),rl,gs);
+                valueEncoderState,X(:,index),R(index),rl,gsUpdate);
         end
     end
     isLast = iteration == rl.ppoIterations;
@@ -149,6 +153,7 @@ for iteration = 1:rl.ppoIterations
             'trainCurriculumLandingRate',trainCurriculumLandingRate, ...
             'trainSafeAbortRate',trainSafeAbortRate, ...
             'curriculumLevel',curriculumLevel, ...
+            'graphAdaptation',gsUpdate.enableGraphAdaptation, ...
             'checkpointEligible',landing2d.rl.checkpointEligible( ...
                 rl,curriculumLevel),'selected',false, ...
             'nodeMean',info.nodeMean, ...
@@ -157,7 +162,13 @@ for iteration = 1:rl.ppoIterations
             'graphSchema',info.graphSchema); %#ok<AGROW>
         notifyDashboard(c,history(end),rl.ppoIterations);
         eligible = history(end).checkpointEligible;
-        if eligible && (~bestFound || info.selectionScore > bestSelectionScore)
+        requiredImprovement = 0;
+        if gsUpdate.enableGraphAdaptation ...
+                && strcmp(agent.encoderSpec.readout,'raw_plus_groups')
+            requiredImprovement = gs.graphSelectionMargin;
+        end
+        if eligible && (~bestFound || info.selectionScore > ...
+                bestSelectionScore+requiredImprovement)
             bestScore = score;
             bestSelectionScore = info.selectionScore;
             best = agent;
@@ -254,7 +265,15 @@ function [agent,state,encoderState] = policyStep(agent,state,encoderState, ...
     X,U,oldLogProbability,A,rl,gs)
 [g,encoderCache] = landing2d.graphstate.encoderForward(agent.policy.encoder, ...
     agent.encoderSpec,X,'policy');
-[mu,cache] = landing2d.rl.mlpForward(agent.policy.mean,g);
+hasRelation = isfield(agent.policy,'relation');
+if hasRelation
+    raw = g(1:agent.encoderSpec.stateDim,:);
+    context = g(agent.encoderSpec.stateDim+1:end,:);
+    [mu,cache] = landing2d.rl.mlpForward(agent.policy.mean,raw);
+    mu = mu+agent.policy.relation.W*context;
+else
+    [mu,cache] = landing2d.rl.mlpForward(agent.policy.mean,g);
+end
 sigma = exp(agent.policy.logStd);
 z = (U-mu)./sigma;
 logProbability = sum(-0.5*z.^2-agent.policy.logStd-0.5*log(2*pi),1);
@@ -264,13 +283,30 @@ unclippedSelected = (ratio.*A) <= (clipped.*A);
 batch = numel(A);
 % 클리핑된 표본은 기울기를 만들지 않음 (PPO 표준 구현).
 dLogProbability = -(A.*ratio.*double(unclippedSelected))/batch;
-[grads.mean,dG] = landing2d.rl.mlpBackward(agent.policy.mean,cache, ...
-    dLogProbability.*(z./sigma));
+dMu = dLogProbability.*(z./sigma);
+[grads.mean,dBase] = landing2d.rl.mlpBackward(agent.policy.mean,cache,dMu);
+if hasRelation
+    grads.relation.W = dMu*context';
+    dG = [dBase;agent.policy.relation.W'*dMu];
+else
+    dG = dBase;
+end
 grads.logStd = sum(dLogProbability.*(z.^2-1),2)-rl.entropyWeight;
+if shouldPreserveRaw(gs,agent.encoderSpec)
+    for layer = 1:numel(grads.mean.W), grads.mean.W{layer}(:) = 0; end
+    for layer = 1:numel(grads.mean.b), grads.mean.b{layer}(:) = 0; end
+    grads.logStd(:) = 0;
+end
 grads = landing2d.util.clipGradient(grads,rl.maxGradNorm);
 core = policyCore(agent);
+coreBefore = core;
 [core,state] = landing2d.util.adamUpdate(core,grads,state,rl.policyLearnRate);
+if shouldPreserveRaw(gs,agent.encoderSpec)
+    core.mean = coreBefore.mean;
+    core.logStd = coreBefore.logStd;
+end
 agent.policy.mean = core.mean;
+if isfield(core,'relation'), agent.policy.relation = core.relation; end
 agent.policy.logStd = core.logStd;
 agent.policy.logStd = max(agent.policy.logStd,rl.minimumLogStd);
 [agent.policy.encoder,encoderState] = encoderStep(agent.policy.encoder, ...
@@ -281,12 +317,37 @@ end
 function [agent,state,encoderState] = valueStep(agent,state,encoderState,X,R,rl,gs)
 [g,encoderCache] = landing2d.graphstate.encoderForward(agent.value.encoder, ...
     agent.encoderSpec,X,'value');
-[prediction,cache] = landing2d.rl.mlpForward(agent.value.net,g);
-[grads,dG] = landing2d.rl.mlpBackward(agent.value.net,cache, ...
-    2*(prediction-R)/numel(R));
+hasRelation = isfield(agent.value,'relation');
+if hasRelation
+    raw = g(1:agent.encoderSpec.stateDim,:);
+    context = g(agent.encoderSpec.stateDim+1:end,:);
+    [prediction,cache] = landing2d.rl.mlpForward(agent.value.net,raw);
+    prediction = prediction+agent.value.relation.W*context;
+else
+    [prediction,cache] = landing2d.rl.mlpForward(agent.value.net,g);
+end
+dValue = 2*(prediction-R)/numel(R);
+[netGrads,dBase] = landing2d.rl.mlpBackward(agent.value.net,cache,dValue);
+grads.net = netGrads;
+if hasRelation
+    grads.relation.W = dValue*context';
+    dG = [dBase;agent.value.relation.W'*dValue];
+else
+    dG = dBase;
+end
+if shouldPreserveRaw(gs,agent.encoderSpec)
+    for layer = 1:numel(grads.net.W), grads.net.W{layer}(:) = 0; end
+    for layer = 1:numel(grads.net.b), grads.net.b{layer}(:) = 0; end
+end
 grads = landing2d.util.clipGradient(grads,rl.maxGradNorm);
-[agent.value.net,state] = landing2d.util.adamUpdate(agent.value.net,grads, ...
-    state,rl.valueLearnRate);
+core = valueCore(agent);
+coreBefore = core;
+[core,state] = landing2d.util.adamUpdate(core,grads,state,rl.valueLearnRate);
+if shouldPreserveRaw(gs,agent.encoderSpec)
+    core.net = coreBefore.net;
+end
+agent.value.net = core.net;
+if isfield(core,'relation'), agent.value.relation = core.relation; end
 [agent.value.encoder,encoderState] = encoderStep(agent.value.encoder, ...
     agent.encoderSpec,encoderCache,dG,encoderState,rl,gs);
 end
@@ -298,10 +359,15 @@ if isempty(fieldnames(params))
     return;
 end
 grads = landing2d.graphstate.encoderBackward(params,spec,cache,dG);
+if isfield(gs,'enableGraphAdaptation') && ~gs.enableGraphAdaptation ...
+        && ismember(spec.mode,{'context_node_pool','context_gat','context_rgat'})
+    names = fieldnames(grads);
+    for i = 1:numel(names), grads.(names{i})(:) = 0; end
+end
 if gs.freezeStaticBackbone && ismember(spec.mode,{'context_gat','context_rgat'})
     % Invariant ontology transforms are pretrained once. Runtime-state
     % adaptation is confined to attention gates and the grouped readout.
-    for name = {'W1','E1','W0','b0'}
+    for name = {'E1','W0','b0'}
         if isfield(grads,name{1}), grads.(name{1})(:) = 0; end
     end
 end
@@ -313,6 +379,18 @@ end
 % ------------------------------- Adam이 다룰 정책 본체 파라미터 (부호기 제외)
 function core = policyCore(agent)
 core = struct('mean',agent.policy.mean,'logStd',agent.policy.logStd);
+if isfield(agent.policy,'relation'), core.relation=agent.policy.relation; end
+end
+
+function core = valueCore(agent)
+core = struct('net',agent.value.net);
+if isfield(agent.value,'relation'), core.relation=agent.value.relation; end
+end
+
+function yes=shouldPreserveRaw(gs,spec)
+yes = isfield(gs,'enableGraphAdaptation') && gs.enableGraphAdaptation ...
+    && gs.preserveRawPolicyDuringGraphAdaptation ...
+    && strcmp(spec.readout,'raw_plus_groups');
 end
 
 % ------------------------------------------------- 에피소드 하나 수집 (병렬 단위)

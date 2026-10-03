@@ -7,7 +7,14 @@ function [u,logProbability,mu] = policyAction(agent,S,rs,deterministic)
 % 행동의 정의와 한계는 바뀌지 않습니다(landing2d.rl.actionFromCommand).
 g = landing2d.graphstate.encoderForward(agent.policy.encoder, ...
     agent.encoderSpec,S,'policy');
-mu = landing2d.rl.mlpForward(agent.policy.mean,g);
+if isfield(agent.policy,'relation')
+    raw = g(1:agent.encoderSpec.stateDim,:);
+    context = g(agent.encoderSpec.stateDim+1:end,:);
+    mu = landing2d.rl.mlpForward(agent.policy.mean,raw)+ ...
+        agent.policy.relation.W*context;
+else
+    mu = landing2d.rl.mlpForward(agent.policy.mean,g);
+end
 sigma = exp(agent.policy.logStd);
 if deterministic
     u = mu;

@@ -35,6 +35,11 @@ c.graphState.hiddenDim=5; c.graphState.relationDim=3;
 rs=RandStream('threefry','Seed',41);
 [params,spec]=landing2d.graphstate.encoderInit(c.graphState,c.rl.observationDim,rs);
 assert(~isfield(params,'W2') && ~isfield(params,'a2') && ~isfield(params,'E2'));
+initial=landing2d.graphstate.encoderForward(params,spec,S,'policy');
+assert(isequal(initial(1:numel(S)),S));
+assert(all(initial(numel(S)+1:end)==0));
+assert(spec.graphDim==spec.stateDim+numel(schema.groupNames));
+params.Wg=0.05*randn(rs,size(params.Wg));
 batchState=repmat(S,1,2)+1e-3*randn(rs,numel(S),2);
 [g,cache]=landing2d.graphstate.encoderForward(params,spec,batchState,'policy');
 dG=randn(rs,size(g));
@@ -52,6 +57,17 @@ for name={'W1','E1','W0','b0'}
 end
 profile=landing2d.rl.profileAgent(agent,c,1,2);
 assert(profile.parameterCount<17621);
+% The proposal starts as the exact semantic-flat policy/value function and
+% can then add relation context without discarding raw information.
+flatCfg=landing2d.graphstate.applyStateRepresentation(c,'context_flat');
+flatAgent=landing2d.rl.agentInit(flatCfg.rl, ...
+    RandStream('threefry','Seed',41),flatCfg.graphState);
+flatMu=landing2d.rl.mlpForward(flatAgent.policy.mean,S);
+[~,~,graphMu]=landing2d.rl.policyAction(agent,S,[],true);
+assert(norm(flatMu-graphMu)<1e-12);
+flatV=landing2d.rl.mlpForward(flatAgent.value.net,S);
+graphV=landing2d.rl.valueForward(agent,S);
+assert(norm(flatV-graphV)<1e-12);
 end
 
 function y=loss(params,spec,S,W)

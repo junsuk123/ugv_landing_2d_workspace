@@ -6,6 +6,9 @@ assert(c.rl.ppoIterations==2500);
 assert(~c.rl.useBehaviorClone);
 assert(strcmp(c.rl.curriculumMode,'performance'));
 assert(c.axMax>c.experiment.scenario.a2Range(2));
+assert(c.graphState.graphAdaptationWarmupFraction==0.90);
+assert(c.graphState.preserveRawPolicyDuringGraphAdaptation);
+assert(c.graphState.graphSelectionMargin>0);
 
 warm=max(1,round(c.rl.curriculumFloorStartFraction*c.rl.ppoIterations));
 full=round(c.rl.curriculumFullDifficultyFraction*c.rl.ppoIterations);

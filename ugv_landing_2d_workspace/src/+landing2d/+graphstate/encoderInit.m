@@ -101,6 +101,18 @@ switch gs.readout
         params.Wg = scale*randn(rs,gs.graphDim,dh*spec.groupCount);
         params.bg = zeros(gs.graphDim,1);
         spec.graphDim = gs.graphDim;
+    case 'raw_plus_groups'
+        assert(isfield(schema,'groupMatrix'),'landing2d:GroupedReadout', ...
+            'Raw-plus-groups readout requires schema.groupMatrix.');
+        spec.groupMatrix = schema.groupMatrix;
+        spec.groupNames = schema.groupNames;
+        spec.groupCount = size(schema.groupMatrix,1);
+        % Zero initialization makes the initial representation exactly
+        % [raw semantic state; zeros]. PPO can only add relational context;
+        % it can never erase the semantic-flat information path.
+        params.Wg = zeros(spec.groupCount,dh*spec.groupCount);
+        params.bg = zeros(spec.groupCount,1);
+        spec.graphDim = spec.stateDim+spec.groupCount;
     otherwise
         error('landing2d:UnknownReadout','Unknown readout: %s',gs.readout);
 end

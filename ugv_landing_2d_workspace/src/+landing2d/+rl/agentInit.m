@@ -24,12 +24,34 @@ if gs.freezeStaticBackbone && ismember(gs.stateRepresentation, ...
     valueEncoder = policyEncoder;
 end
 inputDim = spec.graphDim;
-sizes = [inputDim,rl.hiddenSize,rl.hiddenSize,rl.actionDim];
-agent.policy.mean = landing2d.rl.mlpInit(sizes,0.1,rs);
+% Component streams make the shared raw-semantic part of context_flat and
+% raw_plus_groups start from exactly the same MLP. Encoder size no longer
+% changes the random policy initialization, removing a major A/B confound.
+policyRs = RandStream('threefry','Seed',rl.seed+31001);
+valueRs = RandStream('threefry','Seed',rl.seed+31002);
+policyExtraRs = RandStream('threefry','Seed',rl.seed+31003);
+valueExtraRs = RandStream('threefry','Seed',rl.seed+31004);
+if strcmp(spec.readout,'raw_plus_groups')
+    agent.policy.mean = landing2d.rl.mlpInit([spec.stateDim,rl.hiddenSize, ...
+        rl.hiddenSize,rl.actionDim],0.1,policyRs);
+    agent.value.net = landing2d.rl.mlpInit([spec.stateDim,rl.hiddenSize, ...
+        rl.hiddenSize,1],0.1,valueRs);
+    % Separate zero-output relational residual heads preserve the exact flat
+    % policy computation. Their nonzero W lets gradients reach the graph
+    % readout when staged adaptation begins, while zero graph context keeps
+    % the initial action/value identical to semantic-flat PPO.
+    agent.policy.relation.W = 0.05*randn(policyExtraRs, ...
+        rl.actionDim,inputDim-spec.stateDim);
+    agent.value.relation.W = 0.05*randn(valueExtraRs, ...
+        1,inputDim-spec.stateDim);
+else
+    agent.policy.mean = landing2d.rl.mlpInit([inputDim,rl.hiddenSize, ...
+        rl.hiddenSize,rl.actionDim],0.1,policyRs);
+    agent.value.net = landing2d.rl.mlpInit([inputDim,rl.hiddenSize, ...
+        rl.hiddenSize,1],0.1,valueRs);
+end
 agent.policy.logStd = rl.initialLogStd*ones(rl.actionDim,1);
 agent.policy.encoder = policyEncoder;
-agent.value.net = landing2d.rl.mlpInit([inputDim,rl.hiddenSize, ...
-    rl.hiddenSize,1],0.1,rs);
 agent.value.encoder = valueEncoder;
 agent.encoderSpec = spec;
 agent.rl = rl;

@@ -1,12 +1,16 @@
 # 이동 UGV 착륙 — Planar Visibility PPO v2
 
-## v2.6 현재 제안 모델
+## v2.7 현재 제안 모델
 
-현재 제안 모델은 9개 의미 노드와 26개 간선만 사용하는 1층 경량
-R-GAT입니다. 빈 `PolicyNode`/`ValueNode`와 획일적인 `contributes` 간선을
-제거하고, 지각·추적·기체·안전의 네 관계군을 각각 풀링하여 Actor/Critic에
-전달합니다. hidden 크기는 16, 관계 임베딩은 4이며 전체 파라미터는 현재
-설정에서 14,917개입니다.
+현재 제안 모델은 semantic-flat의 108차원 상태를 손실 없이 그대로
+Actor/Critic에 전달하고, 9노드·26간선 1층 R-GAT이 만든 지각·추적·기체·안전
+문맥 4개를 별도 residual head로 더합니다. 따라서 그래프 압축이 flat 정책의
+정보를 제거할 수 없습니다. 전체 파라미터는 현재 17,001개입니다.
+
+전체 PPO의 처음 90%는 관계 출력을 0으로 고정해 semantic-flat과 동일한
+정책을 동일 난수 흐름으로 학습합니다. 마지막 10%에는 완성된 raw 정책을
+고정하고 관계 residual만 미세조정합니다. 관계 체크포인트는 validation
+점수가 충분히 개선될 때만 flat-equivalent 체크포인트를 교체합니다.
 
 R-GAT 백본은 train seed의 현재 시점 노드 특성만 마스킹 복원하여 먼저
 학습합니다. 행동·보상·성공 여부·미래 샘플·교사 명령·시뮬레이터 참값은
@@ -21,7 +25,7 @@ run_graph_ablation(struct('executionMode','smoke', ...
 
 체크포인트 선택은 validation 20 seed, 최종 보고는 학습/선택에 사용하지
 않은 test 100 seed를 사용합니다. 상세 설계는
-[`docs/refactor/REALTIME_CAUSAL_RGAT_V26.md`](docs/refactor/REALTIME_CAUSAL_RGAT_V26.md)에
+[`docs/refactor/SEMANTIC_RESIDUAL_RGAT_V27.md`](docs/refactor/SEMANTIC_RESIDUAL_RGAT_V27.md)에
 정리되어 있습니다. 아래의 query-node 설명은 v2.5 이전 구조 기록입니다.
 
 연속 가속하는 이동 패드에서 기체 고정 하향 카메라의 시야 상실을 다루는 MATLAB

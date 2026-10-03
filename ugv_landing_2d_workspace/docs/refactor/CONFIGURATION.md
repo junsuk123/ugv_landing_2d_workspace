@@ -36,17 +36,17 @@ disjoint train/validation/test/stress seed lists and records SI units.
 
 ## Compact graph
 
-Version 2.6 uses nine semantic nodes only. It has no query placeholders; four
+Version 2.7 uses nine semantic nodes only. It has no query placeholders; four
 explicit Perception/Tracking/Vehicle/Safety groups form the Actor/Critic readout.
 Each node has the same 12-channel feature layout:
 
 `primary, signedPrimary, secondary, signedSecondary, validity, confidence,
 uncertainty, trend, urgency, remainingTime, bias, typeId`.
 
-The exact raw `12 x 11` tensor goes to both the semantic-flat and R-GAT arms.
-The R-GAT arm alone uses the typed directed edge table. No edge is silently
-symmetrized. Query features contain bias/type only; they contain no action,
-terminal outcome, reward, or future label.
+The exact raw `12 x 9` tensor goes to both the semantic-flat and R-GAT arms.
+The R-GAT arm preserves that tensor as its base input and adds four typed
+relation-context residuals. No edge is silently symmetrized. The graph contains
+no action, terminal outcome, reward, future label, or hidden simulator truth.
 
 ## Random streams and fair comparison
 
