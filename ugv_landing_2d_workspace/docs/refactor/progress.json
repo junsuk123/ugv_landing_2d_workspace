@@ -23,8 +23,10 @@
     "v2_3_bounded_training": "passed: repeated training landings and curriculum promotion",
     "v2_3_long_training": "failed: zero held-out success; curriculum stalled at 8-16 percent",
     "v2_4_bounded_training": "passed: 13.3 percent peak window landing, 100 percent curriculum, eligible checkpoint selection",
-    "long_training": "v2.4 not_run",
-    "held_out_multi_seed_evaluation": "v2.3 failed; v2.4 pending full training"
+    "v2_5_physics_diagnostic": "passed: causal PN validation landing improved from 0/20 to 13/20 after authority, estimator, contact-plane, and FOV-aware descent corrections",
+    "v2_5_bounded_training": "passed diagnostic: 200-iteration compressed schedule reached 100 percent validation capture and produced a landing at 90 percent curriculum; nominal landing remained 0 percent",
+    "long_training": "v2.5 pending fresh 2500-iteration run",
+    "held_out_multi_seed_evaluation": "v2.3 failed; v2.5 pending full training"
   },
   "claims": {
     "integration_verified": true,

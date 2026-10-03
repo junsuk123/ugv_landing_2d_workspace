@@ -63,9 +63,28 @@ else
     % Speed/position matching supplies the moving-target feed-forward that
     % pure terminal PN lacks at the start of a planar landing engagement.
     ax=p.padAxEstimate+1.35*p.exEstimate+2.1*p.relativeVxEstimate;
-    aligned=abs(p.exEstimate)<=0.35 && abs(p.relativeVxEstimate)<=0.40;
+    % A fixed 0.35-m gate is wider than the camera footprint close to the
+    % pad.  It therefore kept descending until the target left the FOV and
+    % the common safety supervisor froze altitude.  Tighten position and
+    % relative-speed gates continuously with height so the causal reference
+    % controller demonstrates that the task is actually landable.
+    if p.h>1.0
+        positionTolerance=0.35;
+        velocityTolerance=0.40;
+        attitudeTolerance=deg2rad(10);
+        rateTolerance=deg2rad(20);
+    else
+        footprint=max(0.02,0.60*p.h*tan(c.experiment.sensor.fov/2));
+        positionTolerance=min(0.25,footprint);
+        velocityTolerance=min(0.20,max(0.06,0.18*p.h));
+        attitudeTolerance=deg2rad(5);
+        rateTolerance=deg2rad(10);
+    end
+    aligned=abs(p.exEstimate)<=positionTolerance && ...
+        abs(p.relativeVxEstimate)<=velocityTolerance && ...
+        abs(s.theta)<=attitudeTolerance && abs(s.pitchRate)<=rateTolerance;
     if aligned
-        desiredVz=-min(c.pnApproachSpeed,max(0.08,0.55*p.h));
+        desiredVz=-min(c.pnApproachSpeed,max(0.05,0.40*p.h));
     else
         desiredVz=0;
     end

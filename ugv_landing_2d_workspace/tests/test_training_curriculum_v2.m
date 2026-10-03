@@ -5,6 +5,7 @@ c=landing2d.config.primaryConfig(root);
 assert(c.rl.ppoIterations==2500);
 assert(~c.rl.useBehaviorClone);
 assert(strcmp(c.rl.curriculumMode,'performance'));
+assert(c.axMax>c.experiment.scenario.a2Range(2));
 
 warm=max(1,round(c.rl.curriculumFloorStartFraction*c.rl.ppoIterations));
 full=round(c.rl.curriculumFullDifficultyFraction*c.rl.ppoIterations);
@@ -15,8 +16,8 @@ assert(landing2d.rl.curriculumFloor(c.rl,full)==1);
 assert(~landing2d.rl.checkpointEligible(c.rl,0.99));
 assert(landing2d.rl.checkpointEligible(c.rl,1));
 levels=landing2d.rl.curriculumBatchLevels(c.rl,1,c.rl.episodesPerIteration);
-assert(all(levels(1:2)==0) && levels(3)==0.5);
-assert(all(levels(4:end)==1));
+assert(levels(1)==0 && levels(2)==0.5);
+assert(all(levels(3:end)==1));
 
 [early,hEarly,pEarly]=landing2d.rl.trainingEpisodeConfig(c,1,0);
 [late,hLate,pLate]=landing2d.rl.trainingEpisodeConfig(c,c.rl.ppoIterations,1);
@@ -30,12 +31,16 @@ assert(abs(early.experiment.safety.touchdownSpeedZ- ...
     c.experiment.safety.touchdownSpeedZ*c.rl.touchdownSpeedCurriculumScale)<1e-12);
 assert(max(abs(early.experiment.scenario.v1Range- ...
     c.experiment.scenario.v1Range*c.rl.motionCurriculumStartScale))<1e-12);
+assert(max(abs(early.experiment.scenario.T1Range- ...
+    c.rl.curriculumStartT1Range))<1e-12);
 assert(abs(late.experiment.safety.prolongedLoss- ...
     c.experiment.safety.prolongedLoss)<1e-12);
 assert(abs(late.experiment.safety.touchdownSpeedZ- ...
     c.experiment.safety.touchdownSpeedZ)<1e-12);
 assert(max(abs(late.experiment.scenario.v1Range- ...
     c.experiment.scenario.v1Range))<1e-12);
+assert(max(abs(late.experiment.scenario.T1Range- ...
+    c.experiment.scenario.T1Range))<1e-12);
 assert(early.experiment.reward.UNSAFE_CONTACT== ...
     c.rl.unsafePenaltyCurriculumStart);
 assert(late.experiment.reward.UNSAFE_CONTACT== ...

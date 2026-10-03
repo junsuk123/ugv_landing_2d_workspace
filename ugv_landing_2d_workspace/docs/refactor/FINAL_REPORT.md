@@ -99,7 +99,7 @@ evidence. Full 2,500-iteration v2.3 multi-arm training remains required.
 
 - `run_all` defaults to `planar_visibility_v2`; pass
   `experimentVersion='legacy_v1'` for the previous workflow.
-- Algorithm version is `planar-visibility-ppo-v2.4`; old checkpoints are rejected.
+- Algorithm version is `planar-visibility-ppo-v2.5`; old checkpoints are rejected.
 - Primary observation size is schema-derived 26, not legacy 11.
 - Primary reward and termination semantics intentionally invalidate old policies.
 
@@ -165,3 +165,31 @@ Verification after the correction:
 - nominal held-out success remained zero in this intentionally short diagnostic,
   so complete 2,500-iteration v2.4 training is still required before making a
   comparative performance claim.
+
+## Constant-altitude failure analysis and correction (v2.5)
+
+The repeated partial descent followed by constant-height flight was a safety
+intervention, not a plotting defect. Horizontal tracking error pushed the pad
+outside the body-fixed camera FOV, confidence fell below the landing threshold,
+and the common supervisor correctly cancelled further descent. Four upstream
+defects made that behavior dominant: the 1.2 m/s^2 drone command limit was below
+the 1.5 m/s^2 UGV acceleration range; the 100-Hz tracker amplified 2-cm position
+noise into velocity/acceleration oscillation; V2 ignored the configured 4-cm
+touchdown contact plane; and the combined goal cost allowed altitude progress to
+mask growing horizontal error.
+
+V2.5 restores horizontal authority (2.5 m/s^2), retunes the causal tracker,
+uses the declared contact height, separates horizontal and vertical goal costs,
+starts the UGV acceleration during easy episodes, and promotes curriculum using
+success at the active difficulty rather than replay successes. It also removes
+the cheap `SAFE_ABORT` shortcut: a visible `TASK_TIMEOUT` now ranks above a
+self-induced abort, while every unsafe contact remains worst. Training history
+and the live dashboard separately expose overall, active-curriculum, and nominal
+landing rates.
+
+With the same causal packet, a 20-seed PN feasibility check improved from 0%
+landing / 80% safe abort to 65% landing / 15% safe abort. A deliberately
+compressed 200-iteration scratch-PPO diagnostic did not establish nominal
+convergence, but validation capture rose to 100%, safe abort fell to 21%, and a
+landing occurred at 90% curriculum. The required next evidence is a fresh full
+2,500-iteration v2.5 run followed by held-out multi-seed evaluation.

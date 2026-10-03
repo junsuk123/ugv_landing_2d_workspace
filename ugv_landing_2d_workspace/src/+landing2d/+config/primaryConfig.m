@@ -10,7 +10,10 @@ cfg.tEnd = cfg.experiment.maxMissionTime;
 cfg.padHeight = cfg.experiment.scenario.padHeight;
 cfg.cameraFovDeg = rad2deg(cfg.experiment.sensor.fov);
 cfg.ceilingHeight = cfg.experiment.safety.ceilingHeight;
-cfg.axMax = 1.2;
+% The aircraft must retain control authority over the fastest admissible
+% UGV acceleration (1.5 m/s^2) plus feedback correction.  The old 1.2
+% m/s^2 cap made part of the scenario family physically untrackable.
+cfg.axMax = 2.5;
 cfg.azMax = 2.0;
 % All learned arms start from random weights.  Apply the complete scratch
 % schedule, not only the imitation-learning flag: the short 60-iteration
@@ -40,10 +43,17 @@ cfg.rl.curriculumRequiredWindows = 3;
 cfg.rl.curriculumFloorStartFraction = 0.30;
 cfg.rl.curriculumFullDifficultyFraction = 0.80;
 cfg.rl.checkpointMinCurriculum = 1.0;
-cfg.rl.curriculumEasyReplayFraction = 1/3;
+cfg.rl.curriculumEasyReplayFraction = 1/6;
 cfg.rl.curriculumBridgeReplayFraction = 1/6;
 cfg.rl.touchdownSpeedCurriculumScale = 2.0;
-cfg.rl.unsafePenaltyCurriculumStart = -5.0;
+% Even easy touchdown episodes must experience the UGV acceleration event;
+% otherwise the policy learns to land before the research event begins.
+cfg.rl.curriculumStartT1Range = [0.10,0.30];
+% Unsafe impact must never be an attractive shortcut to the +25 touchdown
+% bonus.  The former -5 early penalty taught a fast dive that became -40 at
+% nominal evaluation; retain some curriculum relaxation without reversing
+% the safe/unsafe preference.
+cfg.rl.unsafePenaltyCurriculumStart = -20.0;
 cfg.rl.observationDim = cfg.experiment.observationSchema.dimension;
 cfg.rl.actionInterval = round(cfg.experiment.policyDt/cfg.experiment.physicsDt);
 cfg.rl.gamma = exp(-cfg.experiment.policyDt/ ...

@@ -132,6 +132,9 @@ if ~isfield(st.series,key)
         'DisplayName',[p.label,' eval landing']);
     item.trainLanding = animatedline(st.axRate,'Color',color,'LineStyle',':', ...
         'LineWidth',1.0,'DisplayName',[p.label,' train landing']);
+    item.nominalLanding = animatedline(st.axRate,'Color',color,'LineStyle','-', ...
+        'Marker','o','LineWidth',1.0, ...
+        'DisplayName',[p.label,' nominal train landing']);
     item.abort = animatedline(st.axRate,'Color',color,'LineStyle','-.', ...
         'LineWidth',1.0,'DisplayName',[p.label,' train abort']);
     item.capture = animatedline(st.axRate,'Color',color,'LineStyle','--', ...
@@ -146,6 +149,9 @@ if isfinite(p.trainReturn), addpoints(item.train,p.iteration,p.trainReturn); end
 addpoints(item.landing,p.iteration,100*p.landingRate);
 if isfield(p,'trainLandingRate') && isfinite(p.trainLandingRate)
     addpoints(item.trainLanding,p.iteration,100*p.trainLandingRate);
+end
+if isfield(p,'trainNominalLandingRate') && isfinite(p.trainNominalLandingRate)
+    addpoints(item.nominalLanding,p.iteration,100*p.trainNominalLandingRate);
 end
 if isfield(p,'trainSafeAbortRate') && isfinite(p.trainSafeAbortRate)
     addpoints(item.abort,p.iteration,100*p.trainSafeAbortRate);

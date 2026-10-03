@@ -90,7 +90,7 @@ assert(rl.actionDim == 2,'rl.actionDim must be 2: horizontal and vertical comman
 validateattributes(rl.teacherNoise,{'numeric'}, ...
     {'scalar','real','finite','nonnegative'},mfilename,'teacherNoise');
 ranges = {'initialHeightRange','initialOffsetRange','initialSpeedRange', ...
-    'teacherHeightRange'};
+    'teacherHeightRange','curriculumStartT1Range'};
 for i = 1:numel(ranges)
     value = rl.(ranges{i});
     validateattributes(value,{'numeric'},{'vector','real','finite','numel',2}, ...
@@ -98,6 +98,8 @@ for i = 1:numel(ranges)
     assert(value(1) <= value(2),'%s must be increasing.',ranges{i});
 end
 assert(rl.initialHeightRange(1) > 0,'initialHeightRange must be positive.');
+assert(rl.curriculumStartT1Range(1)>0, ...
+    'curriculumStartT1Range must be positive.');
 flags = {'useBehaviorClone','retrain','verbose'};
 for i = 1:numel(flags)
     validateattributes(rl.(flags{i}),{'logical','numeric'}, ...

@@ -5,9 +5,21 @@ s = c.experiment.safety;
 event = blankEvent(t0+dt);
 h0 = previous.z-padPrevious.z;
 h1 = current.z-padCurrent.z;
-contact = h0 > 0 && h1 <= 0;
+% The configured touchdown height is the landing-gear/contact-plane offset.
+% V2 previously ignored it and required the vehicle reference point to cross
+% the pad plane exactly.  Near the ground the FOV supervisor would brake at
+% 1--3 cm and create the observed endless hover although touchdown had
+% already entered the declared contact envelope.
+contactHeight = s.touchdownHeight;
+crossedContactHeight = h0 > contactHeight && h1 <= contactHeight;
+crossedPadPlane = h0 > 0 && h1 <= 0;
+contact = crossedContactHeight || crossedPadPlane;
 if contact
-    alpha = min(max(h0/max(h0-h1,eps),0),1);
+    if crossedContactHeight
+        alpha = min(max((h0-contactHeight)/max(h0-h1,eps),0),1);
+    else
+        alpha = min(max(h0/max(h0-h1,eps),0),1);
+    end
     contactTime = t0+alpha*dt;
     drone = interpolateState(previous,current,alpha);
     padX = padPrevious.x+alpha*(padCurrent.x-padPrevious.x);

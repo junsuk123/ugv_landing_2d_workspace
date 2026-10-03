@@ -42,8 +42,11 @@ components = struct('goalCost',cGoal,'viewCost',cView, ...
 end
 
 function value=goalCost(truth,r)
-zeta=(truth.ex/r.goalLengthX)^2+(truth.h/r.goalLengthH)^2;
-value=zeta/(1+zeta);
+x2=(truth.ex/r.goalLengthX)^2;
+h2=(truth.h/r.goalLengthH)^2;
+xCost=x2/(1+x2);
+hCost=h2/(1+h2);
+value=r.goalHorizontalShare*xCost+(1-r.goalHorizontalShare)*hCost;
 end
 
 function value=landingReadiness(truth,c)

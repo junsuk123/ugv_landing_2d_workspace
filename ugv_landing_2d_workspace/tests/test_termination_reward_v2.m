@@ -21,6 +21,15 @@ assert(ev1.mechanicallySafe==ev2.mechanicallySafe);
 assert(strcmp(ev1.reason,'SUCCESS') && strcmp(ev2.reason,'UNAUTHORIZED_CONTACT'));
 assert(abs(ev1.preImpact.relativeVz-0.1)<1e-12);
 
+% The configured landing-gear/contact height is an event surface.  The old
+% V2 path ignored it and could hover forever a few centimetres above the pad.
+above = prev; above.z=p.padHeight+c.experiment.safety.touchdownHeight+0.005;
+below = above; below.z=p.padHeight+c.experiment.safety.touchdownHeight-0.005;
+gearContact = landing2d.environment.evaluateTermination(above,below, ...
+    pad0,pad1,authorized,1,0.1,c,di);
+assert(gearContact.physicalContact && strcmp(gearContact.reason,'SUCCESS'));
+assert(abs(gearContact.time-1.05)<1e-12);
+
 truth = struct('ex',0,'h',0);
 m = struct('detected',true,'bearingValid',true,'bearing',0);
 [safe,comp] = landing2d.rl.computeReward(truth,truth,m,[0;0],0.1,ev1,c);
@@ -33,6 +42,16 @@ far=struct('ex',3,'h',4); near=struct('ex',1,'h',1);
 noEvent=ev1; noEvent.occurred=false; noEvent.reason='';
 [progress,progressComp]=landing2d.rl.computeReward(far,near,m,[0;0],0.1,noEvent,c);
 assert(progressComp.potentialShaping>0 && progress>0);
+% Horizontal tracking must remain visible in the objective even when the
+% vehicle is high.  The old combined elliptical cost let altitude dominate
+% and rewarded blind descent while horizontal error increased.
+xOnly=struct('ex',c.experiment.reward.goalLengthX,'h',0);
+hOnly=struct('ex',0,'h',c.experiment.reward.goalLengthH);
+[~,xComp]=landing2d.rl.computeReward(xOnly,xOnly,m,[0;0],0.1,noEvent,c);
+[~,hComp]=landing2d.rl.computeReward(hOnly,hOnly,m,[0;0],0.1,noEvent,c);
+assert(xComp.goalCost>hComp.goalCost);
+assert(abs(xComp.goalCost-0.5*c.experiment.reward.goalHorizontalShare)<1e-12);
+assert(abs(hComp.goalCost-0.5*(1-c.experiment.reward.goalHorizontalShare))<1e-12);
 ready=struct('ex',0,'h',0.2,'relativeVx',0.05,'vz',-0.1, ...
     'theta',0,'pitchRate',0);
 notReady=ready; notReady.relativeVx=2; notReady.vz=-1;
@@ -48,16 +67,16 @@ assert(abs(towardComp.readinessReward+awayComp.readinessReward)<1e-12);
 audit=landing2d.rl.rewardAudit(c);
 R=audit.DiscountedReturn;
 assert(all(R([1,2,10])>max(R([4,5]))));
-assert(min(R([4,5]))>R(3));
-assert(R(3)>max(R([6,7,8])));
+assert(R(3)>max(R([4,5])));
+assert(min(R([4,5]))>max(R([6,7,8])));
 
-% Checkpoint ordering must match the configured terminal ordering. A hover
-% timeout may not outrank a bounded safe abort merely by lasting longer.
+% Checkpoint selection must not prefer the self-induced SAFE_ABORT shortcut
+% over a controller that retained FOV until the task deadline.
 [abortScore,abortRates]=landing2d.rl.selectionScoreV2({'SAFE_ABORT'},-4);
 [timeoutScore,timeoutRates]=landing2d.rl.selectionScoreV2({'TASK_TIMEOUT'},-12);
 [successScore,~]=landing2d.rl.selectionScoreV2({'SUCCESS'},25);
 [unsafeScore,~]=landing2d.rl.selectionScoreV2({'UNSAFE_CONTACT'},-40);
-assert(successScore>abortScore && abortScore>timeoutScore ...
+assert(successScore>timeoutScore && timeoutScore>abortScore ...
     && timeoutScore>unsafeScore);
 assert(abortRates.safeAbort==1 && timeoutRates.timeout==1);
 

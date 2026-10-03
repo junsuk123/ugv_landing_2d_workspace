@@ -1,9 +1,10 @@
 function [score,rates] = selectionScoreV2(reasons,returns)
 % SELECTIONSCOREV2  Outcome-ordered checkpoint score for the V2 task.
 %
-% The previous score penalized SAFE_ABORT but did not penalize TASK_TIMEOUT,
-% so a controller that hovered until the deadline beat a safe abort.  The
-% explicit ordering below is SUCCESS > SAFE_ABORT > TASK_TIMEOUT > UNSAFE.
+% A cheap SAFE_ABORT became a learnable shortcut: the controller discarded
+% the target and ended early instead of retaining FOV.  Among zero-success
+% policies, keep a visible timeout above a self-induced abort.  Unsafe
+% contact remains the worst outcome.
 reasons = string(reasons);
 returns = double(returns(:));
 assert(numel(reasons)==numel(returns), ...
@@ -19,5 +20,5 @@ assert(all(known),'landing2d:UnknownTerminalReason', ...
 rates = struct('success',mean(success),'safeAbort',mean(safeAbort), ...
     'timeout',mean(timeout),'unsafe',mean(unsafe));
 score = 1000*rates.success-1000*rates.unsafe ...
-    -100*rates.timeout-10*rates.safeAbort+mean(returns);
+    -10*rates.timeout-100*rates.safeAbort+mean(returns);
 end

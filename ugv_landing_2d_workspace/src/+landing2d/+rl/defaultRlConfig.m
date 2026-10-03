@@ -100,6 +100,7 @@ rl.checkpointMinCurriculum = 1.0;
 rl.curriculumEasyReplayFraction = 0.15;
 rl.curriculumBridgeReplayFraction = 0.15;
 rl.touchdownSpeedCurriculumScale = 1.0;
+rl.curriculumStartT1Range = [0.5,4.0];
 rl.unsafePenaltyCurriculumStart = -40;
 
 %% 교사 없이 처음부터 학습할 때의 설정 (landing2d.rl.applyScratchSettings)
