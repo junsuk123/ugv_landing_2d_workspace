@@ -5,6 +5,7 @@
 - 기본 진입점: `run_all.m`
 - 논문 진입점: `run_paper.m`
 - 고정 시나리오 검증: `run_paper_validation.m`
+- 관계 경로 안전 활성화: `run_activate_rgat_checkpoint.m`
 - 공통 환경: `+environment`
 - causal sensing: `+sensing`
 - 온톨로지 상태: `+graphstate`
@@ -22,6 +23,7 @@
 | `run_finalTest.m` | 최종 checkpoint 실시간 비교 |
 | `run_paper.m` | 논문 figure·CSV·MAT 생성 |
 | `run_paper_validation.m` | 고정 3시나리오 공정 비교 |
+| `run_activate_rgat_checkpoint.m` | 비활성 R-GAT checkpoint 안전 활성화 |
 | `run_multiseed_study.m` | 다중 PPO seed 연구 |
 | `run_graph_ablation.m` | node-pool·GAT·R-GAT 제거 실험 |
 | `run_tests.m` | 회귀 테스트 통합 실행 |
@@ -102,6 +104,10 @@
 | `+rl/computeReward.m` | 공통 reward 계산 |
 | `+rl/computeAdvantage.m` | variable-time GAE |
 | `+rl/ppoTrain.m` | scratch PPO·checkpoint 선택 |
+| `+rl/ensureRelationalPath.m` | raw 정책 고정 관계 전용 PPO |
+| `+rl/guardRelationalCandidate.m` | validation 성능·residual trust region |
+| `+rl/scaleRelationalReadout.m` | 후보 관계 스케일 조정 |
+| `+rl/relationalPathActive.m` | Policy/Value 관계 경로 감사 |
 | `+rl/evaluateV2.m` | validation·test 평가 |
 | `+rl/profileAgent.m` | inference time·parameter count |
 | `+rl/loadCheckpoint.m` | signature 검증 후 load |
@@ -150,6 +156,7 @@ environment.reset
 | Actor graph 결합 변경 | `encoderForward.m`, `policyAction.m` |
 | Critic graph 결합 변경 | `encoderForward.m`, `valueForward.m` |
 | 하강 제약 변경 | `relationPolicyResidual.m` |
+| 관계 성능 가드 변경 | `guardRelationalCandidate.m` |
 | 보상 변경 | `computeReward.m`, algorithm version·signature |
 | 시나리오 변경 | `sampleParameters.m`, `evaluateTrajectory.m` |
 | 논문 metric 변경 | `trajectoryMetrics.m` |

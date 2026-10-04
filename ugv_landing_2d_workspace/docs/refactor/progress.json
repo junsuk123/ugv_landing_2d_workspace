@@ -1,5 +1,5 @@
 {
-  "schema_version": "final_status_v2_8_paper",
+  "schema_version": "final_status_v2_8_guarded_rgat",
   "updated_at": "2026-10-04",
   "branch": "main",
   "code_commit_before_document_refresh": "7291b16",
@@ -24,11 +24,11 @@
   "tests": {
     "matlab_version": "R2025b",
     "non_graphics": {
-      "passed": 27,
+      "passed": 28,
       "failed": 0
     },
     "graphics_inclusive": {
-      "passed": 32,
+      "passed": 33,
       "failed": 0
     },
     "paper_pipeline": "passed",
@@ -56,7 +56,7 @@
       "unsafe_rate": 0.09,
       "safe_abort_rate": 0.14,
       "timeout_rate": 0.05,
-      "mean_return": 17.8728330812918
+      "mean_return": 17.930375
     }
   },
   "paper_scenarios": {
@@ -72,27 +72,38 @@
       "baseline_terminal": "SAFE_ABORT",
       "semantic_flat_terminal": "SUCCESS",
       "ontology_rgat_terminal": "SUCCESS",
-      "stability_index": [37.930, 75.938, 74.456]
+      "stability_index": [37.930, 75.938, 74.337]
     },
     "S3": {
       "challenge": "visibility_recovery",
       "baseline_terminal": "SAFE_ABORT",
       "semantic_flat_terminal": "SUCCESS",
       "ontology_rgat_terminal": "SUCCESS",
-      "stability_index": [47.599, 70.797, 80.655]
+      "stability_index": [47.599, 70.797, 80.645]
     }
   },
   "architecture_audit": {
-    "ontology_rgat_policy_graph_readout_norm": 0,
-    "ontology_rgat_value_graph_readout_norm": 0,
-    "policy_relation_head_norm": 0.114546788416738,
-    "value_relation_head_norm": 0.102649118964821,
-    "relational_path_active": false,
-    "interpretation": "selected checkpoint uses raw semantic bypass; active R-GAT contribution not established"
+    "ontology_rgat_policy_graph_readout_norm": 0.000166537182707148,
+    "ontology_rgat_value_graph_readout_norm": 0.000605601859816821,
+    "policy_relation_head_norm": 0.151693272665975,
+    "value_relation_head_norm": 0.479223014828098,
+    "relational_path_active": true,
+    "calibration_scale": 0.001,
+    "mean_abs_action_residual": [0.000012728, 0.000038613],
+    "interpretation": "typed relation path active inside a validation-guarded residual trust region"
+  },
+  "relation_activation": {
+    "raw_policy_frozen": true,
+    "relation_only_ppo_iterations": 25,
+    "selection_split": "validation",
+    "test_split_used_for_selection": false,
+    "test_outcome_rates_preserved": true,
+    "test_mean_return_delta": 0.057542
   },
   "claims": {
     "integration_verified": true,
     "single_seed_performance_measured": true,
+    "active_rgat_path_verified": true,
     "active_rgat_advantage_verified": false,
     "multi_seed_superiority_verified": false,
     "real_flight_safety_verified": false

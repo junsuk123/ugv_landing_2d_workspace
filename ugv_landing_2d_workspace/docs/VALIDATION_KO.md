@@ -2,18 +2,20 @@
 
 ## 결론
 
-- MATLAB R2025b 비그래픽 27/27·그래픽 포함 32/32 통과
+- MATLAB R2025b 비그래픽 28/28·그래픽 포함 33/33 통과
 - 최종 checkpoint 기반 3개 고정 시나리오 실행 성공
 - 논문 그림 PNG·PDF·FIG 생성 확인
 - fresh test 100 seed 결과 저장 확인
 - R-GAT 전체 성능 우월성 미확인
-- 최종 R-GAT checkpoint 관계 경로 비활성 확인
+- 최종 R-GAT checkpoint 관계 경로 활성 확인
+- 관계 활성화 전후 test 결과율 동일 확인
 - 실제 비행 안전성 검증 제외
 
 ## 실행 명령
 
 ```matlab
 run_tests(false)
+run_activate_rgat_checkpoint
 [study,figures] = run_paper(struct('figureVisible',false));
 ```
 
@@ -36,7 +38,7 @@ results/paper/
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Low-level MLP PPO | 19.139 | 74% | 2% | 23% | 1% | 7,445 | 0.320 ms |
 | Semantic-flat MLP PPO | 18.496 | **75%** | 9% | **13%** | 3% | 15,317 | **0.149 ms** |
-| Ontology R-GAT PPO | 17.873 | 72% | 9% | 14% | 5% | 17,001 | 0.196 ms |
+| Ontology R-GAT PPO | 17.930 | 72% | 9% | 14% | 5% | 17,001 | 0.196 ms |
 
 판정:
 
@@ -74,7 +76,7 @@ results/paper/
 |---|---|---:|
 | Low-level | 안전 중단 | 37.9 |
 | Semantic-flat | 성공 | **75.9** |
-| R-GAT | 성공 | 74.5 |
+| R-GAT | 성공 | 74.3 |
 
 ### S3 가시성 손실
 
@@ -89,7 +91,7 @@ results/paper/
 |---|---|---:|---:|
 | Low-level | 안전 중단 | 47.6 | 73.1% |
 | Semantic-flat | 성공 | 70.8 | 1.7% |
-| R-GAT | 성공 | **80.7** | 1.8% |
+| R-GAT | 성공 | **80.6** | 1.8% |
 
 ![고정 시나리오 궤적](assets/paper/paper_trajectories.png)
 
@@ -176,21 +178,22 @@ $$
 
 | 모델 | Policy $\lVert W_g\rVert_F$ | Value $\lVert W_g\rVert_F$ | 관계 경로 |
 |---|---:|---:|---|
-| Ontology R-GAT | 0 | 0 | 비활성 |
+| Ontology R-GAT | 0.0001665 | 0.0006056 | 활성 |
 
 추가 수치:
 
-- Policy relation head norm 0.1145
-- Value relation head norm 0.1026
-- relation context 0
-- rollout relation residual 0
+- Policy relation head norm 0.1517
+- Value relation head norm 0.4792
+- calibration scale 0.001
+- test 평균 절대 residual: 수평 $1.27\times10^{-5}$·수직 $3.86\times10^{-5}$
 
 판정:
 
-- 선택 checkpoint의 raw semantic bypass 사용
-- R-GAT relation stage의 validation margin 미통과 가능성
-- 대표 시나리오의 R-GAT label 유지
-- 활성 R-GAT 기여 해석 제외
+- raw semantic Actor/Critic 기준점 고정
+- 관계 전용 PPO와 100-seed validation 성능 가드 적용
+- test 성공·위험·중단·시간초과율 변화 0
+- test 평균 return +0.058
+- 활성 경로 확인·성능 우월성 주장 제외
 
 ![온톨로지 신호와 관계 감사](assets/paper/paper_ontology.png)
 
@@ -206,6 +209,7 @@ $$
 | 보상 | terminal 1회·progress shaping·순서 |
 | PPO | gradient·GAE·rollout·checkpoint |
 | R-GAT | 순전파·역전파·typed relation |
+| 관계 성능 가드 | raw policy 불변·비영 readout·결과율 비열화 차단 |
 | 그래프 | 9노드·26간선·context tensor |
 | 논문 실행 | 고정 시나리오 주입·metric 범위 |
 

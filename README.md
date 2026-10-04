@@ -7,10 +7,11 @@
 - 비교 변수: Actor/Critic 상태 표현만 변경
 - 비교군: 저수준 관측 MLP, semantic-flat MLP, ontology R-GAT PPO
 - 최신 코드: `planar_visibility_v2`, 알고리즘 `planar-visibility-ppo-v2.8`
-- 최신 회귀 검증: MATLAB R2025b 비그래픽 27/27·그래픽 포함 32/32 통과
+- 최신 회귀 검증: MATLAB R2025b 비그래픽 28/28·그래픽 포함 33/33 통과
 - 논문용 진입점: `run_paper.m`
-- 핵심 제한: 최종 선택 R-GAT 체크포인트의 관계 readout `Wg=0`
-- 해석 범위: 현재 궤적 차이에 대한 활성 R-GAT 관계 추론 기여 주장 제외
+- 관계 경로: 검증 성능 가드 기반 비영 R-GAT readout 활성화
+- 핵심 제한: 성능 보존 신뢰구간에 따른 relation scale 0.001
+- 해석 범위: 관계 경로 활성 검증 완료·R-GAT 우월성 주장 제외
 
 ## 최신 결과
 
@@ -20,7 +21,7 @@
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Low-level MLP PPO | 74% | 2% | 23% | 1% | 19.139 | 7,445 | 0.320 ms |
 | Semantic-flat MLP PPO | 75% | 9% | 13% | 3% | 18.496 | 15,317 | 0.149 ms |
-| Ontology R-GAT PPO | 72% | 9% | 14% | 5% | 17.873 | 17,001 | 0.196 ms |
+| Ontology R-GAT PPO | 72% | 9% | 14% | 5% | 17.930 | 17,001 | 0.196 ms |
 
 - 단일 학습 seed의 최종 체크포인트 평가
 - 모델 선택에 사용하지 않은 test seed `3001:3100` 사용
@@ -32,8 +33,8 @@
 | 시나리오 | Low-level | Semantic-flat | Ontology R-GAT | 안정성 지수 비교 |
 |---|---|---|---|---|
 | S1 정상 정렬 | 성공 | 비허가 접촉 | 성공 | 88.7 / 85.0 / **93.5** |
-| S2 급가속 | 안전 중단 | 성공 | 성공 | 37.9 / **75.9** / 74.5 |
-| S3 가시성 손실 | 안전 중단 | 성공 | 성공 | 47.6 / 70.8 / **80.7** |
+| S2 급가속 | 안전 중단 | 성공 | 성공 | 37.9 / **75.9** / 74.3 |
+| S3 가시성 손실 | 안전 중단 | 성공 | 성공 | 47.6 / 70.8 / **80.6** |
 
 - 사전 선언 시나리오 사용
 - 모델별 동일 물리 조건·센서 이벤트·노이즈 seed 사용
@@ -192,22 +193,24 @@ $$
 - PPO 초기 90%: raw semantic base 정책 학습
 - PPO 마지막 10%: base 고정 후 관계 residual 미세조정
 - checkpoint 선택: 100 validation seed와 안전 가중 점수 사용
+- 비활성 checkpoint 복구: raw 정책 고정·관계 전용 PPO 25회
+- 성능 가드: 성공률 비하락·위험/중단/시간초과율 비증가·residual trust region
 - test split: checkpoint 선택에서 제외
 
 ## 최종 체크포인트 구조 감사
 
 | 항목 | Policy | Value |
 |---|---:|---:|
-| Graph readout norm $\lVert W_g\rVert_F$ | **0** | **0** |
-| Relation head norm | 0.1145 | 0.1026 |
-| Relation context | 0 | 0 |
-| 활성 관계 residual | 없음 | 없음 |
+| Graph readout norm $\lVert W_g\rVert_F$ | 0.0001665 | 0.0006056 |
+| Relation head norm | 0.1517 | 0.4792 |
+| 관계 경로 활성 | 예 | 예 |
 
-- 원인: validation 개선 margin을 넘지 못한 관계 단계 대신 flat-equivalent anchor 선택
-- 결과: 최종 `context_rgat` 체크포인트의 실제 행동·가치 계산에서 관계 context 미사용
-- 허용 주장: 구조 구현·학습 경로·감사 기능 검증
-- 제외 주장: 최신 성능 차이가 활성 R-GAT 관계 추론에서 발생했다는 주장
-- 재검증 조건: 비영 readout 체크포인트의 다중 seed 학습과 fresh held-out 평가
+- 원인 해결: flat-equivalent anchor 보존 후 관계 파라미터만 미세조정
+- 검증 선택: test 미사용 100개 validation seed의 성능 가드
+- test 결과율: 성공 72%·위험 접촉 9%·안전 중단 14%·시간초과 5% 유지
+- test 평균 return: 17.873에서 17.930으로 증가
+- test 평균 절대 행동 residual: 수평 $1.27\times10^{-5}$·수직 $3.86\times10^{-5}$
+- 제한: 안전 보존을 위한 작은 관계 residual·다중 학습 seed 우월성 미확인
 
 ![온톨로지 정책 추적 및 관계 경로 감사](ugv_landing_2d_workspace/docs/assets/paper/paper_ontology.png)
 
@@ -228,6 +231,7 @@ $$
 ```matlab
 cd('C:\Users\user\Downloads\ugv_landing_2d_workspace_refactor')
 run_tests(false)
+run_activate_rgat_checkpoint
 run_paper
 ```
 
@@ -268,5 +272,5 @@ run_all(struct('executionMode','full','rlRetrain',true))
 - 이상적 own-state 관측 사용
 - 실제 비행 안전성 인증 제외
 - 단일 학습 seed 최종 결과
-- R-GAT 관계 경로 비활성 최종 체크포인트
+- R-GAT 관계 residual의 작은 신뢰구간
 - 보편적 우월성 주장 제외

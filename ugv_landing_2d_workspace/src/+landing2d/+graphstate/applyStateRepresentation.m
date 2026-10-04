@@ -47,9 +47,15 @@ if cfg.graphState.useScratchSettings
     % 상태 표현 외의 변수가 하나 더 생깁니다.
     cfg.rl = landing2d.rl.applyScratchSettings(cfg.rl);
 end
-[~,name,ext] = fileparts(cfg.graphState.policyFile);
-if isempty(ext)
-    ext = '.mat';
+if isfield(cfg,'experiment') && isfield(cfg.experiment,'enabled') ...
+        && cfg.experiment.enabled ...
+        && strcmp(cfg.experiment.schemaVersion,'planar_visibility_v2')
+    % Canonical final-checkpoint names shared by run_all, run_finalTest,
+    % run_paper, and the guarded R-GAT activation utility.
+    cfg.rl.policyFile = sprintf('ppo_%s_planar_visibility_v2.mat',mode);
+else
+    [~,name,ext] = fileparts(cfg.graphState.policyFile);
+    if isempty(ext), ext = '.mat'; end
+    cfg.rl.policyFile = sprintf('%s_%s%s',name,mode,ext);
 end
-cfg.rl.policyFile = sprintf('%s_%s%s',name,mode,ext);
 end

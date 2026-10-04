@@ -100,9 +100,11 @@ run_paper(struct('figureVisible',false));
 
 최신 결과:
 
-- Policy $\lVert W_g\rVert_F=0$
-- Value $\lVert W_g\rVert_F=0$
-- relation path `INACTIVE`
+- Policy $\lVert W_g\rVert_F=0.0001665$
+- Value $\lVert W_g\rVert_F=0.0006056$
+- relation path `ACTIVE`
+- vertical residual 축의 $10^{-5}$ 배율 표시
+- 성능 보존 calibration scale 0.001
 
 ## 정적 구조 그림
 
@@ -133,5 +135,5 @@ run_paper(struct('figureVisible',false));
 
 - 단일 trajectory의 우월성 일반화 제외
 - 안정성 지수와 성공률의 혼합 제외
-- 비활성 relation checkpoint의 R-GAT 효과 주장 제외
+- 작은 relation residual의 보편적 우월성 주장 제외
 - 논문 그림의 사후 truth metric을 정책 입력으로 해석하는 오류 제외

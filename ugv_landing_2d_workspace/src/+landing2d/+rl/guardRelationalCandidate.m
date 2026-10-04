@@ -1,0 +1,96 @@
+function [selected,report] = guardRelationalCandidate(anchor,candidate,c,options)
+% GUARDRELATIONALCANDIDATE  Keep the largest active relation scale that
+% preserves the anchor's validation outcomes and bounded return.
+if nargin < 4, options = struct(); end
+defaults = struct('scaleGrid',[1 .75 .5 .25 .1 .05 .02 .01 .005 .002 .001], ...
+    'meanReturnTolerance',0.25,'selectionScoreTolerance',0.25, ...
+    'rateTolerance',0,'minResidualNorm',1e-6,'maxResidualNorm',0.005, ...
+    'activeTolerance',1e-10, ...
+    'evaluator',[]);
+options = parseOptions(options,defaults);
+if isempty(options.evaluator)
+    count = c.experiment.validationEpisodeCount;
+    seeds = c.experiment.manifest.validationSeeds(1:count);
+    evaluator = @(agent)evaluateAgent(agent,c,seeds);
+else
+    evaluator = options.evaluator;
+end
+anchorInfo = evaluator(anchor);
+n = numel(options.scaleGrid);
+scale = options.scaleGrid(:);
+landingRate = nan(n,1); unsafeRate = nan(n,1); safeAbortRate = nan(n,1);
+timeoutRate = nan(n,1); meanReturn = nan(n,1); selectionScore = nan(n,1);
+residualNorm = nan(n,1); relationalPathActive = false(n,1);
+outcomeGuard = false(n,1); scoreGuard = false(n,1);
+residualGuard = false(n,1); accepted = false(n,1);
+selected = anchor; selectedInfo = anchorInfo; selectedIndex = NaN;
+for i = 1:n
+    trial = landing2d.rl.scaleRelationalReadout(candidate,scale(i));
+    info = evaluator(trial);
+    landingRate(i)=info.landingRate; unsafeRate(i)=info.unsafeRate;
+    safeAbortRate(i)=info.safeAbortRate; timeoutRate(i)=info.timeoutRate;
+    meanReturn(i)=info.meanReturn; selectionScore(i)=info.selectionScore;
+    residualNorm(i)=norm(info.meanAbsRelationResidual(:));
+    relationalPathActive(i)=landing2d.rl.relationalPathActive( ...
+        trial,options.activeTolerance);
+    tol=options.rateTolerance+1e-12;
+    outcomeGuard(i)=info.landingRate>=anchorInfo.landingRate-tol ...
+        && info.unsafeRate<=anchorInfo.unsafeRate+tol ...
+        && info.safeAbortRate<=anchorInfo.safeAbortRate+tol ...
+        && info.timeoutRate<=anchorInfo.timeoutRate+tol;
+    scoreGuard(i)=info.meanReturn>=anchorInfo.meanReturn- ...
+        options.meanReturnTolerance-1e-12 ...
+        && info.selectionScore>=anchorInfo.selectionScore- ...
+        options.selectionScoreTolerance-1e-12;
+    residualGuard(i)=residualNorm(i)>=options.minResidualNorm ...
+        && residualNorm(i)<=options.maxResidualNorm;
+    accepted(i)=outcomeGuard(i) && scoreGuard(i) ...
+        && residualGuard(i) && relationalPathActive(i);
+    if accepted(i)
+        selected=trial; selectedInfo=info; selectedIndex=i;
+        break;
+    end
+end
+guardTable=table(scale,landingRate,unsafeRate,safeAbortRate,timeoutRate, ...
+    meanReturn,selectionScore,residualNorm,relationalPathActive, ...
+    outcomeGuard,scoreGuard,residualGuard,accepted);
+[~,anchorAudit]=landing2d.rl.relationalPathActive(anchor,options.activeTolerance);
+[selectedActive,selectedAudit]=landing2d.rl.relationalPathActive( ...
+    selected,options.activeTolerance);
+report=struct('accepted',isfinite(selectedIndex),'selectedIndex',selectedIndex, ...
+    'selectedScale',0,'anchorInfo',anchorInfo,'selectedInfo',selectedInfo, ...
+    'anchorAudit',anchorAudit,'selectedAudit',selectedAudit, ...
+    'selectedActive',selectedActive,'options',rmfield(options,'evaluator'), ...
+    'guardTable',guardTable);
+if report.accepted, report.selectedScale=scale(selectedIndex); end
+end
+
+function info=evaluateAgent(agent,c,seeds)
+[~,~,info]=landing2d.rl.evaluateV2(agent,c,seeds);
+end
+
+function options=parseOptions(options,defaults)
+assert(isstruct(options) && isscalar(options), ...
+    'landing2d:InvalidOptions','options must be a scalar struct.');
+unknown=setdiff(fieldnames(options),fieldnames(defaults));
+assert(isempty(unknown),'landing2d:UnknownOption', ...
+    'Unknown relation guard option: %s',strjoin(unknown,', '));
+names=fieldnames(defaults);
+for i=1:numel(names)
+    if ~isfield(options,names{i}), options.(names{i})=defaults.(names{i}); end
+end
+validateattributes(options.scaleGrid,{'numeric'}, ...
+    {'vector','real','finite','positive','<=',1});
+assert(all(diff(options.scaleGrid)<=0), ...
+    'landing2d:ScaleGridOrder','scaleGrid must be descending.');
+for name={'meanReturnTolerance','selectionScoreTolerance','rateTolerance', ...
+        'minResidualNorm','maxResidualNorm','activeTolerance'}
+    validateattributes(options.(name{1}),{'numeric'}, ...
+        {'scalar','real','finite','nonnegative'},mfilename,name{1});
+end
+assert(options.maxResidualNorm>=options.minResidualNorm, ...
+    'landing2d:ResidualTrustRegion', ...
+    'maxResidualNorm must be at least minResidualNorm.');
+assert(isempty(options.evaluator) || isa(options.evaluator,'function_handle'), ...
+    'landing2d:InvalidEvaluator','evaluator must be a function handle.');
+end

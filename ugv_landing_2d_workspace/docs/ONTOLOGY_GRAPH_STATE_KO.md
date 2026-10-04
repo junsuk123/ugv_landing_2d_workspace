@@ -295,24 +295,27 @@ $$
 - attention·group readout·relation head 최적화
 - validation 개선 margin 5.0 적용
 - unsafe outcome 가중 checkpoint 선택
+- 비활성 선택 시 raw 정책 고정 관계 전용 PPO 25회 적용
+- validation 결과율 비열화 가드와 residual trust region 적용
 - test seed의 선택 과정 사용 제외
 
 ## 최신 체크포인트 감사
 
 | 감사 항목 | Policy | Critic |
 |---|---:|---:|
-| $\lVert W_g\rVert_F$ | 0 | 0 |
-| relation head norm | 0.1145 | 0.1026 |
-| relation context norm | 0 | 0 |
-| relation residual | 0 | 0 |
+| $\lVert W_g\rVert_F$ | 0.0001665 | 0.0006056 |
+| relation head norm | 0.1517 | 0.4792 |
+| relation path | 활성 | 활성 |
+| calibration scale | 0.001 | 0.001 |
 
 판정:
 
-- 구조 파일상 R-GAT 경로 존재
-- 선택 체크포인트의 R-GAT readout 비활성
-- 실제 Actor/Critic 계산의 raw semantic bypass 의존
-- semantic-flat과 별도 학습된 base weight 차이에 따른 궤적 차이 가능
-- 활성 관계 추론 효과의 실증 근거 부족
+- raw semantic Actor/Critic 기준점 완전 고정
+- attention·readout·relation head만 추가 최적화
+- test 결과율 72%/9%/14%/5% 유지
+- 평균 return 17.873→17.930
+- 평균 절대 행동 residual 수평 $1.27\times10^{-5}$·수직 $3.86\times10^{-5}$
+- 관계 경로 활성 확인·관계 영향량의 작은 신뢰구간 확인
 
 ![R-GAT 정책 추적](assets/paper/paper_ontology.png)
 
@@ -328,6 +331,8 @@ $$
 | Actor relation residual | `src/+landing2d/+rl/relationPolicyResidual.m` |
 | Critic relation residual | `src/+landing2d/+rl/valueForward.m` |
 | causal 사전학습 | `src/+landing2d/+graphstate/pretrainCausalEncoder.m` |
+| 관계 전용 미세조정 | `src/+landing2d/+rl/ensureRelationalPath.m` |
+| 성능 보존 가드 | `src/+landing2d/+rl/guardRelationalCandidate.m` |
 | 체크포인트 감사 | `run_paper_validation.m` |
 
 ## 주장 범위
@@ -336,5 +341,6 @@ $$
 - causal 정보경계 검증
 - R-GAT 순전파·역전파 구현 검증
 - Actor/Critic 연결 구조 검증
-- 최종 체크포인트 relation path 비활성 확인
+- 최종 체크포인트 relation path 활성 확인
+- 동일 test 결과율 유지 확인
 - 활성 R-GAT 성능 우월성 주장 제외

@@ -10,8 +10,9 @@
 - scratch PPO 2,500회 최종 checkpoint 생성
 - fresh test 100 seed 평가 완료
 - 논문용 고정 3시나리오·안정성·가능성 시각화 완료
-- MATLAB R2025b 비그래픽 27/27·그래픽 포함 32/32 통과
-- 최신 R-GAT checkpoint relation readout 비활성 확인
+- MATLAB R2025b 비그래픽 28/28·그래픽 포함 33/33 통과
+- 최신 R-GAT checkpoint relation readout 활성 확인
+- 활성화 전후 test 결과율 동일 확인
 - 활성 R-GAT 성능 우월성 주장 제외
 
 ## 연구 질문
@@ -212,7 +213,7 @@ $$
 |---|---:|---:|---:|---:|---:|
 | Low-level | 74% | **2%** | 23% | **1%** | **19.139** |
 | Semantic-flat | **75%** | 9% | **13%** | 3% | 18.496 |
-| Ontology R-GAT | 72% | 9% | 14% | 5% | 17.873 |
+| Ontology R-GAT | 72% | 9% | 14% | 5% | 17.930 |
 
 성능 판정:
 
@@ -227,8 +228,8 @@ $$
 | 시나리오 | Low-level | Semantic-flat | R-GAT | 안정성 지수 |
 |---|---|---|---|---|
 | S1 정상 정렬 | 성공 | 비허가 접촉 | 성공 | 88.7 / 85.0 / **93.5** |
-| S2 급가속 | 안전 중단 | 성공 | 성공 | 37.9 / **75.9** / 74.5 |
-| S3 dropout | 안전 중단 | 성공 | 성공 | 47.6 / 70.8 / **80.7** |
+| S2 급가속 | 안전 중단 | 성공 | 성공 | 37.9 / **75.9** / 74.3 |
+| S3 dropout | 안전 중단 | 성공 | 성공 | 47.6 / 70.8 / **80.6** |
 
 ![대표 궤적](../assets/paper/paper_trajectories.png)
 
@@ -285,39 +286,44 @@ S1~S3 판정:
 
 | 항목 | Policy | Value |
 |---|---:|---:|
-| Graph readout norm | 0 | 0 |
-| Relation head norm | 0.1145 | 0.1026 |
-| Relation context | 0 | 0 |
-| Relation residual | 0 | 0 |
+| Graph readout norm | 0.0001665 | 0.0006056 |
+| Relation head norm | 0.1517 | 0.4792 |
+| Relation path | 활성 | 활성 |
+| Calibration scale | 0.001 | 0.001 |
 
 ![관계 경로 감사](../assets/paper/paper_ontology.png)
 
-원인 해석:
+해결 구조:
 
-- 관계 미세조정 checkpoint의 validation improvement margin 미충족
-- flat-equivalent anchor의 최종 선택
-- encoder `Wg` zero initialization 유지
-- base semantic MLP의 별도 학습 결과만 최종 checkpoint에 잔존
+- flat-equivalent anchor의 raw Actor/Critic 고정
+- attention·readout·relation head 전용 PPO 25회
+- 100 validation seed 결과율 비열화 가드
+- relation residual norm $[10^{-6},0.005]$ 신뢰구간
+- 최대 안전 스케일 자동 선택
+- test seed의 선택 과정 사용 제외
 
 연구 주장 영향:
 
 - 온톨로지 입력 설계 구현 주장 가능
 - causal R-GAT 학습 코드 구현 주장 가능
-- 최종 성능의 활성 R-GAT 기여 주장 불가
-- semantic-flat 이상의 관계 구조 효과 실증 미완료
+- 활성 R-GAT 계산 경로 주장 가능
+- test 결과율 유지 주장 가능
+- 작은 residual의 보편적 성능 우월성 주장 불가
+- semantic-flat 이상의 통계적 관계 구조 효과 실증 미완료
 
 ## 검증
 
 | 검증 | 결과 |
 |---|---|
-| 비그래픽 회귀 테스트 | 27/27 통과 |
-| 그래픽 포함 회귀 테스트 | 32/32 통과 |
+| 비그래픽 회귀 테스트 | 28/28 통과 |
+| 그래픽 포함 회귀 테스트 | 33/33 통과 |
 | paper pipeline test | 통과 |
 | checkpoint signature | 통과 |
 | task fingerprint A/B/C 동일성 | 통과 |
 | 고정 scenario 주입 | 통과 |
 | PNG·PDF·FIG export | 통과 |
-| architecture audit | relation path 비활성 탐지 |
+| relation performance guard | 결과율 비열화 차단 통과 |
+| architecture audit | relation path 활성 탐지 |
 
 ## 최종 파일
 
@@ -327,6 +333,7 @@ S1~S3 판정:
 - `run_finalTest.m`
 - `run_paper.m`
 - `run_paper_validation.m`
+- `run_activate_rgat_checkpoint.m`
 
 핵심 구현:
 
@@ -355,15 +362,15 @@ S1~S3 판정:
 - 실제 ROS 2 transport 제외
 - 실제 비행 안전 인증 제외
 - 단일 PPO training seed 결과
-- 활성 relation checkpoint 성능 미확인
+- relation residual의 작은 안전 신뢰구간
 - 보편적 온톨로지 우월성 주장 제외
 
 ## 다음 연구 조건
 
-- graph selection margin·adaptation schedule 재검토
-- 비영 $W_g$ checkpoint 강제 감사
+- graph selection margin·adaptation schedule의 다중 seed 재검토
+- 비영 $W_g$ checkpoint 자동 감사 유지
 - semantic-flat과 동일 base weight에서 relation residual만 비교
 - 5개 이상 독립 학습 seed
 - fresh held-out test 유지
 - 성공률·위험률·안정성 지수의 평균·분산 보고
-- 비활성 relation run의 제안 모델 성능 표기 제외
+- 활성 relation scale과 residual 크기 동시 보고

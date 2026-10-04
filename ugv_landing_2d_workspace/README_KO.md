@@ -8,14 +8,21 @@
 - 공통 관측 원천: 카메라·own-state·causal observation memory
 - 비교 모델: baseline, semantic-flat, ontology R-GAT
 - 논문용 실행: `run_paper`
-- 최신 검증: 비그래픽 27/27·그래픽 포함 32/32 통과
-- 중요 제한: 최종 R-GAT 체크포인트 관계 readout 비활성
+- 최신 검증: 비그래픽 28/28·그래픽 포함 33/33 통과
+- 관계 경로: 성능 가드 기반 비영 readout 활성
+- 중요 제한: relation scale 0.001의 작은 신뢰구간
 
 ## 빠른 실행
 
 ```matlab
 cd('C:\Users\user\Downloads\ugv_landing_2d_workspace_refactor')
 run_paper
+```
+
+기존 비활성 R-GAT 체크포인트의 안전 활성화:
+
+```matlab
+run_activate_rgat_checkpoint
 ```
 
 창 없이 결과 저장:
@@ -128,8 +135,9 @@ $$
 - S3: semantic-flat과 R-GAT 성공, R-GAT 안정성 지수 최고
 - 전체 100 test seed: semantic-flat 75%, baseline 74%, R-GAT 72% 성공
 - 단일 seed 결과 기반 우월성 주장 제외
-- 최종 R-GAT `Wg` norm 0 확인
-- 현재 R-GAT 성능의 활성 관계 추론 기여 주장 제외
+- 최종 R-GAT Policy/Value `Wg` norm 0.0001665/0.0006056
+- test 결과율 유지·평균 return 17.873→17.930
+- 활성 관계 경로 확인·보편적 우월성 주장 제외
 
 ## 문서 연결
 

@@ -140,6 +140,25 @@ Readout 그룹:
 | validation episode | 100 |
 | test episode | 100 |
 
+관계 경로 안전 활성화:
+
+| 항목 | 값 |
+|---|---:|
+| raw Actor/Critic 갱신 | 제외 |
+| 관계 전용 PPO 반복 | 25 |
+| 관계 전용 PPO episode/반복 | 6 |
+| 관계 전용 PPO epoch | 4 |
+| 내부 학습 평가 seed | validation 20개 |
+| 최종 성능 가드 seed | validation 100개 |
+| residual norm 하한 | $10^{-6}$ |
+| residual norm 상한 | 0.005 |
+| 선택 scale | 0.001 |
+
+- 성공률 하락 불허
+- 위험 접촉·안전 중단·시간초과율 증가 불허
+- 평균 return·selection score 허용 감소 각각 0.25
+- test seed 기반 scale 선택 제외
+
 Curriculum:
 
 - 초기 고도 범위 0.025–1.0 m

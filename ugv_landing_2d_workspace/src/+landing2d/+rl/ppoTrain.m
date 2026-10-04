@@ -1,4 +1,4 @@
-function [agent,history] = ppoTrain(agent,c,rs)
+function [agent,history,lastAgent] = ppoTrain(agent,c,rs)
 % PPOTRAIN  클리핑 목적함수 PPO. 초기 정책은 모방 학습 결과를 그대로 사용합니다.
 % 평가 점수가 가장 좋은 정책을 보관해 마지막에 돌려줍니다.
 rl = agent.rl;
@@ -12,6 +12,7 @@ valueState = landing2d.util.adamInit(valueCore(agent));
 policyEncoderState = landing2d.util.adamInit(agent.policy.encoder);
 valueEncoderState = landing2d.util.adamInit(agent.value.encoder);
 best = agent;
+lastAgent = agent;
 % 조기 종료: 평가 점수가 patience회 연속 나아지지 않으면 멈춥니다.
 % 최고 점수의 정책은 따로 보관하므로 멈추어도 돌려주는 정책은 달라지지 않습니다.
 patience = 0;
@@ -229,6 +230,11 @@ if ~bestFound
     bestHistoryIndex = numel(history);
 end
 history(bestHistoryIndex).selected = true;
+% Optional third output for guarded relation-only adaptation.  The usual
+% return remains the best validation checkpoint, while callers that must
+% calibrate a relational candidate against a frozen anchor can inspect the
+% final trained candidate without weakening normal checkpoint selection.
+lastAgent = agent;
 best.trainingSelection = struct('iteration',history(bestHistoryIndex).iteration, ...
     'curriculumLevel',history(bestHistoryIndex).curriculumLevel, ...
     'selectionScore',bestSelectionScore, ...

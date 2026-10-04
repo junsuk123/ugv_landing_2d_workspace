@@ -1,6 +1,6 @@
 {
   "updated_at": "2026-10-04",
-  "matlab_file_count": 231,
+  "matlab_file_count": 237,
   "json_validation": "passed",
   "svg_xml_validation": "passed",
   "markdown_math_delimiter_validation": "passed",
@@ -8,9 +8,10 @@
   "markdown_local_link_check": "passed",
   "documentation_style_check": "passed; conclusion-first noun endings",
   "obsolete_document_reference_check": "passed",
-  "matlab_non_graphics_tests": "passed 27/27",
-  "matlab_graphics_inclusive_tests": "passed 32/32",
+  "matlab_non_graphics_tests": "passed 28/28",
+  "matlab_graphics_inclusive_tests": "passed 33/33",
   "paper_pipeline": "passed",
   "paper_figure_exports": "passed PNG/PDF/FIG",
-  "architecture_audit": "passed; selected context_rgat relational path inactive"
+  "relation_performance_guard": "passed; test outcome rates preserved",
+  "architecture_audit": "passed; selected context_rgat relational path active"
 }

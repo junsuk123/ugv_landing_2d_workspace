@@ -8,6 +8,12 @@ if ~c.rl.retrain && isfile(file)
             && isequal(saved.signature,signature)
         agent = landing2d.rl.normalizeAgent(saved.agent,c.rl);
         info = saved.info;
+        [agent,relationActivation] = ...
+            landing2d.rl.ensureRelationalPath(agent,c);
+        if relationActivation.attempted
+            info.relationActivation = relationActivation;
+            save(file,'agent','info','signature');
+        end
         if c.rl.verbose
             fprintf('저장된 정책을 사용합니다: %s\n',file);
         end
@@ -16,6 +22,8 @@ if ~c.rl.retrain && isfile(file)
     end
 end
 [agent,info] = landing2d.rl.trainAgent(c);
+[agent,relationActivation] = landing2d.rl.ensureRelationalPath(agent,c);
+info.relationActivation = relationActivation;
 if ~exist(c.outputDir,'dir')
     [ok,message] = mkdir(c.outputDir);
     if ~ok, error('landing2d:OutputDirectory','%s',message); end
@@ -46,8 +54,7 @@ for i = 1:numel(info.history)
         'trainReturn',h.trainReturn,'landingRate',h.landingRate, ...
         'captureRate',h.captureRate);
     optional = {'trainLandingRate','trainNominalLandingRate', ...
-        'trainCurriculumLandingRate', ...
-        'trainSafeAbortRate','curriculumLevel'};
+        'trainCurriculumLandingRate','trainSafeAbortRate','curriculumLevel'};
     for k = 1:numel(optional)
         name = optional{k};
         if isfield(h,name), payload.(name) = h.(name); end
