@@ -1,10 +1,13 @@
 {
-  "matlab_file_count": 113,
-  "package_reference_count": 91,
-  "file_reference_checks": "passed",
-  "core_function_preservation": "passed",
+  "updated_at": "2026-10-04",
+  "matlab_file_count": 231,
   "json_validation": "passed",
-  "matlab_runtime_tests": "passed (MATLAB R2025b, run_tests 13/13)",
-  "graphics_runtime_tests": "passed (MATLAB R2025b, PNG/FIG export from hidden tabbed figure)",
-  "lightweight_delimiter_block_check": "passed (not a MATLAB parser)"
+  "svg_xml_validation": "passed",
+  "markdown_math_delimiter_validation": "passed",
+  "obsolete_document_reference_check": "passed",
+  "matlab_non_graphics_tests": "passed 27/27",
+  "matlab_graphics_inclusive_tests": "passed 32/32",
+  "paper_pipeline": "passed",
+  "paper_figure_exports": "passed PNG/PDF/FIG",
+  "architecture_audit": "passed; selected context_rgat relational path inactive"
 }

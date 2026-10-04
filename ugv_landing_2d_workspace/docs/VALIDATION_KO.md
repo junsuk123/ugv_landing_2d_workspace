@@ -1,87 +1,220 @@
-# 검증 범위
+# 최종 검증 범위와 결과
 
-## 실제로 실행해 확인한 내용
+## 결론
 
-이번 변경은 **MATLAB R2025b (Windows)** 에서 실행해 확인했습니다.
+- MATLAB R2025b 비그래픽 27/27·그래픽 포함 32/32 통과
+- 최종 checkpoint 기반 3개 고정 시나리오 실행 성공
+- 논문 그림 PNG·PDF·FIG 생성 확인
+- fresh test 100 seed 결과 저장 확인
+- R-GAT 전체 성능 우월성 미확인
+- 최종 R-GAT checkpoint 관계 경로 비활성 확인
+- 실제 비행 안전성 검증 제외
 
-- `run_tests` 전체 16개 테스트 통과 (그래픽/내보내기 포함).
-- `run_ugv_landing_2d(struct('animate',false,'figureVisible',false))` 실행 및 결과 저장.
-- `run_all(struct('figureVisible',false))` 실행. 처음에는 약 355초
-  (모방 학습 + PPO 38초, 보상 가중치 설계 20초, 교사 없는 PPO 305초), 재실행은 약 9초.
-- `controller='pd'` 경로가 원본 단일 파일과 1e-10 안에서 동일함을 확인
-  (`test_baseline_equivalence`). 기본 유도 법칙을 비례 항법으로 바꾼 뒤에도 유지됩니다.
-- 탭 3개 / 그래프 6개 구조의 PNG와 FIG 생성 확인. 선택되지 않은 탭도 순서대로 선택해 내보내므로 빈 그림이 나오지 않습니다.
-- PD 기준 결과는 변경 전과 동일합니다(`test_baseline_equivalence`, 허용오차 1e-10).
-
-실시간 애니메이션 창은 배치 모드가 아닌 GUI에서 직접 눈으로 확인하는 항목이며, 이번에는 코드 경로만 그대로 두었습니다.
-
-## 결과 (기본 설정, seed 20240501 / 20240611)
-
-| 제어기 | 재포착 지연 (S1/S2/S3) | 재포착 상승 고도 | 평균 포착률 | 착륙 |
-|---|---|---|---|---|
-| PN guidance | 4.9 / 9.2 / 14.3 s | 7.0 / 13.7 / 14.3 m | 0.79 | 42.9 / 55.0 / 57.6 s |
-| PPO RL (모방 학습, 손 설정 0.20/0.50) | 5.6 / 12.1 / 15.8 s | 6.1 / 14.0 / 15.6 m | 0.73 | 23.8 / 41.0 / 43.9 s |
-| Onto R-GAT (처음부터, 추론 1.40/0.50) | 없음 / 없음 / 9.4 s | 2.1 / 0 / 2.4 m | **0.98** | **미착륙** |
-
-**의도한 동작은 확인됐지만 착륙은 완성되지 않았습니다.**
-
-온톨로지가 추론한 포착 우위 가중치(capture : distance = 2.8 : 1, 손 설정은 0.4 : 1)로 학습한 정책은
-교사가 쓰던 상승 동작 없이 패드를 시야에 유지합니다. 재포착 상승 고도가 7~15 m에서 0~2.4 m로 줄고,
-시나리오 1·2에서는 시야를 아예 놓치지 않습니다. 평균 포착률도 0.73~0.79에서 0.98로 올라갑니다.
-
-그러나 같은 정책이 최종 접지를 시도하지 않습니다. 원인은 측정으로 확인했습니다.
-
-- 착륙 판정은 고도 4 cm에서 패드 **중심**이 카메라 발자국(±1.9 cm) 안에 있어야 성립합니다.
-- 포착 : 거리 = 2.8 : 1이므로 마지막 1 m 하강 중 시야를 놓치면 스텝당 -2.8,
-  착륙으로 얻는 이득은 스텝당 약 +0.5입니다. 확률적 정책에게 최종 하강은 기댓값이 음수입니다.
-- 탐색 부족이 아닙니다. 1800회(13분) 학습, 접지 직전 고도(6 cm)에서 시작하는 에피소드 혼합,
-  엔트로피 보너스 축소를 모두 시도했으나 착륙률은 0%였습니다.
-- 가중치 합을 고정하는 방식은 더 나쁩니다. 거리 항이 0.184로 작아져 정책이 32~79 m까지 올라갑니다.
-
-자세한 내용은 `docs/ONTOLOGY_RGAT_KO.md`를 참고하세요.
-
-## 포함한 테스트
-
-| 테스트 | 내용 |
-|---|---|
-| `test_baseline_equivalence` | `controller='pd'` 경로와 원본 단일 파일의 전체 수치/모드/사건 로그 비교 (허용오차 1e-10) |
-| `test_pn_guidance` | 가속도 출력과 포화, 시선각 속도 방향, 비가시 정보경계, 상승 한계, 세 시나리오 착륙 |
-| `test_observation_boundary` | 비가시 실제 패드 위치/속도가 달라도 PD 명령이 같으며, 상승 탐색으로 전환하는지 확인 |
-| `test_speed_segments` | 구간 경계, 목표 속도 배열, 실제 가속도 한계 확인 |
-| `test_config_validation` | 알 수 없는 옵션과 범위를 벗어난 불투명도 입력 거부 확인 |
-| `test_rl_gradients` | 직접 구현한 역전파를 중앙 차분과 비교 (상대 오차 1e-5) |
-| `test_rl_observation_boundary` | 비가시 패드 참값이 정책 관측과 기억에 들어가지 않는지 확인 |
-| `test_rl_pipeline` | 모방 학습 + PPO 파이프라인 연결, 로그 형식 일치, 같은 시드 재현성 확인 |
-| `test_rgat_gradients` | 직접 구현한 R-GAT 역전파를 중앙 차분과 비교, 잠재함수 유계성 확인 |
-| `test_ontology_schema` | 노드/간선/보상항 대응 일관성, 목표 노드 값 0, 의미 채널 [0,1] 확인 |
-| `test_reward_design` | 유계 단체 사영, 가중치 총량 보존, 학습별 비율 기록, 모든 노드의 기여도 > 0, applyDesign의 영향 범위, 같은 시드 재현성 |
-| `test_segment_background` | 배경 색상/불투명도/시간 경계/축 갱신/범례 제외 확인 |
-| `test_plot_export` | 탭 요약 PNG/FIG, 비교 그림, 상세 그림, 이전 MAT 형식 재시각화 확인 |
-
-실행 명령:
+## 실행 명령
 
 ```matlab
-run_tests          % 16개 전체
-run_tests(false)   % 그래픽 제외 14개
+run_tests(false)
+[study,figures] = run_paper(struct('figureVisible',false));
 ```
 
-## 알려진 제약
+결과 위치:
 
-- 학습 곡선은 단조롭지 않습니다. `ppoTrain`은 주기적으로 결정론적 평가를 해 가장 좋은 정책을 보관하고 그 정책을 돌려줍니다.
-- 강화학습 결과는 시드와 하드웨어 난수 순서에 의존합니다. `rl.seed`를 바꾸면 궤적이 달라집니다.
-- `results/rl_policy.mat`는 환경/학습 설정 지문이 같을 때만 재사용합니다. 지문이 다르면 자동으로 다시 학습합니다.
-- 이 프로젝트는 별도 Toolbox를 쓰지 않습니다. 신경망, Adam, PPO, R-GAT은 모두 이 저장소 안의 행렬 연산으로 구현했습니다.
-- 두 강화학습 결과의 차이는 작습니다. 가중치 차이도 작으므로
-  이 차이를 특정 기전으로 설명하지 않습니다. 시드를 바꾸면 이만한 폭은 PPO 자체의 변동으로도 나타납니다.
-- 비례 항법 유도의 이득(`pnApproachSpeed`, `pnApproachGain` 등)은 세 시나리오가 모두 착륙하도록
-  맞춘 값입니다. 최적값이라고 주장하지 않습니다.
-- 교사 없이 학습하는 온톨로지 비교군은 학습이 단조롭지 않습니다. 600회 부근에서 한 번
-  무너졌다가(평가 -304) 회복합니다. 가장 좋은 정책을 보관하는 장치가 결과를 지킵니다.
-- `cfg.rl.scratch`의 값(탐색 잡음, 학습률, 반복 수)은 착륙에 도달하도록 맞춘 값입니다.
-  기본 예산(60회)으로는 착륙하지 못합니다.
-- 서로 다른 보상 가중치로 학습한 두 실행의 `rl.evaluate` 점수는 직접 비교할 수 없습니다.
-  비교는 착륙 시각, 포착률, 접지 오차로 합니다.
-- 반사실 민감도의 부호는 정답의 시간 할인 구조와 얽혀 있어 그대로 해석하면 안 됩니다.
-  가중치에는 크기만 사용합니다. 근거는 `docs/ONTOLOGY_RGAT_KO.md`에 있습니다.
-- 한 번만 학습해 증류한 비율은 초기화 난수에 따라 크게 흔들립니다(8노드에서 ±0.12).
-  기본값은 5회 평균이며, 그래도 남는 편차(±0.065)를 감안해 읽어야 합니다.
+```text
+results/paper/
+```
+
+## 최종 held-out 결과
+
+평가 조건:
+
+- checkpoint 선택과 분리된 test seed 100개
+- 동일 task fingerprint
+- 동일 reward·environment·action·safety contract
+- deterministic policy 평가
+
+| 모델 | 평균 return | 성공 | 위험 | 안전 중단 | 시간 초과 | 파라미터 | 정책 추론 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Low-level MLP PPO | 19.139 | 74% | 2% | 23% | 1% | 7,445 | 0.320 ms |
+| Semantic-flat MLP PPO | 18.496 | **75%** | 9% | **13%** | 3% | 15,317 | **0.149 ms** |
+| Ontology R-GAT PPO | 17.873 | 72% | 9% | 14% | 5% | 17,001 | 0.196 ms |
+
+판정:
+
+- baseline 대비 semantic-flat 성공률 +1%p
+- semantic-flat 대비 R-GAT 성공률 -3%p
+- baseline의 위험 접촉률 최저
+- semantic-flat의 평균 추론 시간 최저
+- 단일 학습 seed 기반 통계적 우월성 판정 제외
+
+## 대표 시나리오
+
+### S1 정상 정렬
+
+- 목적: `PadVisibility → RelativeTracking → DescentEligibility` 확인
+- peak pad speed 2.4 m/s
+- speed margin 7.1 m/s
+- acceleration margin 1.9 m/s²
+- 물리적 착륙 가능 판정
+
+| 모델 | 결과 | 안정성 지수 |
+|---|---|---:|
+| Low-level | 성공 | 88.7 |
+| Semantic-flat | 비허가 접촉 | 85.0 |
+| R-GAT | 성공 | **93.5** |
+
+### S2 급가속
+
+- 목적: `PadMotion → RelativeTracking → TrackingCorrection` 확인
+- peak pad speed 4.375 m/s
+- speed margin 5.125 m/s
+- acceleration margin 1.0 m/s²
+- 물리적 착륙 가능 판정
+
+| 모델 | 결과 | 안정성 지수 |
+|---|---|---:|
+| Low-level | 안전 중단 | 37.9 |
+| Semantic-flat | 성공 | **75.9** |
+| R-GAT | 성공 | 74.5 |
+
+### S3 가시성 손실
+
+- 목적: `PadVisibility → ViewRecovery → LandingInhibit` 확인
+- detector dropout 0.8 s
+- peak pad speed 4.3 m/s
+- speed margin 5.2 m/s
+- acceleration margin 1.3 m/s²
+- 물리적 착륙 가능 판정
+
+| 모델 | 결과 | 안정성 지수 | LandingInhibit |
+|---|---|---:|---:|
+| Low-level | 안전 중단 | 47.6 | 73.1% |
+| Semantic-flat | 성공 | 70.8 | 1.7% |
+| R-GAT | 성공 | **80.7** | 1.8% |
+
+![고정 시나리오 궤적](assets/paper/paper_trajectories.png)
+
+## 안정성 지표
+
+구성 요소:
+
+$$
+S_x=\exp\left[-\left(\frac{\operatorname{RMSE}(e_x)}{L_{pad}}\right)^2\right]
+$$
+
+$$
+S_v=\exp\left[-\left(\frac{\operatorname{RMSE}(\Delta v_x)}{v_{x,td}}\right)^2\right]
+$$
+
+$$
+S_{fov}=1-f_{fovloss},\qquad
+S_{sup}=1-f_{supervisor}
+$$
+
+$$
+S_\theta=\exp\left[-\left(\frac{\operatorname{RMS}(\theta)}{\theta_{td}}\right)^2\right]
+$$
+
+$$
+S_j=\frac{1}{1+J_{rms}/J_{ref}}
+$$
+
+최종 지수:
+
+$$
+S_{stability}=\frac{100}{6}
+\left(S_x+S_v+S_{fov}+S_{sup}+S_\theta+S_j\right)
+$$
+
+해석:
+
+- 범위 0–100
+- 큰 값 우수
+- return·terminal outcome 제외
+- 성공률과 별도 보고
+- 가중치 임의 튜닝 제외
+
+![안정성 지표](assets/paper/paper_stability.png)
+
+## 착륙 불가능성과 LandingInhibit
+
+물리 authority margin:
+
+$$
+m_v=(v_{sustain}-v_{reserve})-v_{pad,peak}
+$$
+
+$$
+m_a=a_{x,max}-a_{pad}
+$$
+
+$$
+m_T=T_{max}-T_{deadline}
+$$
+
+물리 가능 조건:
+
+$$
+m_v\ge0,\qquad m_a>0,\qquad m_T\ge0
+$$
+
+구분:
+
+- `PhysicalFeasible=false`: speed·acceleration·mission-time authority 부족
+- `LandingInhibit=true`: 현재 시점 하강 금지
+- `LandingInhibit`: 영구적 임무 불가능 판정 제외
+
+원인 audit:
+
+- sensor dropout
+- trajectory/FOV loss
+- excessive relative speed
+- uncertainty/gate
+
+![물리 가능성과 하강 금지](assets/paper/paper_feasibility.png)
+
+## 구조 감사
+
+| 모델 | Policy $\lVert W_g\rVert_F$ | Value $\lVert W_g\rVert_F$ | 관계 경로 |
+|---|---:|---:|---|
+| Ontology R-GAT | 0 | 0 | 비활성 |
+
+추가 수치:
+
+- Policy relation head norm 0.1145
+- Value relation head norm 0.1026
+- relation context 0
+- rollout relation residual 0
+
+판정:
+
+- 선택 checkpoint의 raw semantic bypass 사용
+- R-GAT relation stage의 validation margin 미통과 가능성
+- 대표 시나리오의 R-GAT label 유지
+- 활성 R-GAT 기여 해석 제외
+
+![온톨로지 신호와 관계 감사](assets/paper/paper_ontology.png)
+
+## 회귀 테스트 범위
+
+| 범주 | 검증 |
+|---|---|
+| 레거시 보존 | PD 기준 수치 동일성 |
+| 동역학 | PN·CV/CA/CV·접촉 interpolation |
+| 센서 | body-fixed projection·가시성 경계 |
+| 정보경계 | 비가시 hidden truth 누수 차단 |
+| 추정기 | causal 갱신·불확실성·재포착 |
+| 보상 | terminal 1회·progress shaping·순서 |
+| PPO | gradient·GAE·rollout·checkpoint |
+| R-GAT | 순전파·역전파·typed relation |
+| 그래프 | 9노드·26간선·context tensor |
+| 논문 실행 | 고정 시나리오 주입·metric 범위 |
+
+## 미검증 범위
+
+- 다중 학습 seed 평균·표준편차
+- 활성 relation checkpoint 성능
+- 실제 ROS 2 transport
+- 실제 센서 latency·dropout 분포
+- 실제 기체 공력·제어 지연
+- 실제 비행 안전성
+- 보편적 온톨로지 우월성

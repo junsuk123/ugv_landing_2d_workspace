@@ -9,7 +9,7 @@ function schema = nodeSchema(variant)
 % 제거한 것은 Alignment와 TrackingStability로, 둘 다 PositionError의 단조 변환이라
 % 같은 정보를 두 번 넣는 셈이었습니다(기여도 0.013, 0.0003).
 % 두 값은 TouchdownSafety를 만드는 내부 항으로는 그대로 남아 있습니다.
-% 근거와 측정표는 docs/ONTOLOGY_RGAT_KO.md에 있습니다.
+% 최종 노드 근거와 측정표는 docs/ONTOLOGY_GRAPH_STATE_KO.md에 있습니다.
 %
 % RelativeMotionRisk는 이 시나리오의 핵심 원인 노드입니다. UGV가 속도를 바꾸면 패드가
 % 시야 밖으로 밀려나므로 FovMargin으로 가는 간선을 갖습니다. 이 연결이 있어야

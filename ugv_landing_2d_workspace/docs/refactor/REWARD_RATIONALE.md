@@ -1,66 +1,237 @@
-# Common reward rationale
+# 공통 보상 함수 최종 명세
 
-The primary experiment uses one fixed reward for all policy representations:
+## 결론
 
-$$
-r_t=B(e_t)-\frac{\Delta t}{T_{ref}}
-\left(w_g c_{goal}+w_v c_{view}+w_u c_{control}\right)
-+\frac{\Delta t}{T_{ref}}w_r q_{ready}
-+ \gamma_{\Delta t}\Phi(s_{t+1})-\Phi(s_t),
-$$
+- 세 PPO 모델의 보상 완전 동일
+- 온톨로지 기반 보상 가중치 변경 제외
+- 실제 truth 사용 범위: 보상·접촉·평가
+- 정책 입력 truth 누수 제외
+- dense progress와 terminal outcome 분리
+- terminal bonus 1회 지급
 
-where $\Phi(s)=-w_p c_{goal}(s)$, $\gamma_{\Delta t}=\exp(-\Delta t/70)$,
-and terminal states have zero potential. The shaping terms telescope under the
-same variable-time discount used by PPO, so they redistribute progress credit
-without changing the terminal-task optimum. The default is `wp=2.0`.
+## 전체 보상
 
-The three bounded running costs are
+코드 기준 한 decision step 보상:
 
 $$
-\zeta=(e_x/L_x)^2+(h/L_h)^2,\qquad c_{goal}=\frac{\zeta}{1+\zeta},
+r_t=B_t-C_t+w_r(q_t-q_{t-1})+gamma_{\Delta t}\Phi_t-\Phi_{t-1}
 $$
+
+여기서:
+
+$$
+C_t=\frac{\Delta t}{T_{ref}}
+\left(w_gc_{goal,t}+w_vc_{view,t}+w_uc_{control,t}\right)
+$$
+
+$$
+\gamma_{\Delta t}=\exp\left(-\frac{\Delta t}{\tau_\gamma}\right)
+$$
+
+$$
+\Phi_t=-w_pc_{goal,t}
+$$
+
+Terminal 시점:
+
+$$
+\Phi_t=0
+$$
+
+## Goal cost
+
+정규화 제곱 오차:
+
+$$
+x_2=\left(\frac{e_x}{L_x}\right)^2,
+\qquad
+h_2=\left(\frac{h}{L_h}\right)^2
+$$
+
+Bounded cost:
+
+$$
+c_{goal}=\rho_x\frac{x_2}{1+x_2}
++(1-\rho_x)\frac{h_2}{1+h_2}
+$$
+
+기본값:
+
+- $L_x=3$ m
+- $L_h=4$ m
+- $\rho_x=0.65$
+
+의도:
+
+- 수평 추종과 고도 감소의 분리
+- 큰 오차의 bounded penalty
+- 고도 감소만으로 수평 이탈 상쇄 방지
+
+## View cost
 
 $$
 c_{view}=\begin{cases}
-\min(1,(\beta/(FOV/2))^2), & \text{valid detection},\\
-1, & \text{otherwise},
+\min\left(1,\left(\dfrac{\beta}{\mathrm{FOV}/2}\right)^2\right),
+& \text{valid detection},\\
+1,&\text{otherwise}
 \end{cases}
-\qquad
-c_{control}=\tfrac12\|a_{norm}\|_2^2.
 $$
 
-`q_ready` is an exponential landing-readiness score. It is largest when
-horizontal error follows a bounded closing-speed target, vertical speed follows
-a height-dependent safe descent target, and relative speed, pitch, and pitch
-rate approach their touchdown limits. Unlike the potential difference, this is
-a genuine dense task preference and therefore addresses the observed one-success
-in roughly 15,000 episodes sparse-reward collapse.
+의도:
 
-Defaults are `Tref=70 s`, `Lx=3 m`, `Lh=4 m`, and running weights
-`[goal,view,control,readiness]=[2,1,0.25,8]`. Terminal bonuses are success `+25`,
-safe abort `-4`, timeout `-12`, and unsafe/unauthorized outcomes `-40`. During
-training only, unsafe penalties start at `-5` and tighten with the common
-performance-gated curriculum; evaluation always uses `-40`. The discount is
-`exp(-dt/70 s)`.
+- 광축 중심 유지 유도
+- 비가시 상태 최대 비용
+- FOV 경계 접근의 연속 penalty
 
-This is a literature-informed engineering design, not an equation copied from a
-paper and not a proof of optimal behavior. PPO supplies the policy optimization
-method ([Schulman et al., 2017](https://arxiv.org/abs/1707.06347)); the explicit
-safety/termination separation follows the general need to distinguish learned
-control from safety constraints in safe-control benchmarks
-([Yuan et al., 2022](https://arxiv.org/abs/2109.06325)). The thrust/attitude
-separation mirrors the acceleration-to-thrust/attitude layering documented by
-[PX4](https://docs.px4.io/v1.15/en/flight_stack/controller_diagrams), while the
-values here remain unvalidated simulation defaults. Vision-based landing on a
-moving platform is an established experimental problem
-([Lee et al., 2020](https://arxiv.org/abs/2008.05699)), but that work does not
-validate this simulator's estimator, reward, or safety thresholds.
+## Control cost
 
-Truth kinematics are isolated inside the simulator reward and evaluator. They are not an
-actor, critic, ontology, estimator, or supervisor feature. There is no positive
-attention reward, adaptive ontology weight, or remaining-horizon absorption
-multiplier. All three learned arms use exactly the same readiness and terminal
-reward. Terminal reward is paid exactly once.
+$$
+c_{control}=\frac12\lVert\bar a_t\rVert_2^2
+$$
 
-The code verifies local bounds, terminal ordering, and representative fixtures;
-the long audit-trajectory sensitivity study remains future validation work.
+- $\bar a_t=\tanh(u_t)$
+- supervisor 적용 전 정책 행동 기준
+- 과도한 가속도 명령 억제
+
+## Landing-readiness progress
+
+Safe target:
+
+$$
+v_{x,des}=-\operatorname{sign}(e_x)
+\min(v_{x,td},0.6|e_x|)
+$$
+
+$$
+v_{z,des}=-\min(0.8v_{z,td},0.5h)
+$$
+
+Risk:
+
+$$
+\eta=left(\frac{e_x}{L_{pad}}ight)^2
++\left(\frac{h}{h_r}\right)^2
++\left(\frac{\Delta v_x-v_{x,des}}{v_{x,td}}\right)^2
++\left(\frac{v_z-v_{z,des}}{v_{z,td}}\right)^2
++\left(\frac{\theta}{\theta_{td}}\right)^2
++\left(\frac{\dot\theta}{\dot\theta_{td}}\right)^2
+$$
+
+Readiness:
+
+$$
+q_t=\exp\left(-\frac12\min(\eta,100)\right)
+$$
+
+Progress reward:
+
+$$
+r_{ready}=w_r(q_t-q_{t-1})
+$$
+
+특징:
+
+- 절대 readiness 누적 제외
+- hover reward farming 방지
+- touchdown 조건 접근의 양의 신호
+- touchdown 조건 이탈의 음의 신호
+
+## Potential shaping
+
+$$
+r_{potential}=\gamma_{\Delta t}\Phi_t-\Phi_{t-1}
+$$
+
+특징:
+
+- 변수 timestep discount와 일치
+- terminal potential 0
+- 접근 진척의 시간 재분배
+- 세 모델 공통 적용
+
+## 기본 가중치
+
+| 항목 | 값 |
+|---|---:|
+| $T_{ref}$ | 70 s |
+| $\tau_\gamma$ | 70 s |
+| $w_g$ | 2.0 |
+| $w_v$ | 1.0 |
+| $w_u$ | 0.25 |
+| $w_r$ | 8.0 |
+| $w_p$ | 2.0 |
+
+## Terminal bonus
+
+| 사건 | 값 |
+|---|---:|
+| `SUCCESS` | +25 |
+| `SAFE_ABORT` | -15 |
+| `TASK_TIMEOUT` | -12 |
+| `UNSAFE_CONTACT` | -40 |
+| `UNAUTHORIZED_CONTACT` | -40 |
+| `MISSED_PAD_CONTACT` | -40 |
+| `SAFETY_ENVELOPE_VIOLATION` | -40 |
+
+## 세 모델 동일성
+
+공통 항목:
+
+- $c_{goal}$
+- $c_{view}$
+- $c_{control}$
+- readiness progress
+- potential shaping
+- terminal bonus
+- discount
+- termination rule
+
+모델별 변경 제외:
+
+- 상황별 reward weight 조정
+- ontology attention reward
+- graph auxiliary reward
+- R-GAT 전용 성공 bonus
+- semantic-flat 전용 penalty
+
+## 희소 보상 문제 대응
+
+과거 문제:
+
+- 성공 terminal의 극단적 희소성
+- safe abort 고착
+- partial descent 후 hover
+- 쉬운 curriculum checkpoint 선택
+
+최종 대응:
+
+- readiness 절대값 대신 signed progress
+- curriculum 완료 checkpoint만 최종 후보
+- timeout·abort·unsafe 순위 분리
+- nominal task 강제 노출
+- easy·bridge replay 유지
+
+## 정보경계
+
+Truth 사용 허용:
+
+- $e_x,h,\Delta v_x$ 기반 보상 계산
+- 실제 접촉 판정
+- terminal outcome
+- 사후 평가 metric
+
+Truth 사용 금지:
+
+- Actor 입력
+- Critic 입력
+- ontology graph 특징
+- observation memory 갱신의 hidden pad 참조
+- safety supervisor의 hidden pad 참조
+
+## 관련 코드
+
+- `src/+landing2d/+rl/computeReward.m`
+- `src/+landing2d/+environment/evaluateTermination.m`
+- `src/+landing2d/+rl/rewardAudit.m`
+- `tests/test_reward_transition.m`
+- `tests/test_termination_reward_v2.m`

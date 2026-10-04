@@ -1,54 +1,100 @@
 {
-  "schema_version": "refactor_progress_v2_8",
-  "branch": "codex/planar-visibility-ppo-v2",
-  "starting_head": "385e993aeda747db490f53c791934dc871029e2a",
-  "tasks": {
-    "T00": "passed",
-    "T01": "passed",
-    "T02": "passed",
-    "T03": "passed",
-    "T04": "passed",
-    "T05": "passed",
-    "T06": "passed",
-    "T07": "passed",
-    "T08": "passed",
-    "T09": "passed_bounded_only",
-    "T10": "passed",
-    "T11_realtime_causal_rgat": "passed_bounded_only",
-    "T12_semantic_residual_rgat": "passed_bounded_only",
-    "T13_semantic_action_constraint": "passed_bounded_only",
-    "T14_safety_aware_selection": "passed_bounded_only",
-    "T15_multiseed_driver": "passed_bounded_only"
+  "schema_version": "final_status_v2_8_paper",
+  "updated_at": "2026-10-04",
+  "branch": "main",
+  "code_commit_before_document_refresh": "7291b16",
+  "implementation": {
+    "environment": "complete",
+    "causal_observation_packet": "complete",
+    "semantic_flat_policy": "complete",
+    "ontology_rgat_policy": "complete",
+    "scratch_ppo_training": "complete",
+    "paper_validation": "complete",
+    "paper_visualization": "complete",
+    "documentation_refresh": "complete"
+  },
+  "contracts": {
+    "experiment": "planar_visibility_v2",
+    "environment": "environment_v2",
+    "observation": "causal_packet_v2",
+    "context_graph": "compact_context_graph_v3_grouped",
+    "algorithm": "planar-visibility-ppo-v2.8",
+    "paper_validation": "paper_validation_v1"
   },
   "tests": {
-    "non_graphics": {"passed": 26, "failed": 0},
-    "graphics_inclusive": {"passed": 31, "failed": 0},
-    "bounded_three_arm_smoke": "passed",
-    "sparse_reward_diagnostic": "v2.2 failed: approximately 1 success in 15000 episodes",
-    "v2_3_bounded_training": "passed: repeated training landings and curriculum promotion",
-    "v2_3_long_training": "failed: zero held-out success; curriculum stalled at 8-16 percent",
-    "v2_4_bounded_training": "passed: 13.3 percent peak window landing, 100 percent curriculum, eligible checkpoint selection",
-    "v2_5_physics_diagnostic": "passed: causal PN validation landing improved from 0/20 to 13/20 after authority, estimator, contact-plane, and FOV-aware descent corrections",
-    "v2_5_bounded_training": "passed diagnostic: 200-iteration compressed schedule reached 100 percent validation capture and produced a landing at 90 percent curriculum; nominal landing remained 0 percent",
-    "long_training": "v2.7 complete but not robust: test flat 80%/5% unsafe, R-GAT 82%/9% unsafe; v2.8 fresh run pending",
-    "held_out_multi_seed_evaluation": "v2.8 fresh test manifest and five-seed driver ready; long runs pending",
-    "v2_6_non_graphics": "26/26 passed",
-    "v2_6_three_arm_smoke": "passed",
-    "v2_6_four_stage_ablation_smoke": "passed",
-    "v2_6_policy_inference": "approximately 0.16 ms in bounded local profile; machine dependent",
-    "v2_7_root_cause": "v2.6 graph output effective rank approximately 2-3; lossy compression and frozen backbone",
-    "v2_7_flat_equivalence": "passed: identical smoke return and exact base Actor/Critic weights before relation stage",
-    "v2_7_policy_inference": "approximately 0.18 ms with 17001 parameters; machine dependent",
-    "v2_8_semantic_gate": "passed: inhibited descent residual is zero while braking/climb remains available",
-    "v2_8_validation": "100 selection seeds, unsafe weighted 2.5x success, fresh test seeds 3001:3200",
-    "v2_8_non_graphics": "26/26 passed",
-    "v2_8_graphics_inclusive": "31/31 passed",
-    "v2_8_three_arm_smoke": "passed",
-    "v2_8_multiseed_driver_smoke": "passed"
+    "matlab_version": "R2025b",
+    "non_graphics": {
+      "passed": 27,
+      "failed": 0
+    },
+    "graphics_inclusive": {
+      "passed": 32,
+      "failed": 0
+    },
+    "paper_pipeline": "passed",
+    "checkpoint_compatibility": "passed",
+    "task_fingerprint_parity": "passed",
+    "figure_export": "passed"
+  },
+  "held_out_test_100": {
+    "baseline": {
+      "success_rate": 0.74,
+      "unsafe_rate": 0.02,
+      "safe_abort_rate": 0.23,
+      "timeout_rate": 0.01,
+      "mean_return": 19.138580281012
+    },
+    "semantic_flat": {
+      "success_rate": 0.75,
+      "unsafe_rate": 0.09,
+      "safe_abort_rate": 0.13,
+      "timeout_rate": 0.03,
+      "mean_return": 18.4962619246904
+    },
+    "ontology_rgat": {
+      "success_rate": 0.72,
+      "unsafe_rate": 0.09,
+      "safe_abort_rate": 0.14,
+      "timeout_rate": 0.05,
+      "mean_return": 17.8728330812918
+    }
+  },
+  "paper_scenarios": {
+    "S1": {
+      "challenge": "nominal_alignment",
+      "baseline_terminal": "SUCCESS",
+      "semantic_flat_terminal": "UNAUTHORIZED_CONTACT",
+      "ontology_rgat_terminal": "SUCCESS",
+      "stability_index": [88.746, 85.037, 93.502]
+    },
+    "S2": {
+      "challenge": "rapid_acceleration",
+      "baseline_terminal": "SAFE_ABORT",
+      "semantic_flat_terminal": "SUCCESS",
+      "ontology_rgat_terminal": "SUCCESS",
+      "stability_index": [37.930, 75.938, 74.456]
+    },
+    "S3": {
+      "challenge": "visibility_recovery",
+      "baseline_terminal": "SAFE_ABORT",
+      "semantic_flat_terminal": "SUCCESS",
+      "ontology_rgat_terminal": "SUCCESS",
+      "stability_index": [47.599, 70.797, 80.655]
+    }
+  },
+  "architecture_audit": {
+    "ontology_rgat_policy_graph_readout_norm": 0,
+    "ontology_rgat_value_graph_readout_norm": 0,
+    "policy_relation_head_norm": 0.114546788416738,
+    "value_relation_head_norm": 0.102649118964821,
+    "relational_path_active": false,
+    "interpretation": "selected checkpoint uses raw semantic bypass; active R-GAT contribution not established"
   },
   "claims": {
     "integration_verified": true,
-    "performance_verified": false,
+    "single_seed_performance_measured": true,
+    "active_rgat_advantage_verified": false,
+    "multi_seed_superiority_verified": false,
     "real_flight_safety_verified": false
   }
 }

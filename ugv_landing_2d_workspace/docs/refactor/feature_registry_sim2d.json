@@ -1,0 +1,68 @@
+{
+  "schema_version": "causal_packet_v2",
+  "profile": "planar_visibility_v2",
+  "policy_vector_dimension": 26,
+  "source_of_truth": "landing2d.sensing.observationSchema",
+  "groups": {
+    "own_motion": [
+      "h",
+      "vx",
+      "vz",
+      "sinTheta",
+      "cosTheta",
+      "pitchRate"
+    ],
+    "pad_track": [
+      "exEstimate",
+      "relativeVxEstimate",
+      "padVxEstimate",
+      "padAxEstimate",
+      "positionStd",
+      "velocityStd",
+      "accelerationStd",
+      "trackInitialized"
+    ],
+    "visibility": [
+      "detected",
+      "measuredBearing",
+      "bearingValid",
+      "detectionConfidence",
+      "timeSinceLastDetection",
+      "predictedBearing",
+      "predictedFovMargin"
+    ],
+    "task_memory": [
+      "remainingMissionTime",
+      "previousNormalizedActionX",
+      "previousNormalizedActionZ",
+      "landingInhibited",
+      "abortRequested"
+    ]
+  },
+  "graph_projection": {
+    "schema": "compact_context_graph_v3_grouped",
+    "node_count": 9,
+    "feature_count_per_node": 12,
+    "flattened_dimension": 108,
+    "relation_context_dimension": 4
+  },
+  "causal_boundary": {
+    "allowed": [
+      "current own-state",
+      "current camera measurement",
+      "causal pad-track estimate",
+      "observation age",
+      "track uncertainty",
+      "previous normalized action",
+      "public safety state"
+    ],
+    "excluded": [
+      "hidden current pad truth while unobserved",
+      "future pad trajectory",
+      "scenario phase label",
+      "reward or return",
+      "terminal outcome",
+      "teacher action"
+    ]
+  }
+}

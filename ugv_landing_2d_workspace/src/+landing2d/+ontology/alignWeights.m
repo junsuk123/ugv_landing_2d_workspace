@@ -11,7 +11,7 @@ function [weights,info] = alignWeights(potentials,D,onto,rl)
 % 보상을 최대화하는 정책이 착륙을 향하게 됩니다.
 % 반사실 민감도는 "무엇이 Phi를 좌우하는가"(예측 기여도)를 재는 값이라
 % 가중치의 크기를 정하는 기준으로는 맞지 않습니다. 실제로 그 비율을 그대로
-% 쓰면 착륙이 최적해가 아닌 보상이 만들어집니다(docs/ONTOLOGY_RGAT_KO.md).
+% 쓰면 착륙이 최적해가 아닌 보상이 만들어집니다(docs/refactor/REWARD_RATIONALE.md).
 if ~iscell(potentials)
     potentials = {potentials};
 end

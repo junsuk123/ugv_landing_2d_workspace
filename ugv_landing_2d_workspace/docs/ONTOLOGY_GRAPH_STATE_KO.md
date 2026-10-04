@@ -1,483 +1,340 @@
-# 온톨로지 그래프 상태 표현 (제안 모델)
-
-> **v2.6 변경:** 현재 기본 제안 모델은 query node를 제거한 9노드·26간선
-> 1층 R-GAT과 4개 의미 그룹 readout을 사용합니다. 이 문서의
-> PolicyNode/ValueNode 및 2층 구조 설명은 v2.5 이전 실험 기록입니다.
-
-이 문서는 PPO에 넣을 **상태 표현**을 온톨로지 그래프로 바꾼 제안 모델의 설계와
-근거를 적습니다. 보상 가중치를 설계하던 옛 제안 모델은
-[ONTOLOGY_RGAT_KO.md](ONTOLOGY_RGAT_KO.md)에 그대로 남아 있으며, 이 문서의
-방법과는 완전히 분리되어 있습니다.
-
-## 1. 무엇을 바꿨는가
-
-기준 모델과 제안 모델의 차이는 **PPO가 받는 상태 표현 하나**입니다.
-
-```
-기준 모델
-  o_t (11차원 관측 벡터)  ->  Actor / Critic
-
-제안 모델
-  o_t와 같은 관측 정보
-        -> 온톨로지 상황 그래프 G_t = (V_t, E_t, X_t)
-        -> 9개 의미 노드 + PolicyNode/ValueNode
-        -> R-GAT -> H_t (11개 노드 임베딩)
-        -> Actor(H_t(:,PolicyNode)) / Critic(H_t(:,ValueNode))
-```
-
-다음은 두 모델이 **완전히 같습니다**. `landing2d.graphstate.assertSameProblem`이
-실행 중에 이를 강제하고(다르면 즉시 중단), `run_all`이 학습 전에 호출합니다.
-
-| 항목 | 구현 위치 |
-| --- | --- |
-| 보상 함수와 계수 | `+rl/rolloutEpisode.m`의 `captureSignal` / `distanceSignal` |
-| 행동 정의와 한계 | `+rl/actionFromCommand.m`, `cfg.axMax` / `cfg.azMax` |
-| 환경 동역학 | `+dynamics/stepDrone.m` |
-| 센서 | `+sensing/observePad.m` |
-| 종료 조건 | `+environment/resolveContact.m` |
-| PPO 알고리즘 | `+rl/ppoTrain.m` |
-| PPO 하이퍼파라미터 / 학습 일정 / 시드 | `+rl/defaultRlConfig.m` |
-| 평가 시나리오 | `cfg.scenarioSpeeds` |
-
-**온톨로지와 R-GAT은 보상에 전혀 관여하지 않습니다.** 보상 가중치 생성, 가중치
-동적 변경, 보상항 교체/추가, 잠재함수 생성, 잠재 기반 보상 성형, 보상 모드 선택
-가운데 어느 것도 새 경로에는 없습니다.
-
-### 학습 조건
-
-**학습 조건은 위 목록과 달리 실험 설계에 따라 달라집니다.** 제안 모델은 기본적으로
-기준 유도 법칙을 교사로 모방하지 않고 처음부터 학습합니다
-(`cfg.graphState.useScratchSettings = true`).
-
-모방 학습으로 초기화하면 정책이 유도 법칙의 거동을 그대로 물려받습니다. 두 비교군을
-모두 모방 학습으로 초기화했을 때, 비가시 구간 궤적의 RMS 차이는 다음과 같았습니다
-(시나리오 1, 비가시 표본 3,463개).
-
-| 비교 | 고도 RMS | 수평 오차 RMS |
-| --- | --- | --- |
-| PN 유도 vs 기준 모델 | 0.984 m | 0.616 m |
-| PN 유도 vs 제안 모델 | 1.378 m | 0.486 m |
-| 기준 모델 vs 제안 모델 | 0.766 m | **0.195 m** |
-
-두 비교군이 서로 가까운 것은 제안 모델이 기준 모델을 따라갔기 때문이 아니라
-**둘 다 같은 교사를 따라갔기 때문**입니다. 이 상태로는 패드가 시야에서 사라진
-구간에서 온톨로지 그래프 상태가 무엇을 바꾸는지 볼 수 없습니다.
-
-세 가지 실험 설계를 고를 수 있습니다.
-
-| `cfg.scratchBaseline` | `cfg.graphState.useScratchSettings` | 내용 | 학습 조건 차이 |
-| --- | --- | --- | --- |
-| false | false | 둘 다 교사 사용 | 없음 (통제됨) |
-| false | true (기본) | 기준만 교사, 제안은 교사 없음 | 있음 (출력됨) |
-| true | true | 둘 다 교사 없음 | 없음 (통제됨) |
-
-```matlab
-run_all(struct('scratchBaseline',true));   % 실험 변수 = 상태 표현 하나
-```
-
-기본값(두 번째 줄)은 상태 표현 외에 학습 조건도 함께 달라집니다.
-`assertSameProblem`은 이 경우 **중단하지 않고 달라진 항목을 목록으로 돌려주며**,
-`run_all`이 결과와 같은 화면에 출력합니다. 결과를 해석할 때 이 목록을 반드시
-함께 밝혀야 합니다. 상태 표현만의 효과를 보려면 첫 번째나 세 번째를 쓰십시오.
-
-## 2. 구성 요소
-
-| 파일 | 역할 |
-| --- | --- |
-| `+graphstate/observationSemantics.m` | 관측만으로 온톨로지 의미 채널 계산 (적응 계층) |
-| `+graphstate/nodeFeatures.m` | 노드 특징 행렬 X_t 구성 |
-| `+graphstate/situationGraph.m` | G_t = (V_t, E_t, X_t) 생성 |
-| `+graphstate/schemaFor.m` | 표현 방식별 스키마와 간선 색인표 |
-| `+graphstate/encoderInit/Forward/Backward.m` | R-GAT 부호기 + Policy/Value 가상 노드 읽기 |
-| `+graphstate/applyStateRepresentation.m` | 상태 표현만 바꾸는 설정 헬퍼 |
-| `+graphstate/assertSameProblem.m` | 보상/행동/환경/PPO 동일성 실행 중 검사 |
-| `+graphstate/inspectPipeline.m` | o_t → G_t → H_t → h_policy/h_value → a_t 디버깅 출력 |
-
-### 노드와 간선
-
-9개 의미 노드와 그 사이의 간선은 기존
-`landing2d.ontology.nodeSchema('core')`에서 옵니다. 정책 그래프 어댑터가 센서값을
-갖지 않는 `PolicyNode`와 `ValueNode`를 추가합니다.
-
-- 노드 9개: PositionError, DescentSpeed, RelativeMotionRisk, FovMargin, SearchDuration,
-  PadVisibility, RelativeDistance, TouchdownSafety, SafeLanding
-- 가상 의사결정 노드 2개: PolicyNode, ValueNode
-- 관계 4종: `degrades`, `supports`, `contributes`, `self`
-- 9개 의미 노드 각각에서 두 가상 노드로 `contributes` 간선을 추가
-- 관계 유형을 유지한 채 `(i, r, j)`로 표현
-
-관계 유형은 합치지 않습니다. `gat` 제거 실험에서만 하나로 합칩니다.
-
-### 노드 특징 행렬 X_t
-
-```
-1     : 노드 값 (온톨로지가 정의한 크기, [0,1))
-2     : 1 - 노드 값
-3     : 위험 노드 표시
-4     : 편향
-5     : 방향 부호 ([-1,1], 방향이 없는 노드는 0)
-6.... : 노드 정체성 one-hot
-```
-
-5행은 노드가 나타내는 양의 **부호**입니다. 노드 값이 전부 절댓값이라
-좌/우와 상승/하강이 사라지는 것을 막습니다(4.2). `PadVisibility`에서는 이 자리가
-추종 구간(+1) / 탐색 구간(-1) / 종료(0)를 나타냅니다(4.4).
-
-보상 설계 경로가 쓰는 `landing2d.ontology.buildGraph`(5행 없음)는 그대로 두고,
-상태 표현 전용으로 `landing2d.graphstate.nodeFeatures`를 따로 두었습니다.
-
-rollout 자료 구조는 미니배치 연결을 위해 `X_t(:)`를 한 열로 저장합니다. 이것은
-저장 레이아웃일 뿐이며 flatten-MLP가 아닙니다. `encoderForward`가 먼저
-`feature × node × batch`로 복원하고 `encoderSpec.T`의 고정 `src/dst/rel`로
-R-GAT message passing을 수행합니다.
-
-### R-GAT과 가상 노드 읽기
-
-관계형 주의 계층 두 개(`landing2d.rgat.relationForward`, 잔차 연결)로 그래프
-**전체**를 부호화해 `H_t ∈ R^(d × 11)`를 얻습니다. Actor와 Critic은 전역
-pooling 대신 각자의 가상 노드 임베딩을 직접 읽습니다.
-
-```
-h_policy = H_t(:, PolicyNode)
-h_value  = H_t(:, ValueNode)
-```
-
-두 가상 노드의 값·방향·동적 문맥은 항상 0입니다. 따라서 센서나 결과 레이블을
-추가하지 않고, 모든 의미 노드에서 들어온 관계형 메시지만 서로 다른 query로
-집계합니다. 제안 경로에는 `mean/max` 투영 파라미터 `W_g`가 없습니다.
-노드 수가 스키마에 고정되어 있어 덧붙임(padding)과 가림(mask)이 필요 없습니다.
-
-### Actor / Critic과 기울기
-
-Actor와 Critic은 **각자 부호기를 하나씩** 가집니다
-(`agent.policy.encoder`, `agent.value.encoder`). 두 망은 이미 학습률과 Adam 상태가
-분리되어 있어, 부호기를 각 구조체 안에 두면 기존 최적화기 구성을 그대로 쓸 수
-있습니다. 공유 부호기로 만들면 서로 다른 학습률의 기울기를 한 파라미터에 합쳐야
-해서 변경 폭이 더 커집니다. 두 부호기는 같은 G_t를 받고 같은 구조를 쓰지만,
-정책 부호기는 PolicyNode를, 가치 부호기는 ValueNode를 읽습니다.
-
-기울기는 PPO 목적함수에서 부호기까지 이어집니다. 미리 계산해 얼리거나 중간에
-끊지 않습니다. `landing2d.rl.mlpBackward`가 입력 기울기를 함께 돌려주고,
-`+graphstate/encoderBackward.m`이 읽기 → R-GAT으로 역전파합니다.
-`tests/test_graph_state_encoder.m`이 중앙 차분과 비교하고,
-`tests/test_graph_state_ppo.m`이 학습 중 부호기 파라미터가 실제로 갱신되는지
-확인합니다.
-
-## 3. 정보경계
-
-제안 모델은 기준 모델이 보는 정보만 씁니다.
-
-| 노드 | 출처 |
-| --- | --- |
-| PositionError | `obs.xError` (가시) / `memory.lastError` (비가시) |
-| DescentSpeed | `s.vz` |
-| RelativeMotionRisk | `obs.vError` / `memory.lastPadSpeed - s.vx` |
-| FovMargin | `obs.xError`, `obs.halfWidth`, `obs.visible` |
-| SearchDuration | `memory.timeSinceSeen` |
-| PadVisibility | `obs.visible`, `s.mode` (추종/탐색 구간 = 기준 관측의 o2/o3) |
-| RelativeDistance | `obs.xError` / `memory.lastError`, `s.h` |
-| TouchdownSafety | 위 추정값들과 `s.vz` |
-| SafeLanding | 상수 0 (목표 노드, 관측 대상이 아님) |
-
-보상 설계에 쓰는 `landing2d.ontology.semanticState`는 환경 참값
-(`truth.error`, `truth.rate`, `truth.speed`)을 인자로 받습니다. 상태 표현용
-`observationSemantics`는 **그 인자를 아예 받지 않습니다.** 함수 서명 자체가
-정보경계를 강제하며, `tests/test_graph_state_adapter.m`이 이를 검사합니다.
-
-## 4. 구현 중 발견한 문제와 수정
-
-온톨로지 의미 채널은 원래 **보상 가중치 설계**용으로 만들어진 것입니다. 그대로
-정책의 상태로 쓰면 문제가 생깁니다. 아래 수정은 모두 노드/간선/관계를 그대로 둔 채
-적응 계층과 부호기 설정에서만 했습니다.
-
-아래에서 쓰는 **교사 모방 손실**은 교사 시연 약 17,000표본에 대해 각 표현으로
-교사 명령을 회귀했을 때의 최종 손실입니다. 값이 클수록 그 표현으로는 교사의
-행동조차 재현할 수 없다는 뜻이므로, **정보가 사라진 곳을 찾는 데** 쓸 수 있습니다.
-다만 최종 착륙 성능을 예측하지는 못합니다(4.3 참고). 기준 관측 벡터는 **0.0071**입니다.
-
-### 4.1 잘라내기 정규화로는 비행 영역을 덮을 수 없음
-
-처음에는 보상 설계용 기준(`positionScale = 2.5 m`, 거리 기준
-`rl.distanceScale = 6.0 m`)을 잘라내기 `min(1, x/scale)`로 그대로 썼습니다.
-
-- `RelativeDistance`가 표본의 **74.6%**에서 1.0에 포화
-- `PositionError`가 **42.7%**에서 포화
-
-고도가 상태에서 사실상 사라져 정책이 상한 고도(25 m)까지 올라가 한 번도 착륙하지
-못했습니다. 기준을 넓히자(10 / 25) 이번에는 반대로 패드 근처가 전부 0으로
-뭉개졌습니다. h = 0.5 m에서 `RelativeDistance`가 0.02, h = 0.1 m에서 0.004입니다.
-
-이 문제의 값들은 두 자리 수 이상 범위를 갖습니다. 수평 오차는 탐색 중 10 m에서
-접지 직전 0.02 m까지, 고도는 18 m에서 0.05 m까지 변합니다. **잘라내기는 기준값
-하나로 두 구간을 동시에 덮을 수 없습니다.**
-
-수정: 부드러운 포화 `x/(x + scale)`로 바꿨습니다. 0 근처에서는 `x/scale`에
-가깝고 멀리서는 1에 수렴하므로 어느 구간에서도 기울기가 0이 되지 않습니다.
-값은 [0,1)에 머물고 "클수록 나쁨"이라는 노드 의미도 그대로입니다. `scale`은 이제
-잘라내는 지점이 아니라 **값이 0.5가 되는 지점**입니다
-(`positionScale = 1.0`, `distanceScale = 3.0`).
-
-효과는 수평 명령에 뚜렷했습니다. 높은 고도 구간(h >= 2.5 m)의 교사 수평 명령
-회귀 손실이 0.0970에서 0.0411로 줄었습니다.
-
-### 4.2 노드 값이 전부 절댓값이라 방향이 사라짐
-
-더 큰 문제입니다. 온톨로지 노드 값은 모두 "위험의 크기"라서 절댓값입니다.
-
-```
-PositionError = |오차| / (|오차| + scale)
-DescentSpeed  = |vz| / vzMax
-FovMargin     = |오차| / (|오차| + 시야반폭)
-```
-
-보상 가중치를 설계할 때는 크기만 알면 되지만, 정책의 상태로 쓰면 **좌/우와
-상승/하강을 구분할 수 없습니다.** 어느 쪽으로 가야 하는지 모르는 상태에서는
-제어가 성립하지 않습니다.
-
-측정값:
-
-| 표현 | 교사 모방 손실 |
-| --- | --- |
-| 기준 관측 벡터 11차원 | 0.0071 |
-| 온톨로지 노드 값 9개만 | 0.3520 |
-| + 수평 오차 부호 | 0.1828 |
-| + 시야 오프셋 부호 | 0.1904 |
-| + 부호 전체 | 0.0378 |
-
-수정: 노드 값(온톨로지 의미)은 그대로 두고, 노드 특징 행렬 X_t에 `[-1,1]`
-방향 부호 채널을 한 줄 추가했습니다. 노드 집합, 간선, 관계 유형은 바뀌지
-않으며, 보상 설계 경로가 쓰는 `buildGraph`도 그대로입니다.
-
-### 4.3 이전 mean/max 읽기 단계의 병목 (과거 실험)
-
-두 수정을 적용한 뒤에도 교사 모방 손실이 0.0949로, 같은 노드 값과 부호에 일반
-MLP를 붙였을 때(0.0378)보다 나빴습니다. 노드 9개를 `g_t` 한 벡터로 모으는
-읽기 단계가 병목이었습니다. 아래 표는 가상 노드 구조로 교체하기 전 측정이며,
-현재 기본 경로의 성능 수치가 아닙니다.
-
-| hiddenDim / graphDim | 읽기 | 교사 모방 손실 |
-| --- | --- | --- |
-| 16 / 16 | mean+max | 0.0949 |
-| **32 / 32** | **mean+max** | **0.0667** |
-| 48 / 48 | mean+max | 0.0674 |
-| 32 / 32 | mean | 0.0821 |
-
-이 결과가 전역 pooling을 제거하고 PolicyNode/ValueNode 직접 읽기로 바꾼 근거입니다.
-`meanmax`와 `mean`은 현재 제거 실험 옵션으로만 남아 있습니다.
-
-**폭은 모방 손실이 아니라 실제 착륙률로 정했습니다.** 처음 단일 시드로 돌렸을
-때는 폭 32가 오히려 나빠 보였지만(3/3 → 0/3), 시드를 바꿔 보니 그 시드가 운이
-나빴을 뿐이었습니다. 시드 3개 평균으로는 32가 낫습니다.
-
-| 폭 | 시드별 착륙률 | 평균 착륙률 | 평균 점수 | 학습 시간 |
-| --- | --- | --- | --- | --- |
-| 16 | 100% / 0% / 33% | 44% | -109.4 | 약 300 s |
-| **32** | 0% / 67% / 100% | **56%** | **-20.8** | 약 600 s |
-
-폭 32는 학습 시간이 두 배입니다. 시간이 급하면 16으로 낮춰도 됩니다.
-
-**모방 손실은 최종 성능의 대리 지표로 쓸 수 없습니다.** 4.1과 4.2처럼 정보가
-실제로 사라진 경우를 찾는 데는 잘 듣지만(0.35 대 0.007은 명백한 신호), 0.0949와
-0.0667의 차이는 최종 착륙률의 순위를 예측하지 못했습니다. 설정을 바꿀 때는 반드시
-여러 시드에서 착륙률로 확인하십시오. 재현 방법은 7절에 있습니다.
-
-### 4.4 종말단계에서 추종 구간과 탐색 구간을 구분하지 못함
-
-학습된 정책을 실제로 돌려 보니 약 7초 주기의 리밋 사이클에 갇혀 있었습니다.
-
-```
-h = 2.1 m 에서 하강 시작
-  -> 하강하는 동안 수평 오차가 0.15 m 에서 0.43 m 로 오히려 커짐
-  -> h = 0.9 m 에서 시야 반폭(0.466 h = 0.42 m)을 넘어 패드 상실 -> mode 2
-  -> az = +1.7 로 급상승해 h = 2.1 m 로 복귀 -> 재포착 -> 처음으로
-```
-
-시야 원뿔이 고도에 비례해 좁아지므로, 수평 오차를 줄이지 못한 채 내려가면
-반드시 어느 고도에서 패드를 놓칩니다.
+# 온톨로지 상황 그래프와 R-GAT 정책 상태 설계
+
+## 결론
+
+- 온톨로지 역할: 보상 가중치 조절이 아닌 Actor/Critic 상태 표현
+- 입력 원천: baseline과 동일한 causal sensor packet
+- 구조: 9개 의미 노드, 17개 의미 간선, 9개 자기 간선
+- 특징: 노드당 12개, 전체 108개
+- 정책 결합: raw semantic bypass + 4차원 relation context residual
+- 실시간 처리: 순전파만 적용
+- 정보 누수: hidden truth·보상·미래·성공 라벨 제외
+- 최신 체크포인트 상태: relation readout 0, 활성 관계 기여 제외
+
+![온톨로지 상황 그래프](assets/ontology_graph.svg)
+
+## 설계 목표
+
+- 패드 가시성·상대운동·기체상태·하강 안전성의 명시적 분리
+- 방향과 크기의 동시 보존
+- 미관측 시 uncertainty와 observation age 보존
+- 불필요 노드·고립 노드·중복 관계 제외
+- R-GAT 관계 유형별 message passing 적용
+- semantic-flat 비교군과 동일 정보량 유지
+- 그래프 병목 발생 시 raw semantic 정보 보존
+
+## 입력 경계
+
+정책 입력 packet:
+
+$$
+o_t=[o_t^{\mathrm{own}},o_t^{\mathrm{track}},o_t^{\mathrm{visibility}},o_t^{\mathrm{memory}}]\in\mathbb{R}^{26}
+$$
+
+| 그룹 | 필드 수 | 내용 |
+|---|---:|---|
+| `own_motion` | 6 | 고도, $v_x$, $v_z$, $\sin\theta$, $\cos\theta$, pitch rate |
+| `pad_track` | 8 | 상대위치·상대속도·패드 운동 추정, 공분산 대용 표준편차, 초기화 mask |
+| `visibility` | 7 | 검출, bearing, confidence, 미관측 시간, 예측 bearing·FOV margin |
+| `task_memory` | 5 | 잔여시간, 직전 행동, `LandingInhibit`, abort 요청 |
+
+허용 입력:
+
+- 현재 own-state
+- 현재 카메라 검출
+- causal pad-track 추정
+- 검출 age와 uncertainty
+- 직전 정책 행동
+- 공통 안전 감독기의 공개 상태
+
+금지 입력:
+
+- 비가시 시점의 실제 패드 위치·속도
+- 예정된 CV/CA/CV phase 번호
+- 미래 패드 궤적
+- reward·return·advantage
+- 성공·실패·terminal label
+- PN 교사 행동
+- 평가용 truth metric
+
+## 노드 설계
+
+| 번호 | 노드 | 그룹 | 핵심 입력 | 정책 의미 |
+|---:|---|---|---|---|
+| 1 | `PadVisibility` | Perception | detected, bearing, predicted margin, confidence | 현재·예측 시야 상태 |
+| 2 | `PadMotion` | Tracking | $\hat v_p$, $\hat a_p$, uncertainty | 패드 운동 추세 |
+| 3 | `DroneTranslation` | Vehicle | $h,v_x,v_z$ | 드론 병진 상태 |
+| 4 | `DroneAttitude` | Vehicle | $\theta,\dot\theta$ | 카메라·추력 방향 상태 |
+| 5 | `RelativeTracking` | Tracking | $\hat e_x,\widehat{\Delta v_x}$, uncertainty | 상대 추종 오차 |
+| 6 | `TrackingCorrection` | Tracking | signed correction, braking demand | 수평 복구 방향 |
+| 7 | `ViewRecovery` | Perception | loss age, predicted bearing, FOV urgency | 재포착 필요도 |
+| 8 | `DescentEligibility` | Safety | confidence, position·speed·attitude risk | 추가 하강 허용도 |
+| 9 | `LandingInhibit` | Safety | inhibit, abort, age, uncertainty | 현재 하강 금지 |
+
+노드 선택 기준:
+
+- 제어 결정에 직접 연결되는 의미만 유지
+- 실제 센서·추정 필드로 계산 가능한 의미만 유지
+- 동일 의미를 반복하는 노드 제외
+- 보상항 전용 노드 제외
+- PolicyNode·ValueNode 같은 빈 query node 제외
+
+## 관계 설계
+
+### 의미 간선 17개
+
+| 출발 | 도착 | 관계 |
+|---|---|---|
+| `PadMotion` | `RelativeTracking` | `informs` |
+| `DroneTranslation` | `RelativeTracking` | `informs` |
+| `DroneAttitude` | `PadVisibility` | `affects_visibility` |
+| `DroneTranslation` | `PadVisibility` | `affects_visibility` |
+| `PadMotion` | `TrackingCorrection` | `informs` |
+| `RelativeTracking` | `TrackingCorrection` | `informs` |
+| `PadVisibility` | `ViewRecovery` | `informs` |
+| `DroneAttitude` | `ViewRecovery` | `informs` |
+| `RelativeTracking` | `ViewRecovery` | `informs` |
+| `PadVisibility` | `DescentEligibility` | `supports` |
+| `RelativeTracking` | `DescentEligibility` | `informs` |
+| `DroneTranslation` | `DescentEligibility` | `informs` |
+| `DroneAttitude` | `DescentEligibility` | `informs` |
+| `PadVisibility` | `LandingInhibit` | `informs` |
+| `RelativeTracking` | `LandingInhibit` | `informs` |
+| `DroneTranslation` | `LandingInhibit` | `informs` |
+| `LandingInhibit` | `DescentEligibility` | `inhibits` |
+
+추가 구조:
+
+- 각 노드 자기 간선 1개
+- 전체 자기 간선 9개
+- 전체 간선 26개
+- 간선 방향 보존
+- 자동 대칭화 제외
+- relation embedding 적용
+
+## 노드 특징 텐서
 
-원인은 **추종 상태기계의 구간이 그래프에 없다는 것**이었습니다. 교사의 수직
-명령은 구간에 따라 완전히 다른 법칙을 씁니다(`landing2d.control.pnGuidance`).
-
-```
-mode 1 (추종/착륙) : az ~ -pnClosingGain * (min(pnApproachSpeed, pnApproachGain*R) + vz)
-mode 2 (상승 탐색) : az  = pnVerticalGain * (climbReference - vz)
-```
-
-h < 1.5 m 구간에서 교사 az의 평균은 **mode 1에서 0.024, mode 2에서 2.005**로
-거의 상승 한계입니다. 같은 (고도, 수평 오차, 하강 속도)에서 명령이 정반대이므로,
-구간을 모르면 **어느 쪽도 재현할 수 없습니다.** 기준 관측 벡터는 이 값을
-`o(2) = (mode == 2)`, `o(3) = (mode == 3)`으로 명시적으로 받고 있었습니다.
-
-고도 구간별 교사 수직 명령 회귀 손실:
+그래프 상태:
 
-| 구간 | 그래프 | 그래프 + 구간 | 기준 관측 |
-| --- | --- | --- | --- |
-| h < 1.0 m | 0.0445 | **0.0014** | 0.0029 |
-| 1.0 - 2.5 m | 0.0376 | 0.0135 | 0.0075 |
-| h >= 2.5 m | 0.0097 | 0.0013 | 0.0006 |
-
-수정: `PadVisibility` 노드의 방향 부호 채널에 추종 구간을 실었습니다
-(+1 추종, -1 탐색, 0 종료). 이 노드는 원래 포착 상태를 나타내고 출처에도
-`s.mode`가 이미 들어 있으므로, **새 노드도 새 관계도 만들지 않았습니다.**
-기준 모델이 이미 보던 것과 같은 정보이므로 특권 정보도 아닙니다.
-
-수정 후 종말단계 수직 명령 손실은 0.0007로 기준 관측 벡터(0.0029)보다
-좋아졌습니다.
-
-### 4.5 손대지 않은 것과 그 이유
-
-**지수 채널의 포화.** `TouchdownSafety`는 지수 네 개의 곱이라 대부분의 상태에서
-0 근처에 몰려 있습니다(평균 0.025, 표준편차 0.11). `alignScale` / `speedScale`을
-넓히면 모방 손실이 0.1107 → 0.0873으로 조금 줄지만, 이 기준은 **접지 근처
-해상도**를 정하는 값이라 넓히면 착륙 직전 판단이 둔해집니다. 이득이 작고
-의미를 해치므로 기본값을 그대로 두었습니다.
-
-**온톨로지 구조.** 다음은 기준 관측 벡터와 9개 노드의 표현 차이입니다.
+$$
+G_t=(V,E,R,X_t),\qquad X_t\in\mathbb{R}^{12\times9}
+$$
 
-- `RelativeMotionRisk`는 FOV 위험을 직접 만드는 상대 속도만 사용합니다. 절대 패드
-  속도는 위험에서 제외하고, 관측 가속 추세와 FOV 여유 변화율은 동적 문맥 채널로
-  관련 노드에 전달합니다.
-- 기준 모델은 수평 오차를 관측값(`o4`)과 추측 항법값(`o7`) 두 채널로 따로
-  보지만, 그래프는 `PositionError` 하나로 합칩니다. 높은 고도(h >= 2.5 m)에서
-  수평 명령 손실이 아직 기준 모델보다 큽니다(0.0245 대 0.0070).
-
-나머지 정보 차이를 메우려면 **새 온톨로지 노드**를 만들거나 한 노드에 서로 다른
-물리량을 더 얹어야 합니다. 요구사항상 근거 없이 온톨로지 클래스를 늘리지 않았고,
-대신 물리적으로 직접 연결되는 동적 문맥만 추가했습니다. 과거 교사 모방 손실 수치는
-현재 의미 정의와 호환되지 않으므로 새 알고리즘 버전에서 다시 측정해야 합니다.
+노드 $i$의 특징:
 
-방향 부호 채널을 추가한 것은 이 원칙의 예외가 아닙니다. 새 물리량을 넣은 것이
-아니라, 노드가 이미 나타내는 바로 그 양의 부호를 되살린 것입니다. 부호가 없으면
-좌/우를 구분할 수 없어 제어 자체가 성립하지 않습니다.
+$$
+x_i=[p_i,\tilde p_i,s_i,\tilde s_i,m_i,c_i,u_i,\tau_i,q_i,T_i,1,\kappa_i]^\top
+$$
 
-### 4.6 과거 성능 기록 — 현재 결론에 사용 금지
+| 채널 | 의미 | 범위 |
+|---|---|---|
+| `primary` | 주요 의미 크기 | $[-1,1]$ |
+| `signedPrimary` | 주요 방향 | $[-1,1]$ |
+| `secondary` | 보조 의미 크기 | $[-1,1]$ |
+| `signedSecondary` | 보조 방향 | $[-1,1]$ |
+| `validity` | 측정·추정 유효성 | $[0,1]$ |
+| `confidence` | 검출·track 신뢰도 | $[0,1]$ |
+| `uncertainty` | 위치·속도·가속도 불확실성 | $[0,1]$ |
+| `trend` | 속도·가속도·변화 방향 | $[-1,1]$ |
+| `urgency` | FOV·복구·금지 긴급도 | $[0,1]$ |
+| `remainingTime` | 정규화 잔여시간 | $[0,1]$ |
+| `bias` | 상수 1 | 1 |
+| `typeId` | 노드 식별자 | $(0,1]$ |
 
-아래 수치는 mean/max readout과 종말 보상 수정 전 실행에서 얻었습니다.
-`PolicyNode/ValueNode` 및 `terminal-outcome-v1` 체크포인트를 재학습하기 전에는
-현재 제안 모델의 성능 근거로 사용할 수 없습니다.
-
-#### 두 비교군 모두 교사를 쓴 경우 (시드 3개)
-
-`cfg.graphState.useScratchSettings = false`, 즉 두 비교군 모두 PN 유도를 교사로
-모방 학습한 조건입니다. 보상, 행동, 환경, 종료 조건, PPO 설정, 학습 반복 수, 시드가
-모두 같아 실험 변수가 상태 표현 하나인 통제된 비교입니다.
-
-| 상태 표현 | 시드별 착륙률 | 평균 착륙률 | 평균 점수 | 평균 포착률 |
-| --- | --- | --- | --- | --- |
-| 기준 관측 벡터 | 100% / 100% / 100% | 100% | +125.4 | 86% |
-| 온톨로지 그래프 | 100% / 100% / 100% | 100% | +97.0 | 84% |
-
-4.4를 고치기 전에는 56%(0% / 67% / 100%)였고 평균 점수가 -20.8이었습니다.
-
-#### 두 비교군 모두 교사 없이 학습한 경우
-
-`cfg.scratchBaseline = true`, `cfg.graphState.useScratchSettings = true`.
-학습 조건 차이가 0개이므로 실험 변수는 상태 표현 하나뿐입니다.
-
-| 상태 표현 | 최초 착륙 | 최종 착륙률 | 최종 점수 | 포착률 | 착륙 시각 |
-| --- | --- | --- | --- | --- | --- |
-| 기준 관측 벡터 | 없음 | 0% | -38.2 | 85% | 없음 |
-| 온톨로지 그래프 | 550반복 | **100%** | **+151.4** | **95%** | 28.7 / 31.1 / 38.3 s |
-
-**이 조건이 두 표현의 차이를 가장 뚜렷하게 보여 줍니다.** 기준 관측 벡터로는 교사 없이
-2500반복 동안 한 번도 착륙하지 못하고, 포착률만 높은 국소 최적해(떠서 패드를 시야에
-유지)에 갇힙니다. 온톨로지 그래프 상태는 550반복에서 착륙을 찾고 최종적으로 착륙률
-100%에 도달하며, 점수(+151.4)와 착륙 시각(28.7 / 31.1 / 38.3 s) 모두 **교사를 쓴
-기준 모델(+125.4, 30.2 / 39.3 / 42.1 s)을 넘어섭니다.**
-
-교사가 있으면 그 사전 지식이 표현의 차이를 덮습니다. 온톨로지 그래프 상태의 이점은
-사전 지식 없이 학습할 때 드러납니다.
-
-#### 학습 곡선과 조기 종료
-
-교사 없는 제안 모델의 학습 경과입니다.
-
-```text
-550반복   최초 착륙
-1100반복  점수 124.00 (착륙 100%)
-~2300반복 이 점수를 넘지 못하는 긴 정체 구간 (평가 51회)
-2375반복  점수 151.38 (착륙 100%)  <- 최종 선택
-```
-
-정체 구간이 길다가 뒤늦게 크게 좋아집니다. 그래서 학습 시간을 줄이려고 도입했던
-조기 종료(`rl.earlyStopPatience`)는 **기본값을 0(끔)으로 되돌렸습니다.**
-patience 15로 두면 1475반복 근처에서 멈춰 마지막 최고점을 통째로 놓칩니다.
-기능은 남겨 두었으니 학습 곡선을 이미 아는 설정에서만 큰 값으로 켜십시오.
-
-## 5. 제거 실험
-
-`cfg.graphState.stateRepresentation`으로 고릅니다. 네 설정 모두 **같은 PPO
-구현**(`landing2d.rl.ppoTrain`)을 씁니다. PPO를 복제하지 않았습니다.
-
-| 값 | 내용 |
-| --- | --- |
-| `baseline` | 기준 관측 벡터. 부호기가 항등이라 수치가 기존과 같습니다 |
-| `node_pool` | 노드 특징 + 읽기. 메시지 전달 없음 (간선 미사용) |
-| `gat` | 그래프 구조는 쓰되 관계 유형을 하나로 합침 |
-| `ontology_rgat` | 관계 유형을 유지한 R-GAT + Policy/Value 가상 노드 읽기 (제안 모델) |
-
-```matlab
-cfg = landing2d.graphstate.applyStateRepresentation(cfg,'ontology_rgat');
-run_all(struct('stateRepresentation','gat'));   % 제거 실험으로 실행
-```
-
-## 6. 옛 보상 설계 경로
-
-`cfg.useLegacyOntologyReward`(기본 `false`)로 분리했습니다. `true`일 때만
-`run_all`이 그 비교군을 함께 실행합니다. 코드는 `+ontology` 패키지에 그대로
-남아 있고 지우지 않았습니다.
-
-`landing2d.ontology.applyDesign`은 자신이 지난 설정에 `ontologyRewardApplied`
-표식을 남기고, `assertSameProblem`이 이 표식을 보고 새 제안 모델 경로에 옛 보상
-설계가 섞여 들어오는 것을 거부합니다.
-
-## 7. 검증
-
-`run_tests`에 세 파일이 추가되어 있습니다.
-
-| 테스트 | 내용 |
-| --- | --- |
-| `test_graph_state_adapter` | 정보경계, 그래프 무결성, 방향 부호 보존 |
-| `test_graph_state_encoder` | 부호기 기울기(중앙 차분), 노드 재번호 정합, 모든 노드가 읽기에 기여 |
-| `test_graph_state_ppo` | 보상 동일, 행동 공간 동일, 기준 경로 불변, 순환 기억 없음, 학습 중 R-GAT 기울기 |
-
-보상 동일성은 마지막 층을 0으로 만든 에이전트로 두 설정을 굴려, 같은 전이에서
-보상열이 완전히 일치하는지 확인합니다(차이 < 1e-12).
-
-### 설정을 바꿀 때의 비교 방법
-
-이 프로젝트의 PPO는 반복마다 평가 점수가 크게 흔들립니다. 기준 모델도 학습
-도중 착륙률이 100% ↔ 0%를 오갑니다. 따라서 **단일 실행으로 설정을 비교하면
-안 됩니다.** 여러 시드에서 최종 선택된 정책의 착륙률로 비교하십시오.
-
-```matlab
-cfg = landing2d.config.defaultConfig();
-cfg.saveResults = false;
-cfg.rl.retrain = true;
-cfg.rl.verbose = false;
-for seed = [20240501, 7, 1234]
-    p = landing2d.graphstate.applyStateRepresentation(cfg,'ontology_rgat');
-    p.graphState.hiddenDim = 16;   % 비교하려는 설정
-    p.graphState.graphDim = 16;
-    p.rl.seed = seed;
-    agent = landing2d.rl.trainAgent(p);
-    [~,score,info] = landing2d.rl.evaluate(agent,p);
-    fprintf('seed %d  landing %3.0f%%  score %.2f
-', ...
-        seed,100*info.landingRate,score);
-end
-```
-
-교사 모방 손실(`landing2d.rl.behaviorClone`이 돌려주는 `finalLoss`)은 **표현이
-정책에 충분한 정보를 담고 있는지**를 빠르게 재는 데만 쓰십시오. 4.1과 4.2처럼
-정보가 실제로 사라진 경우를 찾는 데는 잘 듣지만, 최종 착륙 성능을 예측하지는
-못합니다(4.3 참고).
-
-### 디버깅 출력
-
-```matlab
-landing2d.graphstate.inspectPipeline(agent,s,obs,memory,cfg);
-```
-
-o_t, 노드별 값과 출처, 관계 유형, H_t의 노드별 노름, h_policy/h_value, a_t를 한 번에
-보여 줍니다. H_t의 개별 성분에는 의미를 붙이지 않습니다.
+설계 효과:
+
+- 위험 크기와 좌우 방향 분리
+- confidence와 uncertainty 분리
+- 가시 상태와 예측 FOV 상태 분리
+- 현재 상태와 변화 추세 분리
+- semantic-flat과 R-GAT의 동일 raw 정보 보장
+
+## R-GAT 부호화
+
+관계 $r$의 선형 변환과 relation embedding:
+
+$$
+z_i^{(r)}=W_r x_i,qquad E_r\in\mathbb{R}^{d_r}
+$$
+
+Attention logit:
+
+$$
+e_{ij}^{(r)}=operatorname{LeakyReLU}\left(
+a_r^\top[z_i^{(r)}\Vert z_j^{(r)}\Vert E_r]
+\right)
+$$
+
+수신 노드별 정규화:
+
+$$
+\alpha_{ij}^{(r)}=
+\frac{\exp(e_{ij}^{(r)})}
+{\sum_{(k,r')\in\mathcal{N}(j)}\exp(e_{kj}^{(r')})}
+$$
+
+단일층 노드 갱신:
+
+$$
+h_j=\tanh\left(
+\sum_{(i,r)\in\mathcal{N}(j)}\alpha_{ij}^{(r)}W_rx_i
++W_0x_j+b_0
+\right)
+$$
+
+설정:
+
+- hidden dimension 8
+- relation embedding dimension 4
+- message-passing layer 1개
+- local residual $W_0x_j+b_0$
+- Actor encoder와 Critic encoder 분리
+
+## 그룹 readout
+
+| 그룹 | 포함 노드 |
+|---|---|
+| Perception | `PadVisibility`, `ViewRecovery` |
+| Tracking | `PadMotion`, `RelativeTracking`, `TrackingCorrection` |
+| Vehicle | `DroneTranslation`, `DroneAttitude` |
+| Safety | `DescentEligibility`, `LandingInhibit` |
+
+그룹 평균:
+
+$$
+\bar h_g=\frac{1}{|V_g|}\sum_{i\in V_g}h_i
+$$
+
+4차원 관계 문맥:
+
+$$
+c_t=\tanh\left(W_g[\bar h_1\Vert\bar h_2\Vert\bar h_3\Vert\bar h_4]+b_g\right)
+$$
+
+## Actor/Critic 입력
+
+Raw semantic bypass:
+
+$$
+s_t=\operatorname{vec}(X_t)\in\mathbb{R}^{108}
+$$
+
+Actor 평균:
+
+$$
+\mu_t=f_{\pi}(s_t)+W_{\pi}c_t
+$$
+
+Critic 값:
+
+$$
+V_t=f_V(s_t)+w_V^\top c_t
+$$
+
+목적:
+
+- 그래프 readout 실패 시 raw semantic 정보 보존
+- semantic-flat 정책과 동일한 base 표현 확보
+- 관계 구조의 추가 기여만 residual로 분리
+- Actor와 Critic의 관계 기여 별도 학습
+
+## 의미 제약 하강 gate
+
+관계 residual $\delta_t=W_\pi c_t$의 수직 성분:
+
+$$
+\delta_{z,t}^{\mathrm{gate}}=
+\begin{cases}
+\delta_{z,t}, & \delta_{z,t}\ge0,\\
+E_t\delta_{z,t}, & \delta_{z,t}<0
+\end{cases}
+$$
+
+여기서:
+
+$$
+E_t=\operatorname{clip}(X_t[\texttt{DescentEligibility},1],0,1)
+$$
+
+의미:
+
+- 음의 수직 residual: 추가 하강
+- 양의 수직 residual: 상승·제동
+- `LandingInhibit` 활성 시 $E_t\rightarrow0$
+- 추가 하강 차단
+- 상승·제동 residual 유지
+- 동일 piecewise slope 기반 역전파
+
+## 사전학습
+
+목표:
+
+$$
+\min_{\theta,\psi}
+\frac{1}{|M|}\sum_{(i,k)\in M}
+\left\|D_\psi(H_{i,k})-X_{i,k}\right\|_2^2
+$$
+
+조건:
+
+- train seed만 사용
+- 현재 시점 특징만 사용
+- masked feature 복원
+- 방문용 random action 즉시 폐기
+- action target 제외
+- reward target 제외
+- outcome target 제외
+- future target 제외
+- hidden simulator truth 제외
+
+## PPO 단계
+
+- 1~90% 반복: 관계 readout adaptation 비활성
+- raw semantic base policy 학습
+- 마지막 10%: base MLP 고정
+- attention·group readout·relation head 최적화
+- validation 개선 margin 5.0 적용
+- unsafe outcome 가중 checkpoint 선택
+- test seed의 선택 과정 사용 제외
+
+## 최신 체크포인트 감사
+
+| 감사 항목 | Policy | Critic |
+|---|---:|---:|
+| $\lVert W_g\rVert_F$ | 0 | 0 |
+| relation head norm | 0.1145 | 0.1026 |
+| relation context norm | 0 | 0 |
+| relation residual | 0 | 0 |
+
+판정:
+
+- 구조 파일상 R-GAT 경로 존재
+- 선택 체크포인트의 R-GAT readout 비활성
+- 실제 Actor/Critic 계산의 raw semantic bypass 의존
+- semantic-flat과 별도 학습된 base weight 차이에 따른 궤적 차이 가능
+- 활성 관계 추론 효과의 실증 근거 부족
+
+![R-GAT 정책 추적](assets/paper/paper_ontology.png)
+
+## 관련 코드
+
+| 기능 | 코드 |
+|---|---|
+| 노드·간선 스키마 | `src/+landing2d/+graphstate/contextSchema.m` |
+| 노드 특징 구성 | `src/+landing2d/+graphstate/contextGraph.m` |
+| R-GAT 순전파 | `src/+landing2d/+rgat/relationForward.m` |
+| R-GAT 역전파 | `src/+landing2d/+rgat/relationBackward.m` |
+| graph encoder | `src/+landing2d/+graphstate/encoderForward.m` |
+| Actor relation residual | `src/+landing2d/+rl/relationPolicyResidual.m` |
+| Critic relation residual | `src/+landing2d/+rl/valueForward.m` |
+| causal 사전학습 | `src/+landing2d/+graphstate/pretrainCausalEncoder.m` |
+| 체크포인트 감사 | `run_paper_validation.m` |
+
+## 주장 범위
+
+- 온톨로지 그래프 구성 검증
+- causal 정보경계 검증
+- R-GAT 순전파·역전파 구현 검증
+- Actor/Critic 연결 구조 검증
+- 최종 체크포인트 relation path 비활성 확인
+- 활성 R-GAT 성능 우월성 주장 제외

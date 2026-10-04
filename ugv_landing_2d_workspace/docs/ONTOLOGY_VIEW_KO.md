@@ -1,133 +1,137 @@
-# 온톨로지 탭 (읽기 전용 시각화)
+# 온톨로지·R-GAT 최종 시각화 안내
 
-결과 요약 창의 탭 그룹에 `온톨로지` 탭 하나를 덧붙여, 이 저장소가 실제로 쓰는
-온톨로지를 관계 그래프 · 관계행렬 · 상세 패널로 함께 보여 줍니다.
-**읽기 전용입니다.** 온톨로지 정의, 학습/추론 로직, 보상·행동·종료 조건,
-R-GAT / PPO / readout, 저장된 결과 파일을 바꾸지 않습니다.
+## 결론
 
-## 1. 실행 방법
+- 정적 구조 확인: `docs/assets/ontology_graph.svg`
+- 실시간 정책 신호 확인: `run_paper`의 `paper_ontology`
+- 전체 궤적 비교: `paper_trajectories`
+- 물리 가능성·하강 금지 원인: `paper_feasibility`
+- checkpoint 관계 경로 활성 여부: `paper_architecture_audit.csv`
 
-기본 실행 경로에서 자동으로 붙습니다. `cfg.showOntologyTab`이 기본 `true`이고,
-`landing2d.viz.plotRunSummary`가 **그림 저장이 끝난 뒤에** 탭을 덧붙입니다.
-따라서 `scenario_*_comparison.png`와 `comparison_tabs.fig`의 내용은 달라지지 않습니다.
-
-```matlab
-run_all;                                   % 비교 실행 → 창 마지막에 '온톨로지' 탭
-run_ugv_landing_2d;                        % 기준 유도 단독 실행에서도 동일
-replot_results;                            % 저장된 결과를 다시 그릴 때도 동일
-run_all(struct('showOntologyTab',false));  % 탭을 끄고 기존 화면만
-run_all(struct('ontologyViewSource','graphstate'));  % 학습 입력 그래프로 열기
-```
-
-시뮬레이션 없이 탭만 보려면 직접 붙입니다.
+## 실행
 
 ```matlab
-setup_project;
-fig = uifigure('Name','온톨로지');
-landing2d.viz.attachOntologyView(fig,'ontology');
+[study,figures] = run_paper;
 ```
 
-`attachOntologyView`는 TabGroup / Tab / Figure를 받습니다. TabGroup을 주면 제목이
-`온톨로지`인 탭을 찾아 재사용하고, 없을 때만 하나를 추가합니다. 몇 번을 다시 불러도
-탭과 그래픽 객체가 중복으로 생기지 않으며, 기존 화면의 선택 탭도 바꾸지 않습니다.
-TabGroup이 없고 이미 다른 내용이 그려진 창을 주면, 기존 앱을 다시 쓰지 않고
-`landing2d:OntologyViewNoTabGroup` 오류로 필요한 연결 지점을 알려 줍니다.
+창 없이 파일 생성:
 
-## 2. 화면 구성
-
-```
-┌────────────────────────────────────────────────────┐
-│ 검색        관계 선택     표시 대상       초기화    │
-├────────────────────────────────┬───────────────────┤
-│                                │ B. 관계행렬       │
-│ A. 의미 관계 그래프            │                   │
-│                                ├───────────────────┤
-│                                │ C. 상세 설명      │
-│                                │ 목록 / 원문 전환  │
-├────────────────────────────────┴───────────────────┤
-│ 데이터 출처 / 표시 대상 / 표시 범위 / 선택 문장     │
-└────────────────────────────────────────────────────┘
+```matlab
+run_paper(struct('figureVisible',false));
 ```
 
-플롯은 두 개, 상세 패널은 하나입니다. 하위 탭이나 별도 팝업 창을 만들지 않습니다.
+## 생성 figure
 
-- **A. 의미 관계 그래프** — 화살표는 원본의 `src → dst` 방향 그대로입니다.
-  노드 모양은 스키마가 명시한 역할(`riskNodes` / `goalNode` / `weightNodes` /
-  `valueNode`)로만 나눕니다. 선 모양은 관계 유형(`relationNames`)입니다.
-  배치는 난수를 쓰지 않는 `layered`이며, 전역 난수 상태를 건드리지 않습니다.
-  검색·선택·관계 선택으로는 좌표를 다시 계산하지 않습니다.
-- **B. 관계행렬** — 행은 출발 요소, 열은 도착 요소입니다. `A(i,j)=1`은
-  선택한 관계가 i에서 j로 **기록되어 있다**는 뜻입니다. `0`은 그 범위에 연결이
-  기록되어 있지 않다는 뜻이며, 관계가 거짓이라고 판정한 값이 아닙니다.
-  명암 범위는 항상 `[0,1]`로 고정합니다. 관계 유형을 확인할 수 없는 칸은
-  `NaN`으로 두고 회색 바탕이 비치게 해서 실제 `0`과 구분합니다.
-- **C. 상세 설명** — 기본은 요약(데이터 출처, 구성요소 요약, 선언 조회 진입점)이고,
-  요소·관계·관계 유형·선언·행렬 셀을 고르면 원본 ID와 출처까지 함께 보여 줍니다.
-  그래프에 펼치지 않은 속성과 선언도 여기서 모두 조회됩니다.
-
-세 영역은 서로 연동됩니다. 노드를 고르면 연결 관계가 강조되고 행렬의 대응 행·열이
-표시되며 상세가 갱신됩니다. 행렬 셀을 고르면 그 칸에 걸린 실제 관계 ID를 찾아
-그래프와 상세에 연결합니다. 한 칸에 관계가 여럿이면 모두 보여 줍니다.
-
-## 3. 이 저장소의 온톨로지가 실제로 무엇인지
-
-`+ontology/nodeSchema.m`에 있는 것은 **관계 유형이 붙은 방향 그래프와 그에 딸린
-선언**입니다. OWL의 Class / Instance / `rdf:type` / `subClassOf` / 복합 공리 계층은
-원본에 없습니다. 그래서 화면은 그것들을 만들어 내지 않고, 대신
-
-- 요소의 "확인된 유형"은 `그래프 노드`,
-- "확인된 역할"은 스키마가 명시한 필드에서만 가져오고 (`riskNodes` 등),
-- 분류 근거가 없으면 `유형 미확인`으로,
-- 관계 유형의 `domain` / `range`는 `(원본에 domain 선언 없음)`으로 적습니다.
-
-행렬 옆에 함께 적는 "관찰된 출발/도착 요소"는 실제 간선에서 뽑은 **파생값**이며
-선언이 아니라고 화면에 명시합니다. 추론기나 검증기는 실행하지 않으므로
-어떤 항목도 "추론 완료"나 "검증 통과"로 표시하지 않습니다.
-
-## 4. 표시 대상 두 가지
-
-이 저장소에는 서로 다른 두 그래프가 **실제로** 있습니다. 탭 안의 `표시 대상`
-선택창으로 전환하며, 현재 무엇을 보고 있는지는 제목과 상태 표시줄에 항상 나옵니다.
-
-| 표시 대상 | 읽는 곳 | 뜻 |
-|---|---|---|
-| `ontology` | `landing2d.ontology.nodeSchema('core')` | 온톨로지 의미 그래프 (9노드) |
-| `ontology_design` | `landing2d.ontology.nodeSchema('design')` | 보상 가중치 설계용 확장 (12노드) |
-| `graphstate` | `landing2d.graphstate.schemaFor(mode)` | PPO에 들어가는 입력 그래프 |
-
-둘의 대응은 코드에서 확인되는 것만 상세 패널에 한 줄로 적습니다
-(`schemaFor`가 `nodeSchema('core')`를 그대로 읽고, 노드 특징만 방향 부호 채널
-하나가 더 붙어 `inDim`이 `4+N`에서 `5+N`이 된다는 사실). 별도의 강화학습
-대시보드는 만들지 않습니다. 시각화의 선택·필터·부분 조회는 UI의 표시 범위만
-바꾸며 R-GAT에 전달되는 그래프를 수정하지 않습니다.
-
-## 5. 온톨로지 설계가 달라지면 어디를 고치는가
-
-UI와 렌더러는 그대로 두고 **어댑터와 매핑만** 고칩니다.
-
-| 바뀐 것 | 고칠 곳 |
+| figure | 내용 |
 |---|---|
-| 노드/간선/관계 유형이 늘거나 줄었다 | 없음. `nodeSchema.m`만 고치면 화면이 따라갑니다 |
-| 새 스키마 필드로 요소 역할을 구분하고 싶다 | `ontologyViewModel.m`의 `elementRole` |
-| 새 필드를 속성으로 보여 주고 싶다 | `ontologyViewModel.m`의 `buildAttributes` |
-| 새 선언(공리·규칙)을 조회 대상에 넣고 싶다 | `ontologyViewModel.m`의 `buildStatements` |
-| 역할마다 다른 마커/선 모양을 쓰고 싶다 | `attachOntologyView.m`의 `roleMarker` / `predicateLineStyle` |
-| 표시 대상을 더 추가하고 싶다 | `ontologyViewModel.m`의 `resolveSource`와 `attachOntologyView.m`의 `availableViews` |
-| 아예 다른 저장 형식(OWL/RDF 등)을 읽고 싶다 | `resolveSource`에 분기를 더해 스키마 구조체로 바꿔 주면 나머지는 그대로 |
+| `paper_trajectories` | 패드 상대 $x$–고도 궤적, 시간–추종오차 |
+| `paper_stability` | 안정성 지수와 5개 구성 metric |
+| `paper_feasibility` | speed·acceleration margin, inhibit 비율·원인 |
+| `paper_ontology` | eligibility·inhibit·visibility·gate·relation residual |
 
-`ontologyViewModel`은 스키마 구조체를 직접 받기도 합니다. `nodeNames` / `nNodes` /
-`src` / `dst` / `rel` / `relationNames` / `nRelations`만 있으면 되고, 나머지 필드는
-있으면 쓰고 없으면 미지정으로 둡니다.
+## 궤적 figure
 
-## 6. 검사
+![궤적 비교](assets/paper/paper_trajectories.png)
 
-| 검사 | 실행 | 내용 |
-|---|---|---|
-| `test_ontology_view_model` | `run_tests(false)`에 포함 | 어댑터와 상세 원문. 방향 보존, 평행 관계·자기 연결·순환·고립 노드·중복 이름 보존, 없는 분류를 만들지 않는지, 스냅샷 크기 검증, 원본 불변 |
-| `test_ontology_view_tab` | `run_tests(true)`에만 포함 | 탭이 하나만 생기고 재사용되는지, 플롯 2 + 상세 1, 행렬의 행·열 방향, 그래프/행렬/검색 선택의 연동, 필터 후 좌표 유지, 빈 자료와 큰 자료의 부분 조회, 원본과 전역 난수 상태 불변 |
+표현:
 
-`attachOntologyView`의 `st.pick.graph(x,y)` / `st.pick.matrix(x,y)`는 좌표 하나로
-선택을 수행하는 진입점입니다. 마우스 콜백과 자동 검사가 같은 경로를 씁니다.
+- 시작점: 빈 원
+- 종료점: 채운 역삼각형
+- 회색 점선: level-camera FOV 참고 경계
+- 왼쪽 열: pad-relative $x$–height
+- 오른쪽 열: signed horizontal tracking error
+- 배경: CV1·CA·CV3 구간
+- 모든 scenario의 왼쪽 축 범위 통일
 
-검사 전용 최소 자료(`fixtureSchema` / `emptySchema` / `bigSchema`)는 테스트 파일
-안에만 있으며 운영 화면의 기본 데이터로 연결되지 않습니다.
+## 안정성 figure
+
+![안정성 지표](assets/paper/paper_stability.png)
+
+포함 metric:
+
+- stability index
+- tracking RMSE
+- relative-speed RMSE
+- measured FOV loss
+- supervisor intervention
+- control jerk RMS
+
+방향:
+
+- stability index: 큰 값 우수
+- 나머지 metric: 작은 값 우수
+
+## 착륙 가능성 figure
+
+![착륙 가능성](assets/paper/paper_feasibility.png)
+
+구분:
+
+- speed authority margin
+- acceleration authority margin
+- operational `LandingInhibit` 비율
+- R-GAT trajectory의 inhibit 원인 시간 분해
+
+주의:
+
+- 양의 authority margin: 해당 단일 물리 제약 통과
+- `LandingInhibit`: 영구적 착륙 불가능 판정 제외
+- 물리적 가능성과 운영 중 하강 금지의 별도 해석
+
+## 온톨로지 정책 추적 figure
+
+![온톨로지 추적](assets/paper/paper_ontology.png)
+
+왼쪽 축:
+
+- `DescentEligibility`
+- `LandingInhibit`
+- pad detected
+- vertical gate active
+
+오른쪽 축:
+
+- R-GAT vertical action residual
+
+상단 감사 문구:
+
+- `ACTIVE`: policy·value graph readout의 비영 norm 확인
+- `INACTIVE`: raw semantic bypass만 사용한 선택 checkpoint
+
+최신 결과:
+
+- Policy $\lVert W_g\rVert_F=0$
+- Value $\lVert W_g\rVert_F=0$
+- relation path `INACTIVE`
+
+## 정적 구조 그림
+
+![온톨로지 그래프](assets/ontology_graph.svg)
+
+포함 내용:
+
+- 9개 의미 노드
+- 주요 typed relation
+- `LandingInhibit → DescentEligibility` 억제 관계
+- self-edge 생략 표기
+
+전체 간선 표:
+
+- [온톨로지 상태 설계](ONTOLOGY_GRAPH_STATE_KO.md)
+
+## 숫자 원본
+
+| 파일 | 용도 |
+|---|---|
+| `paper_scenario_feasibility.csv` | scenario별 physical margin |
+| `paper_stability_metrics.csv` | 모델·scenario별 metric |
+| `paper_runtime_profile.csv` | parameter·runtime |
+| `paper_architecture_audit.csv` | R-GAT 관계 경로 활성 여부 |
+| `paper_validation.mat` | 전체 재현 데이터 |
+
+## 해석 제한
+
+- 단일 trajectory의 우월성 일반화 제외
+- 안정성 지수와 성공률의 혼합 제외
+- 비활성 relation checkpoint의 R-GAT 효과 주장 제외
+- 논문 그림의 사후 truth metric을 정책 입력으로 해석하는 오류 제외
