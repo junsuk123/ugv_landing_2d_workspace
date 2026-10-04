@@ -98,11 +98,11 @@ results/paper/
 구성 요소:
 
 $$
-S_x=\exp\left[-\left(\frac{\operatorname{RMSE}(e_x)}{L_{pad}}\right)^2\right]
+S_x=\exp\left[-\left(\frac{\mathrm{RMSE}(e_x)}{L_{pad}}\right)^2\right]
 $$
 
 $$
-S_v=\exp\left[-\left(\frac{\operatorname{RMSE}(\Delta v_x)}{v_{x,td}}\right)^2\right]
+S_v=\exp\left[-\left(\frac{\mathrm{RMSE}(\Delta v_x)}{v_{x,td}}\right)^2\right]
 $$
 
 $$
@@ -111,7 +111,7 @@ S_{sup}=1-f_{supervisor}
 $$
 
 $$
-S_\theta=\exp\left[-\left(\frac{\operatorname{RMS}(\theta)}{\theta_{td}}\right)^2\right]
+S_\theta=\exp\left[-\left(\frac{\mathrm{RMS}(\theta)}{\theta_{td}}\right)^2\right]
 $$
 
 $$

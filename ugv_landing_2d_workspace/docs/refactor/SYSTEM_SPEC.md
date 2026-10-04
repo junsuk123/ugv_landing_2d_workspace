@@ -57,7 +57,7 @@ $$
 정책의 raw Gaussian 명령:
 
 $$
-u_t\sim\mathcal{N}(\mu_t,\operatorname{diag}(\sigma_t^2))
+u_t\sim\mathcal{N}(\mu_t,\mathrm{diag}(\sigma_t^2))
 $$
 
 정규화 행동:
@@ -76,7 +76,7 @@ $$
 자세·추력 setpoint:
 
 $$
-\theta_{sp}=\operatorname{atan2}(a_x,g+a_z)
+\theta_{sp}=\mathrm{atan2}(a_x,g+a_z)
 $$
 
 $$
@@ -119,7 +119,7 @@ $$
 $$
 d_{cam}=d^\top b_{cam},\qquad
 \ell=d^\top b_{right},\qquad
-\beta=\operatorname{atan2}(\ell,d_{cam})
+\beta=\mathrm{atan2}(\ell,d_{cam})
 $$
 
 가시 조건:
@@ -143,8 +143,8 @@ $$
 | 모델 | 상태 | 차원 |
 |---|---|---:|
 | Baseline | normalized causal packet | 26 |
-| Semantic-flat | $\operatorname{vec}(X_t)$ | 108 |
-| Ontology R-GAT | $\operatorname{vec}(X_t)$ + relation context | 108+4 |
+| Semantic-flat | $\mathrm{vec}(X_t)$ | 108 |
+| Ontology R-GAT | $\mathrm{vec}(X_t)$ + relation context | 108+4 |
 
 ## 안전 감독기
 

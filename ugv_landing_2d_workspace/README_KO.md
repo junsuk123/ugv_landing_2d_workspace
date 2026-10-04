@@ -76,13 +76,13 @@ run_finalTest
 Raw semantic state:
 
 $$
-s_t=\operatorname{vec}(X_t)\in\mathbb{R}^{108}
+s_t=\mathrm{vec}(X_t)\in\mathbb{R}^{108}
 $$
 
 R-GAT relation context:
 
 $$
-c_t=\tanh(W_g\operatorname{GroupReadout}(H_t)+b_g)
+c_t=\tanh(W_g\mathrm{GroupReadout}(H_t)+b_g)
 $$
 
 Actor:

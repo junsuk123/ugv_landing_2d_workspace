@@ -98,7 +98,7 @@ $$
 Safe target:
 
 $$
-v_{x,des}=-\operatorname{sign}(e_x)
+v_{x,des}=-\mathrm{sgn}(e_x)
 \min(v_{x,td},0.6|e_x|)
 $$
 

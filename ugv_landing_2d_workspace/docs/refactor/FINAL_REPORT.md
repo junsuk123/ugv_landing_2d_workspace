@@ -112,7 +112,7 @@ $$
 R-GAT attention:
 
 $$
-e_{ij}^{(r)}=\operatorname{LeakyReLU}
+e_{ij}^{(r)}=\mathrm{LeakyReLU}
 \left(a_r^\top[W_rx_i\Vert W_rx_j\Vert E_r]\right)
 $$
 
@@ -124,13 +124,13 @@ $$
 Relation context:
 
 $$
-c_t=\tanh(W_g\operatorname{GroupReadout}(H_t)+b_g)
+c_t=\tanh(W_g\mathrm{GroupReadout}(H_t)+b_g)
 $$
 
 Raw bypass:
 
 $$
-s_t=\operatorname{vec}(X_t)\in\mathbb{R}^{108}
+s_t=\mathrm{vec}(X_t)\in\mathbb{R}^{108}
 $$
 
 Actor:

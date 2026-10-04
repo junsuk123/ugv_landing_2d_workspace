@@ -216,7 +216,7 @@ $$
 Raw semantic bypass:
 
 $$
-s_t=\operatorname{vec}(X_t)\in\mathbb{R}^{108}
+s_t=\mathrm{vec}(X_t)\in\mathbb{R}^{108}
 $$
 
 Actor 평균:
@@ -253,7 +253,7 @@ $$
 여기서:
 
 $$
-E_t=\operatorname{clip}(X_t[\texttt{DescentEligibility},1],0,1)
+E_t=\mathrm{clip}(X_t[\mathrm{DescentEligibility},1],0,1)
 $$
 
 의미:

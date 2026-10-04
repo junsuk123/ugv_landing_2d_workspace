@@ -54,8 +54,20 @@
 | Semantic-flat MLP | 9노드 × 12특징 평탄화 벡터 | 제외 |
 | Ontology R-GAT | 동일한 9노드 × 12특징 + typed relation context | 포함 설계 |
 
-- 행동: 정규화 전 Gaussian 명령 $u_t\in\mathbb{R}^2$
-- 환경 명령: $a_t=[a_x,a_z]^\top=\operatorname{diag}(a_{x,\max},a_{z,\max})\tanh(u_t)$
+### 행동과 실행 주기
+
+정규화 전 Gaussian 정책 명령:
+
+$$
+u_t \in \mathbb{R}^{2}
+$$
+
+환경 입력 가속도 명령:
+
+$$
+a_t=[a_x,a_z]^\top=\mathrm{diag}(a_{x,\max},a_{z,\max})\tanh(u_t)
+$$
+
 - 정책 주기: 0.10 s
 - 물리 주기: 0.01 s
 - 실시간 역전파: 제외
@@ -114,7 +126,7 @@ $$
 관계 $r$을 갖는 간선 $i\rightarrow j$의 attention logit:
 
 $$
-e_{ij}^{(r)}=\operatorname{LeakyReLU}\!\left(
+e_{ij}^{(r)}=\mathrm{LeakyReLU}\!\left(
 {a_r}^{\top}[W_r x_i\,\Vert\,W_r x_j\,\Vert\,E_r]
 \right)
 $$
@@ -142,7 +154,7 @@ $$
 
 ### Actor/Critic 결합
 
-Raw semantic bypass $s_t=\operatorname{vec}(X_t)\in\mathbb{R}^{108}$ 보존:
+Raw semantic bypass $s_t=\mathrm{vec}(X_t)\in\mathbb{R}^{108}$ 보존:
 
 $$
 \mu_t=f_{\pi}(s_t)+\delta_t,
