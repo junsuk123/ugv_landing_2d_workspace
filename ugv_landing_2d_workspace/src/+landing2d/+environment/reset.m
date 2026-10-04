@@ -20,6 +20,9 @@ if isfield(options,'scenario'), scenario = options.scenario; end
 c.experiment.currentScenario = scenario;
 sensorStream = RandStream('threefry','Seed',sensorSeed);
 sensorEvents = landing2d.sensing.sampleEvents(c.experiment.sensor,scenario,sensorStream);
+if isfield(options,'sensorEvents') && ~isempty(options.sensorEvents)
+    sensorEvents = validateSensorEvents(options.sensorEvents,scenario.deadline);
+end
 [padX,padVx,padAx,phase] = landing2d.scenario.evaluateTrajectory(scenario,0);
 pad = struct('x',padX,'z',scenario.padHeight,'vx',padVx,'ax',padAx, ...
     'phase',phase);
@@ -53,4 +56,35 @@ info = struct('packet',packet,'measurement',measurement,'pad',pad, ...
     'evaluatorMetadata',struct('sensorEvents',sensorEvents), ...
     'provenance',struct('scenarioSeed',scenarioSeed,'sensorSeed',sensorSeed, ...
     'policySeed',base+c.experiment.randomStreams.policyOffset));
+end
+
+function events = validateSensorEvents(events,deadline)
+required = {'dropoutStart','dropoutEnd','dropoutKind', ...
+    'pitchStart','pitchEnd','pitchRate'};
+assert(isstruct(events) && isscalar(events) && all(isfield(events,required)), ...
+    'landing2d:SensorEvents','A complete scalar sensorEvents struct is required.');
+numericFields = {'dropoutStart','dropoutEnd','pitchStart','pitchEnd','pitchRate'};
+for i = 1:numel(numericFields)
+    value = events.(numericFields{i});
+    assert(isnumeric(value) && isscalar(value) && isreal(value) && ~isnan(value), ...
+        'landing2d:SensorEvents','sensorEvents.%s must be a real scalar.', ...
+        numericFields{i});
+end
+events.dropoutKind = char(events.dropoutKind);
+assert(ismember(events.dropoutKind,{'clean','short','sustained'}), ...
+    'landing2d:SensorEvents','Unknown dropout kind %s.',events.dropoutKind);
+assert(events.dropoutEnd>=events.dropoutStart || ...
+    (isinf(events.dropoutStart) && isinf(events.dropoutEnd)), ...
+    'landing2d:SensorEvents','dropoutEnd must not precede dropoutStart.');
+assert(events.pitchEnd>=events.pitchStart || ...
+    (isinf(events.pitchStart) && isinf(events.pitchEnd)), ...
+    'landing2d:SensorEvents','pitchEnd must not precede pitchStart.');
+if isfinite(events.dropoutStart)
+    events.dropoutStart=max(0,min(double(events.dropoutStart),deadline));
+    events.dropoutEnd=max(events.dropoutStart,min(double(events.dropoutEnd),deadline));
+end
+if isfinite(events.pitchStart)
+    events.pitchStart=max(0,min(double(events.pitchStart),deadline));
+    events.pitchEnd=max(events.pitchStart,min(double(events.pitchEnd),deadline));
+end
 end

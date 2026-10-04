@@ -3,7 +3,7 @@ function [result,traj] = rolloutEpisodeV2(agent,c,seed,opts)
 if nargin < 4, opts = struct(); end
 opts = defaults(opts,struct('deterministic',false,'collect',true, ...
     'rs',[],'maxDecisions',Inf,'traceGraph',false, ...
-    'scenarioHeightRange',[]));
+    'scenarioHeightRange',[],'scenario',[],'sensorEvents',[]));
 if isempty(opts.rs)
     opts.rs = RandStream('threefry','Seed',c.experiment.scenario.baseSeed+ ...
         c.experiment.randomStreams.policyOffset+double(seed));
@@ -12,6 +12,8 @@ resetOptions = struct();
 if ~isempty(opts.scenarioHeightRange)
     resetOptions.scenarioHeightRange = opts.scenarioHeightRange;
 end
+if ~isempty(opts.scenario), resetOptions.scenario = opts.scenario; end
+if ~isempty(opts.sensorEvents), resetOptions.sensorEvents = opts.sensorEvents; end
 [env,observation,resetInfo] = landing2d.environment.reset(c,seed,resetOptions);
 capacity = min(ceil(env.scenario.deadline/c.experiment.policyDt)+1, ...
     opts.maxDecisions);

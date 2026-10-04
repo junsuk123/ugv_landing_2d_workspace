@@ -47,8 +47,38 @@ run_all(struct('executionMode','smoke', ...  % bounded integration check
 run_graph_ablation(struct('executionMode','smoke', ...
     'figureVisible',false,'animate',false,'saveResults',false))
 run_finalTest                                % compare saved final agents
+run_paper                                    % fixed scenarios + paper figures
 run_multiseed_study(struct('executionMode','full')) % five PPO seeds
 ```
+
+## Paper figures
+
+`run_paper` loads the final baseline, semantic-flat, and ontology R-GAT
+checkpoints without retraining. It evaluates three predeclared scenarios:
+nominal alignment, rapid pad acceleration, and bounded visibility loss. The
+same physical scenario, sensor-event schedule, and noise seed are used for all
+three policies.
+
+```matlab
+run_paper
+run_paper(struct('figureVisible',false))
+study = run_paper_validation(struct('saveResults',false));
+```
+
+Outputs are written to `results/paper/` as PNG, vector PDF, MATLAB FIG, CSV,
+and MAT files. Physical infeasibility is reported from speed, acceleration,
+and mission-time authority margins. It is kept separate from the causal
+`LandingInhibit` flag, which means only that descent is temporarily disallowed.
+Inhibited time is partitioned into sensor-dropout, trajectory/FOV,
+relative-speed, and uncertainty/gate causes.
+
+The bounded stability index is the arithmetic mean of normalized tracking,
+relative-speed, visibility, supervisor, attitude, and control-smoothness
+components. Return and terminal outcome are intentionally excluded and remain
+separate columns. `paper_architecture_audit.csv` also reports whether the
+selected R-GAT checkpoint has a nonzero relational readout. An inactive
+selected path is explicitly warned about and must not be presented as an
+active graph contribution.
 
 Force fresh full training after an algorithm change:
 

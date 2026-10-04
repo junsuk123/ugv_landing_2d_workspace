@@ -159,3 +159,22 @@ bootstrap은 0입니다. 단순 수집 경계만 `truncated=true`로 bootstrap�
 현재 검증은 MATLAB R2025b의 24개 비그래픽 테스트와 제한 스모크까지입니다.
 장시간 다중 시드 학습은 실행하지 않았으므로 제안 모델의 우월성·보편 최적성·
 실기체 안전성을 주장하지 않습니다.
+
+## 논문용 최종 모델 시각화
+
+```matlab
+run_paper
+run_paper(struct('figureVisible',false))
+study = run_paper_validation(struct('saveResults',false));
+```
+
+`run_paper`는 재학습 없이 최종 baseline, semantic-flat, ontology R-GAT
+체크포인트를 불러오고, 명목 정렬·급가속·가시성 손실의 고정 3개 시나리오를
+동일한 물리 조건과 센서 이벤트로 검증합니다. 속도·가속도·제한시간으로 계산한
+물리적 착륙 가능성과 일시적 `LandingInhibit`를 구분하며, 금지 시간은 센서
+드롭아웃·궤적/FOV·상대속도·불확실성 원인으로 분해됩니다.
+
+결과는 `results/paper/`에 PNG/PDF/FIG/CSV/MAT로 저장됩니다. 특히
+`paper_architecture_audit.csv`는 선택된 R-GAT 체크포인트의 관계 readout이 실제로
+활성인지 검사합니다. 0인 경우 실행 시 경고하고, 이를 활성 R-GAT 기여로 해석하지
+않습니다.
