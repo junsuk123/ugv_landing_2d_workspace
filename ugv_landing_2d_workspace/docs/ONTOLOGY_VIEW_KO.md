@@ -2,6 +2,7 @@
 
 ## 결론
 
+- 전체 구조·런타임 감사: `ontologyRgatExplorer`
 - 정적 구조 확인: `docs/assets/ontology_graph.svg`
 - 실시간 정책 신호 확인: `run`의 `paper_ontology`
 - 전체 궤적 비교: `paper_trajectories`
@@ -9,7 +10,60 @@
 - checkpoint 관계 경로 활성 여부: `paper_architecture_audit.csv`
 - Monte Carlo 평균·분산: `planar_visibility_monte_carlo.png`
 
+## 시각화 방법론 조사와 최종 선택
+
+조사 대상:
+
+| 방법 | 강점 | 현재 구조의 한계 | 적용 |
+|---|---|---|---|
+| Node-link·layered graph | 단일 경로·방향 추적 | 26개 typed edge와 self-edge 동시 표시 시 교차선 증가 | 전체도 미적용 |
+| Indented tree | 계층 탐색·초심자 가독성 | 다중 부모·비계층 관계의 중복 표현 | 미적용 |
+| Semantic substrate | 의미 속성별 비중첩 영역·그룹 비교 | 관계 상세의 별도 표현 필요 | 노드 그룹 카드 적용 |
+| Typed adjacency matrix | 전체 간선·방향·관계형의 정확한 비교 | 긴 경로의 직관성 감소 | 전체 관계 구조 적용 |
+| Focus+context | 선택 관계의 상세 확인과 전체 문맥 보존 | 상호작용 상태 관리 필요 | 런타임 탭·전체 표 결합 |
+
+선정 근거:
+
+- 온톨로지 시각화의 단일 보편 표현 부재와 작업별 방법 선택 권고
+- 의미 속성 기반 비중첩 영역을 통한 노드 그룹 구분
+- 간선 밀도 증가 시 node-link보다 matrix의 구조 판독 우위
+- MATLAB `imagesc`, stacked `bar`, `uitable`, `uitabgroup` 기반 추가 도구상자 없는 구현 가능성
+- MATLAB `digraph` layered layout의 경로 중심 보조 사용 가능성 유지
+
+참고 문헌:
+
+- [Katifori et al., Ontology Visualization Methods—A Survey](https://doi.org/10.1145/1287620.1287621)
+- [Shneiderman and Aris, Network Visualization by Semantic Substrates](https://www.cs.umd.edu/~ben/papers/Shneiderman2006Network.pdf)
+- [Ghoniem et al., Node-Link and Matrix-Based Representations](https://doi.org/10.1057/palgrave.ivs.9500092)
+- [MathWorks Graph Plotting and Customization](https://www.mathworks.com/help/matlab/math/graph-plotting-and-customization.html)
+- [MathWorks Layered Graph Layout](https://www.mathworks.com/help/matlab/ref/matlab.graphics.chart.primitive.graphplot.layout.html)
+
+최종 coordinated multiple views:
+
+1. 의미 그룹 카드: 9개 노드의 그룹·클래스·risk/goal·self 관계
+2. Typed relation matrix: 17개 의미 간선과 9개 self 간선의 방향·관계형
+3. Runtime attention composition: 목적 노드별 관계형 attention 질량
+4. Raw attention matrix: source→destination 개별 attention
+5. 특징·감사 표: 108개 특징, 4개 readout 그룹, 26개 message, 전체 파라미터
+
 ## 실행
+
+전체 온톨로지·R-GAT explorer:
+
+```matlab
+addpath(fullfile(pwd,'src','orchestration'), ...
+    fullfile(pwd,'src','simulations'),fullfile(pwd,'src','algorithms'))
+view = landing2d.viz.ontologyRgatExplorer();
+```
+
+대표 시나리오 변경:
+
+```matlab
+view = landing2d.viz.ontologyRgatExplorer(struct( ...
+    'scenarioId','S2','snapshotMode','max_recovery'));
+```
+
+논문 결과 전체 생성:
 
 ```matlab
 output = run(struct('retrain',false));
@@ -118,6 +172,12 @@ output = run(struct('retrain',false,'figureVisible',false));
 - 주요 typed relation
 - `LandingInhibit → DescentEligibility` 억제 관계
 - self-edge 생략 표기
+
+용도:
+
+- 문서용 단순 개요
+- 전체 구조 감사 용도 제외
+- 전체 구조 감사는 explorer의 그룹 카드·typed relation matrix 사용
 
 전체 간선 표:
 

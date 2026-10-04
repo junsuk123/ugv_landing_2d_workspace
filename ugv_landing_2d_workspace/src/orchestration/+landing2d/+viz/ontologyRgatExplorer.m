@@ -76,7 +76,7 @@ buildAuditTab(tabs,schema,agent,attentionTable,parameterTable, ...
     actorGraph,criticGraph,snapshot,options.checkpointFile);
 
 output = struct( ...
-    'schemaVersion','ontology_rgat_explorer_v1', ...
+    'schemaVersion','ontology_rgat_explorer_v2', ...
     'figure',fig,'schema',schema,'topology',T,'snapshot',snapshot, ...
     'state',S,'nodeFeatures',X,'actorGraph',actorGraph, ...
     'criticGraph',criticGraph,'actorCache',actorCache, ...
@@ -91,23 +91,24 @@ end
 
 function buildSchemaTab(tabs,schema,nodeTable,edgeTable)
 tab = uitab(tabs,'Title','1  Ontology schema');
-ax = axes(tab,'Units','normalized','Position',[0.025,0.08,0.50,0.86]);
-drawGraph(ax,schema,ones(schema.nNodes,1),[], ...
-    'Complete directed ontology schema',false);
+axCards = axes(tab,'Units','normalized','Position',[0.025,0.59,0.45,0.34]);
+drawOntologyCards(axCards,schema);
+axRelations = axes(tab,'Units','normalized','Position',[0.54,0.59,0.40,0.34]);
+drawRelationSchemaMatrix(axRelations,schema);
 
 uicontrol(tab,'Style','text','Units','normalized', ...
-    'Position',[0.545,0.935,0.43,0.035], ...
+    'Position',[0.025,0.455,0.50,0.030], ...
     'String','All nodes: class, readout group, semantic role, causal provenance', ...
     'BackgroundColor','w','FontWeight','bold','HorizontalAlignment','left');
-uitable(tab,'Units','normalized','Position',[0.545,0.53,0.43,0.40], ...
+uitable(tab,'Units','normalized','Position',[0.025,0.055,0.50,0.395], ...
     'Data',nodeTable,'ColumnWidth',{40,125,105,85,75,310}, ...
     'RowName',[]);
 
 uicontrol(tab,'Style','text','Units','normalized', ...
-    'Position',[0.545,0.485,0.43,0.035], ...
+    'Position',[0.55,0.455,0.425,0.030], ...
     'String','All directed edges: 17 semantic edges + 9 self relations', ...
     'BackgroundColor','w','FontWeight','bold','HorizontalAlignment','left');
-uitable(tab,'Units','normalized','Position',[0.545,0.08,0.43,0.40], ...
+uitable(tab,'Units','normalized','Position',[0.55,0.055,0.425,0.395], ...
     'Data',edgeTable,'ColumnWidth',{45,135,135,125,75},'RowName',[]);
 end
 
@@ -120,12 +121,12 @@ uicontrol(tab,'Style','text','Units','normalized', ...
     'Position',[0.025,0.955,0.95,0.025],'String',titleText, ...
     'BackgroundColor','w','FontWeight','bold');
 
-axActor = axes(tab,'Units','normalized','Position',[0.03,0.54,0.45,0.36]);
-drawGraph(axActor,schema,actorNodeStrength,actorAlpha, ...
-    'Actor R-GAT: node activation and edge attention',true);
-axCritic = axes(tab,'Units','normalized','Position',[0.52,0.54,0.45,0.36]);
-drawGraph(axCritic,schema,criticNodeStrength,criticAlpha, ...
-    'Critic R-GAT: node activation and edge attention',true);
+axActor = axes(tab,'Units','normalized','Position',[0.04,0.54,0.42,0.36]);
+drawAttentionSummary(axActor,schema,actorAlpha,actorNodeStrength, ...
+    'Actor inbound attention composition');
+axCritic = axes(tab,'Units','normalized','Position',[0.54,0.54,0.42,0.36]);
+drawAttentionSummary(axCritic,schema,criticAlpha,criticNodeStrength, ...
+    'Critic inbound attention composition');
 
 axActorMatrix = axes(tab,'Units','normalized','Position',[0.06,0.08,0.39,0.34]);
 drawAttentionMatrix(axActorMatrix,schema,actorAlpha,'Actor attention matrix');
@@ -197,69 +198,104 @@ uitable(tab,'Units','normalized','Position',[0.655,0.07,0.32,0.59], ...
     'Data',parameterTable,'ColumnWidth',{65,95,85,85,145},'RowName',[]);
 end
 
-function drawGraph(ax,schema,nodeStrength,edgeStrength,titleText,showValues)
-cla(ax); hold(ax,'on'); axis(ax,'equal'); axis(ax,'off');
-[x,y] = nodeCoordinates();
-relationColors = [0.16,0.45,0.78; 0.93,0.49,0.16; ...
-    0.18,0.63,0.32; 0.82,0.20,0.24; 0.45,0.45,0.45];
-if isempty(edgeStrength), edgeStrength = 0.55*ones(numel(schema.src),1); end
-edgeStrength = edgeStrength(:);
-scale = max(max(edgeStrength),eps);
-for e = 1:numel(schema.src)
-    i = schema.src(e); j = schema.dst(e); r = schema.rel(e);
-    strength = max(edgeStrength(e),0)/scale;
-    color = (1-0.25-0.75*strength)*[1,1,1] + ...
-        (0.25+0.75*strength)*relationColors(r,:);
-    width = 0.65+3.6*strength;
-    if i == j
-        theta = linspace(0,1.8*pi,45);
-        radius = 0.20;
-        plot(ax,x(i)+0.24+radius*cos(theta), ...
-            y(i)+0.24+radius*sin(theta),'Color',color,'LineWidth',width, ...
-            'HandleVisibility','off');
-    else
-        dx = x(j)-x(i); dy = y(j)-y(i);
-        quiver(ax,x(i)+0.13*dx,y(i)+0.13*dy,0.72*dx,0.72*dy,0, ...
-            'Color',color,'LineWidth',width,'MaxHeadSize',0.28, ...
-            'HandleVisibility','off');
+function drawOntologyCards(ax,schema)
+cla(ax); hold(ax,'on'); axis(ax,[0.45,4.55,0.15,4.05]); axis(ax,'off');
+colors = groupColors();
+for g = 1:numel(schema.groupNames)
+    background = 0.88*[1,1,1]+0.12*colors(g,:);
+    rectangle(ax,'Position',[g-0.45,0.38,0.90,3.25], ...
+        'Curvature',0.04,'FaceColor',background, ...
+        'EdgeColor',colors(g,:),'LineWidth',1.5);
+    text(ax,g,3.82,schema.groupNames{g},'HorizontalAlignment','center', ...
+        'FontWeight','bold','Color',colors(g,:),'Interpreter','none');
+    nodes = schema.readoutGroups{g};
+    y = linspace(3.05,1.05,numel(nodes));
+    for k = 1:numel(nodes)
+        node = nodes(k);
+        role = 'state';
+        if node == schema.goalNode
+            role = 'goal';
+        elseif ismember(node,schema.riskNodes)
+            role = 'risk';
+        end
+        rectangle(ax,'Position',[g-0.37,y(k)-0.30,0.74,0.60], ...
+            'Curvature',0.12,'FaceColor',colors(g,:), ...
+            'EdgeColor',[0.12,0.12,0.12],'LineWidth',1.1);
+        text(ax,g,y(k)+0.08,sprintf('%d  %s',node,schema.nodeNames{node}), ...
+            'HorizontalAlignment','center','FontWeight','bold', ...
+            'FontSize',7.5,'Color','w','Interpreter','none');
+        text(ax,g,y(k)-0.11,sprintf('%s | %s | self', ...
+            schema.nodeClasses{node},role),'HorizontalAlignment','center', ...
+            'FontSize',6.8,'Color','w','Interpreter','none');
     end
+end
+text(ax,2.5,0.23,['Cards=node identity and self relation; exact directed ' ...
+    'relations in the adjacent matrix'],'HorizontalAlignment','center', ...
+    'FontSize',8,'Interpreter','none');
+title(ax,'Ontology semantic groups and complete node inventory');
+subtitle(ax,'No duplicated or isolated node; every node assigned to one readout group');
 end
 
-groupColors = [0.45,0.26,0.73; 0.12,0.47,0.71; ...
-    0.95,0.55,0.16; 0.82,0.20,0.24];
-groups = nodeGroups(schema);
-nodeStrength = nodeStrength(:);
-nodeStrength = nodeStrength/max(max(nodeStrength),eps);
-for i = 1:schema.nNodes
-    scatter(ax,x(i),y(i),310+260*nodeStrength(i),groupColors(groups(i),:), ...
-        'filled','MarkerEdgeColor',[0.08,0.08,0.08],'LineWidth',1.2, ...
-        'HandleVisibility','off');
-    if showValues
-        label = sprintf('%s\n||h|| %.2f',schema.nodeNames{i},nodeStrength(i));
-    else
-        label = schema.nodeNames{i};
+function drawRelationSchemaMatrix(ax,schema)
+matrix = zeros(schema.nNodes,schema.nNodes);
+for edge = 1:numel(schema.src)
+    matrix(schema.src(edge),schema.dst(edge)) = schema.rel(edge);
+end
+imagesc(ax,matrix);
+colors = [1,1,1; relationColors()];
+colormap(ax,colors); clim(ax,[-0.5,schema.nRelations+0.5]);
+axis(ax,'image'); ax.YDir = 'normal';
+ax.XTick = 1:schema.nNodes; ax.YTick = 1:schema.nNodes;
+ax.XTickLabel = schema.nodeNames; ax.YTickLabel = schema.nodeNames;
+ax.XTickLabelRotation = 40; ax.TickLabelInterpreter = 'none';
+tokens = {'i','vis','+','-','self'};
+for source = 1:schema.nNodes
+    for destination = 1:schema.nNodes
+        relation = matrix(source,destination);
+        if relation > 0
+            text(ax,destination,source,tokens{relation}, ...
+                'HorizontalAlignment','center','FontWeight','bold', ...
+                'FontSize',7,'Color',contrastColor(relation,[-0.5,5.5]));
+        end
     end
-    text(ax,x(i),y(i)-0.47,label,'HorizontalAlignment','center', ...
-        'VerticalAlignment','top','FontSize',8,'FontWeight','bold', ...
-        'Interpreter','none');
 end
-for r = 1:schema.nRelations
-    plot(ax,nan,nan,'Color',relationColors(r,:),'LineWidth',2.5, ...
-        'DisplayName',schema.relationNames{r});
+cb = colorbar(ax,'Ticks',1:schema.nRelations, ...
+    'TickLabels',schema.relationNames);
+cb.Label.String = 'Typed relation';
+ylabel(ax,'Source node');
+title(ax,'Typed directed relation matrix');
+subtitle(ax,'White=no edge; diagonal=self; every semantic edge shown once');
 end
-legend(ax,'Location','southoutside','Orientation','horizontal', ...
-    'Interpreter','none','FontSize',8);
+
+function drawAttentionSummary(ax,schema,alpha,nodeStrength,titleText)
+composition = zeros(schema.nNodes,schema.nRelations);
+for edge = 1:numel(schema.src)
+    destination = schema.dst(edge);
+    relation = schema.rel(edge);
+    composition(destination,relation) = ...
+        composition(destination,relation)+alpha(edge);
+end
+hold(ax,'on');
+bars = bar(ax,composition,'stacked','BarWidth',0.72);
+colors = relationColors();
+for relation = 1:schema.nRelations
+    bars(relation).FaceColor = colors(relation,:);
+    bars(relation).EdgeColor = 'none';
+end
+nodeStrength = nodeStrength(:)/max(max(nodeStrength),eps);
+activation = plot(ax,1:schema.nNodes,nodeStrength,'ko-', ...
+    'LineWidth',1.6,'MarkerFaceColor','w','MarkerSize',4);
+ax.XTick = 1:schema.nNodes;
+ax.XTickLabel = schema.nodeNames;
+ax.XTickLabelRotation = 34;
+ax.TickLabelInterpreter = 'none';
+ylim(ax,[0,1.08]); xlim(ax,[0.4,schema.nNodes+0.6]); grid(ax,'on');
+ylabel(ax,'Inbound attention mass / normalized ||h||');
+legend([bars(:);activation],[schema.relationNames,{'node activation'}], ...
+    'Location','southoutside','Orientation','horizontal', ...
+    'Interpreter','none','FontSize',7);
 title(ax,titleText,'Interpreter','none');
-if showValues
-    subtitleText = ['Node color=readout group; edge color=relation; ' ...
-        'width=normalized incoming attention'];
-else
-    subtitleText = 'All 17 semantic edges and 9 self relations';
-end
-subtitle(ax,subtitleText,'Interpreter','none');
-text(ax,-3.0,2.48,['Groups: purple=Perception | blue=Tracking | ' ...
-    'orange=Vehicle | red=Safety'],'FontSize',7.5,'Interpreter','none');
-xlim(ax,[-3.1,3.1]); ylim(ax,[-2.8,2.65]);
+subtitle(ax,'Stack=sum of incoming edges by relation; black line=node activation');
 end
 
 function drawAttentionMatrix(ax,schema,alpha,titleText)
@@ -472,9 +508,14 @@ assert(all(groups > 0),'landing2d:OntologyRgatGroups', ...
     'Every ontology node must belong to one readout group.');
 end
 
-function [x,y] = nodeCoordinates()
-x = [-2.45,-2.45,-2.45,-2.45,0.0,0.0,2.45,2.45,2.45];
-y = [2.00,0.70,-0.70,-2.00,0.85,-0.85,1.80,0.00,-1.80];
+function colors = groupColors()
+colors = [0.45,0.26,0.73; 0.12,0.47,0.71; ...
+    0.95,0.55,0.16; 0.82,0.20,0.24];
+end
+
+function colors = relationColors()
+colors = [0.16,0.45,0.78; 0.93,0.49,0.16; ...
+    0.18,0.63,0.32; 0.82,0.20,0.24; 0.45,0.45,0.45];
 end
 
 function addCellValues(ax,A,format,fontSize)

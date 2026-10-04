@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-04T20:45:23+09:00",
+  "updated_at": "2026-10-04T21:02:46+09:00",
   "matlab_file_count": 131,
   "json_validation": "passed",
   "svg_xml_validation": "passed",
@@ -16,5 +16,5 @@
   "runtime_profile": "500 repetitions; software timing only",
   "relation_performance_guard": "passed; test outcome rates preserved",
   "architecture_audit": "passed; selected context_rgat relational path active",
-  "ontology_rgat_explorer": "passed; 9 nodes, 26 edges, 5 relations, 108 features, actor/critic audit"
+  "ontology_rgat_explorer": "passed v2; semantic substrate cards, typed matrix, 9 nodes, 26 edges, 5 relations, 108 features, actor/critic audit"
 }

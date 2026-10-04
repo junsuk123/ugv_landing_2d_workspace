@@ -346,8 +346,10 @@ S1~S3 판정:
 ## 전체 온톨로지·R-GAT 시각화
 
 - 단일 코드: `src/orchestration/+landing2d/+viz/ontologyRgatExplorer.m`
-- 스키마 탭: 노드·클래스·그룹·causal provenance·전체 간선
-- 런타임 탭: 실제 최종 체크포인트의 Actor/Critic attention 그래프와 행렬
+- 방법론: semantic substrate와 typed adjacency matrix의 coordinated multiple views
+- 근거 문서: `docs/ONTOLOGY_VIEW_KO.md`
+- 스키마 탭: 의미 그룹 카드·typed relation 행렬·causal provenance·전체 간선
+- 런타임 탭: 실제 최종 체크포인트의 Actor/Critic 관계별 attention 누적 막대와 원본 행렬
 - 특징 탭: 12×9 노드 특징 텐서·그룹 readout·관계별 사용량
 - 감사 탭: 26개 간선 score·attention·message와 전체 그래프 파라미터
 - 기본 분석 지점: S3 최대 가시성 복구 필요 시점

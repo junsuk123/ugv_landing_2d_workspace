@@ -54,8 +54,8 @@ view = landing2d.viz.ontologyRgatExplorer();
 ```
 
 - 단일 코드: `src/orchestration/+landing2d/+viz/ontologyRgatExplorer.m`
-- 탭 1: 9개 노드·클래스·그룹·causal provenance·26개 간선 전체 목록
-- 탭 2: 저장 체크포인트 기반 Actor/Critic 전체 attention 그래프와 행렬
+- 탭 1: 의미 그룹 카드·typed relation 행렬·causal provenance·26개 간선 전체 목록
+- 탭 2: 저장 체크포인트 기반 Actor/Critic 관계별 attention 누적 막대와 원본 행렬
 - 탭 3: 대표 상태의 12×9 특징 텐서·4개 그룹 readout·관계별 사용량
 - 탭 4: 전체 간선 score·attention·message와 학습 파라미터 목록
 - 기본 스냅샷: S3 가시성 복구 구간의 최대 복구 필요 시점
