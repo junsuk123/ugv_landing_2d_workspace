@@ -10,6 +10,7 @@
 - 최종 R-GAT checkpoint 관계 경로 활성 확인
 - 관계 활성화 전후 test 결과율 동일 확인
 - 실제 비행 안전성 검증 제외
+- 최종 그림·CSV 갱신: 2026-10-04 14:52 KST
 
 ## 실행 명령
 
@@ -36,17 +37,29 @@ results/paper/
 
 | 모델 | 평균 return | 성공 | 위험 | 안전 중단 | 시간 초과 | 파라미터 | 정책 추론 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Low-level MLP PPO | 19.139 | 74% | 2% | 23% | 1% | 7,445 | 0.320 ms |
-| Semantic-flat MLP PPO | 18.496 | **75%** | 9% | **13%** | 3% | 15,317 | **0.149 ms** |
-| Ontology R-GAT PPO | 17.930 | 72% | 9% | 14% | 5% | 17,001 | 0.196 ms |
+| Low-level MLP PPO | 19.139 | 74% | 2% | 23% | 1% | 7,445 | **0.150 ms** |
+| Semantic-flat MLP PPO | 18.496 | **75%** | 9% | **13%** | 3% | 15,317 | 0.163 ms |
+| Ontology R-GAT PPO | 17.930 | 72% | 9% | 14% | 5% | 17,001 | 0.253 ms |
 
 판정:
 
 - baseline 대비 semantic-flat 성공률 +1%p
 - semantic-flat 대비 R-GAT 성공률 -3%p
 - baseline의 위험 접촉률 최저
-- semantic-flat의 평균 추론 시간 최저
+- baseline의 500회 정책 추론 프로파일 최저
+- 추론 시간: 호스트 부하 영향을 받는 소프트웨어 프로파일·경성 실시간 보장 제외
 - 단일 학습 seed 기반 통계적 우월성 판정 제외
+
+## Monte Carlo 결과
+
+![Monte Carlo 평균·1시그마 궤적과 최종 평가](assets/paper/planar_visibility_monte_carlo.png)
+
+- 표본: 모델별 동일 test seed 100개
+- 궤적: 시간 정규화 평균과 1시그마 공분산 윤곽
+- 결과율: 성공·위험 접촉·안전 중단의 paired 비교
+- 학습 곡선: validation return 평균 궤적
+- 관계도: 최종 R-GAT relation attention 평균
+- 해석 제한: 단일 학습 seed의 episode 분산·학습 seed 간 분산 제외
 
 ## 대표 시나리오
 
@@ -222,3 +235,12 @@ $$
 - 실제 기체 공력·제어 지연
 - 실제 비행 안전성
 - 보편적 온톨로지 우월성
+
+## 최신 수치 원본
+
+- [문서 통합 최신 요약](assets/paper/data/latest_document_summary.csv)
+- [전체 test 실행 원본](assets/paper/data/planar_visibility_full_summary.csv)
+- [500회 추론 프로파일](assets/paper/data/paper_runtime_profile.csv)
+- [대표 시나리오 안정성](assets/paper/data/paper_stability_metrics.csv)
+- [시나리오 물리 가능성](assets/paper/data/paper_scenario_feasibility.csv)
+- [관계 경로 감사](assets/paper/data/paper_architecture_audit.csv)

@@ -1,8 +1,8 @@
 {
   "schema_version": "final_status_v2_8_guarded_rgat",
-  "updated_at": "2026-10-04",
+  "updated_at": "2026-10-04T14:52:34+09:00",
   "branch": "main",
-  "code_commit_before_document_refresh": "7291b16",
+  "code_commit_before_document_refresh": "7efcc10",
   "implementation": {
     "environment": "complete",
     "causal_observation_packet": "complete",
@@ -65,7 +65,7 @@
       "baseline_terminal": "SUCCESS",
       "semantic_flat_terminal": "UNAUTHORIZED_CONTACT",
       "ontology_rgat_terminal": "SUCCESS",
-      "stability_index": [88.746, 85.037, 93.502]
+      "stability_index": [88.746, 85.037, 93.498]
     },
     "S2": {
       "challenge": "rapid_acceleration",
@@ -91,6 +91,22 @@
     "calibration_scale": 0.001,
     "mean_abs_action_residual": [0.000012728, 0.000038613],
     "interpretation": "typed relation path active inside a validation-guarded residual trust region"
+  },
+  "runtime_profile_500": {
+    "unit": "ms",
+    "profile_type": "software timing; not WCET",
+    "baseline": {
+      "policy": 0.1499714,
+      "actor_critic_total": 0.1655826
+    },
+    "semantic_flat": {
+      "policy": 0.1627232,
+      "actor_critic_total": 0.2793984
+    },
+    "ontology_rgat": {
+      "policy": 0.2534084,
+      "actor_critic_total": 0.4064472
+    }
   },
   "relation_activation": {
     "raw_policy_frozen": true,

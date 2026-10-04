@@ -11,6 +11,7 @@
 - 최신 검증: 비그래픽 28/28·그래픽 포함 33/33 통과
 - 관계 경로: 성능 가드 기반 비영 readout 활성
 - 중요 제한: relation scale 0.001의 작은 신뢰구간
+- 문서 결과 갱신: 2026-10-04 14:52 KST
 
 ## 빠른 실행
 
@@ -128,6 +129,8 @@ $$
 
 ![온톨로지 신호와 관계 경로 감사](docs/assets/paper/paper_ontology.png)
 
+![Monte Carlo 평균·1시그마 궤적](docs/assets/paper/planar_visibility_monte_carlo.png)
+
 ## 결과 해석
 
 - S1: R-GAT 성공·안정성 지수 최고
@@ -137,6 +140,7 @@ $$
 - 단일 seed 결과 기반 우월성 주장 제외
 - 최종 R-GAT Policy/Value `Wg` norm 0.0001665/0.0006056
 - test 결과율 유지·평균 return 17.873→17.930
+- 500회 정책 추론 프로파일: baseline 0.150 ms·semantic-flat 0.163 ms·R-GAT 0.253 ms
 - 활성 관계 경로 확인·보편적 우월성 주장 제외
 
 ## 문서 연결

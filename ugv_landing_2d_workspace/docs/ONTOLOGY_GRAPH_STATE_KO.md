@@ -9,7 +9,7 @@
 - 정책 결합: raw semantic bypass + 4차원 relation context residual
 - 실시간 처리: 순전파만 적용
 - 정보 누수: hidden truth·보상·미래·성공 라벨 제외
-- 최신 체크포인트 상태: relation readout 0, 활성 관계 기여 제외
+- 최신 체크포인트 상태: Policy/Value relation readout 비영점·관계 경로 활성
 
 ![온톨로지 상황 그래프](assets/ontology_graph.svg)
 
@@ -154,13 +154,13 @@ $$
 관계 $r$의 선형 변환과 relation embedding:
 
 $$
-z_i^{(r)}=W_r x_i,qquad E_r\in\mathbb{R}^{d_r}
+z_i^{(r)}=W_r x_i,\qquad E_r\in\mathbb{R}^{d_r}
 $$
 
 Attention logit:
 
 $$
-e_{ij}^{(r)}=operatorname{LeakyReLU}\left(
+e_{ij}^{(r)}=\mathrm{LeakyReLU}\left(
 a_r^\top[z_i^{(r)}\Vert z_j^{(r)}\Vert E_r]
 \right)
 $$

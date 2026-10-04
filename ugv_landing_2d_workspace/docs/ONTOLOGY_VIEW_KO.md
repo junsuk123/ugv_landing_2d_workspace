@@ -7,6 +7,7 @@
 - 전체 궤적 비교: `paper_trajectories`
 - 물리 가능성·하강 금지 원인: `paper_feasibility`
 - checkpoint 관계 경로 활성 여부: `paper_architecture_audit.csv`
+- Monte Carlo 평균·분산: `planar_visibility_monte_carlo.png`
 
 ## 실행
 
@@ -28,6 +29,7 @@ run_paper(struct('figureVisible',false));
 | `paper_stability` | 안정성 지수와 5개 구성 metric |
 | `paper_feasibility` | speed·acceleration margin, inhibit 비율·원인 |
 | `paper_ontology` | eligibility·inhibit·visibility·gate·relation residual |
+| `planar_visibility_monte_carlo` | test 100 seed 평균·1시그마 궤적·결과율·attention |
 
 ## 궤적 figure
 
@@ -130,6 +132,19 @@ run_paper(struct('figureVisible',false));
 | `paper_runtime_profile.csv` | parameter·runtime |
 | `paper_architecture_audit.csv` | R-GAT 관계 경로 활성 여부 |
 | `paper_validation.mat` | 전체 재현 데이터 |
+
+GitHub 문서 포함 사본:
+
+- `assets/paper/data/planar_visibility_full_summary.csv`
+- `assets/paper/data/latest_document_summary.csv`
+- `assets/paper/data/paper_runtime_profile.csv`
+- `assets/paper/data/paper_stability_metrics.csv`
+- `assets/paper/data/paper_scenario_feasibility.csv`
+- `assets/paper/data/paper_architecture_audit.csv`
+
+## Monte Carlo figure
+
+![Monte Carlo 평균·1시그마 궤적](assets/paper/planar_visibility_monte_carlo.png)
 
 ## 해석 제한
 

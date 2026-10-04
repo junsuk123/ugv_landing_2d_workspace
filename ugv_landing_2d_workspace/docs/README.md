@@ -23,6 +23,18 @@
 | [안정성 지표](assets/paper/paper_stability.png) | 6개 안정성 metric |
 | [착륙 가능성](assets/paper/paper_feasibility.png) | authority margin·inhibit 원인 |
 | [관계 경로 감사](assets/paper/paper_ontology.png) | ontology signal·relation residual |
+| [Monte Carlo 평가](assets/paper/planar_visibility_monte_carlo.png) | test 100 seed 평균·1시그마 궤적·결과율 |
+
+## 최신 결과 데이터
+
+| 데이터 | 내용 |
+|---|---|
+| [문서 통합 최신 요약](assets/paper/data/latest_document_summary.csv) | test 성능과 500회 추론 프로파일 통합 |
+| [전체 test 실행 원본](assets/paper/data/planar_visibility_full_summary.csv) | 성공·위험·중단·return·파라미터 |
+| [추론 프로파일](assets/paper/data/paper_runtime_profile.csv) | 500회 정책·Actor/Critic 실행시간 |
+| [안정성 지표](assets/paper/data/paper_stability_metrics.csv) | 3시나리오 × 3모델 결과 |
+| [물리 가능성](assets/paper/data/paper_scenario_feasibility.csv) | speed·acceleration·time margin |
+| [구조 감사](assets/paper/data/paper_architecture_audit.csv) | R-GAT readout·relation head 활성 |
 
 ## 상태 파일
 

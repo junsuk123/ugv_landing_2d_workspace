@@ -13,6 +13,7 @@
 - MATLAB R2025b 비그래픽 28/28·그래픽 포함 33/33 통과
 - 최신 R-GAT checkpoint relation readout 활성 확인
 - 활성화 전후 test 결과율 동일 확인
+- 최종 그림·CSV 갱신: 2026-10-04 14:52 KST
 - 활성 R-GAT 성능 우월성 주장 제외
 
 ## 연구 질문
@@ -209,11 +210,24 @@ $$
 
 ## 전체 test 결과
 
+- 평가 split: 모델 선택과 분리된 test seed `3001:3100`
+- 평가 수: 모델별 100 episode
+- 추론 프로파일: 동일 호스트 500회 반복
+
 | 모델 | 성공률 | 위험률 | 안전 중단률 | 시간 초과율 | 평균 return |
 |---|---:|---:|---:|---:|---:|
 | Low-level | 74% | **2%** | 23% | **1%** | **19.139** |
 | Semantic-flat | **75%** | 9% | **13%** | 3% | 18.496 |
 | Ontology R-GAT | 72% | 9% | 14% | 5% | 17.930 |
+
+| 모델 | Policy 추론 | Actor/Critic 전체 |
+|---|---:|---:|
+| Low-level | **0.150 ms** | **0.166 ms** |
+| Semantic-flat | 0.163 ms | 0.279 ms |
+| Ontology R-GAT | 0.253 ms | 0.406 ms |
+
+- 실행시간: MATLAB 소프트웨어 프로파일
+- 경성 실시간 보장·WCET 판정 제외
 
 성능 판정:
 
@@ -222,6 +236,8 @@ $$
 - ontology R-GAT의 전체 우월성 부재
 - 단일 학습 seed 결과
 - 다중 seed 통계 검증 필요
+
+![Monte Carlo 평균·1시그마 평가](../assets/paper/planar_visibility_monte_carlo.png)
 
 ## 대표 시나리오 결과
 

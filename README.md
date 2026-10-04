@@ -15,13 +15,18 @@
 
 ## 최신 결과
 
+- 평가 갱신: 2026-10-04 14:52 KST
+- 성능 평가: 고정 test seed `3001:3100` 100개
+- 논문 시나리오·그림: 최종 활성 R-GAT checkpoint 재실행
+- 추론 시간: 동일 호스트 단일 실행의 500회 반복 평균
+
 ### 100개 fresh test seed 평가
 
 | 모델 | 성공률 | 위험 접촉률 | 안전 중단률 | 시간 초과율 | 평균 return | 파라미터 | 추론 시간 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Low-level MLP PPO | 74% | 2% | 23% | 1% | 19.139 | 7,445 | 0.320 ms |
-| Semantic-flat MLP PPO | 75% | 9% | 13% | 3% | 18.496 | 15,317 | 0.149 ms |
-| Ontology R-GAT PPO | 72% | 9% | 14% | 5% | 17.930 | 17,001 | 0.196 ms |
+| Low-level MLP PPO | 74% | 2% | 23% | 1% | 19.139 | 7,445 | 0.150 ms |
+| Semantic-flat MLP PPO | 75% | 9% | 13% | 3% | 18.496 | 15,317 | 0.163 ms |
+| Ontology R-GAT PPO | 72% | 9% | 14% | 5% | 17.930 | 17,001 | 0.253 ms |
 
 - 단일 학습 seed의 최종 체크포인트 평가
 - 모델 선택에 사용하지 않은 test seed `3001:3100` 사용
@@ -44,6 +49,16 @@
 ![대표 시나리오 착륙 궤적](ugv_landing_2d_workspace/docs/assets/paper/paper_trajectories.png)
 
 ![안정성 지표](ugv_landing_2d_workspace/docs/assets/paper/paper_stability.png)
+
+### Monte Carlo 평균·분산 궤적
+
+![Monte Carlo 평균·1시그마 궤적과 최종 평가](ugv_landing_2d_workspace/docs/assets/paper/planar_visibility_monte_carlo.png)
+
+- 왼쪽 상단: 100개 test seed의 평균 궤적과 1시그마 공분산 윤곽
+- 오른쪽 상단: 동일 test seed의 성공·위험·안전 중단·포착률
+- 왼쪽 하단: 학습 중 validation return 궤적
+- 가운데 하단: 정책 상태 구성과 Actor 순전파를 포함한 추론 시간
+- 오른쪽 하단: 최종 R-GAT 평균 relation attention
 
 ## 시스템 구조
 
@@ -241,6 +256,12 @@ run_paper
 run_paper(struct('figureVisible',false))
 ```
 
+문서용 500회 추론 프로파일 재생성:
+
+```matlab
+run_paper(struct('figureVisible',false,'profileRepetitions',500))
+```
+
 전체 재학습:
 
 ```matlab
@@ -255,6 +276,7 @@ run_all(struct('executionMode','full','rlRetrain',true))
 - `paper_ontology.*`: 온톨로지 신호·관계 residual 감사
 - `paper_stability_metrics.csv`: 수치 원본
 - `paper_architecture_audit.csv`: 관계 경로 활성 여부
+- `docs/assets/paper/data/`: 문서 표·그림의 최신 CSV 사본
 
 ## 최종 문서
 
