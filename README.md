@@ -74,8 +74,20 @@ src/
 ```
 
 - 루트 실행 파일: `run.m`, `run_scenario.m`
-- MATLAB 소스: 128개
+- MATLAB 소스: 129개
 - 구 진입점·분산 테스트·중복 시각화·미사용 레거시 모듈 제거
+
+### 온톨로지·R-GAT 전체 시각화
+
+```matlab
+addpath(fullfile(pwd,'src','orchestration'), ...
+    fullfile(pwd,'src','simulations'),fullfile(pwd,'src','algorithms'))
+view = landing2d.viz.ontologyRgatExplorer();
+```
+
+- 9개 노드·26개 간선·5개 관계형 전체 표시
+- 12×9 특징 텐서와 4개 readout 그룹 표시
+- 최종 체크포인트의 Actor/Critic attention·message·파라미터 표시
 
 | 비교군 | Actor/Critic 입력 | 그래프 관계 사용 |
 |---|---|---|

@@ -4,7 +4,7 @@
 
 - 루트 진입점 2개
 - `src` 상위 계층 3개
-- MATLAB 소스 128개
+- MATLAB 소스 129개
 - 최종 계약 self-test 8개
 - 과거 실험·가중치 설계·중복 GUI·분산 테스트 제거
 
@@ -22,7 +22,7 @@
 | `+orchestration` | 전체 파이프라인·검증·단일 시나리오·self-test |
 | `+config` | `planar_visibility_v2` 설정과 계약 검증 |
 | `+paper` | 대표 시나리오·안정성·가능성·논문 그림 |
-| `+viz` | 학습 대시보드·Monte Carlo 요약·R-GAT field |
+| `+viz` | 학습 대시보드·Monte Carlo 요약·R-GAT field·전체 구조 explorer |
 | `+io` | 최종 탭 figure 저장 |
 | `+util` | 수치 최적화 공통 유틸리티 |
 
@@ -34,6 +34,7 @@
 - `src/orchestration/+landing2d/+orchestration/runStudy.m`
 - `src/orchestration/+landing2d/+orchestration/runScenario.m`
 - `src/orchestration/+landing2d/+orchestration/selfTest.m`
+- `src/orchestration/+landing2d/+viz/ontologyRgatExplorer.m`
 
 ## `src/simulations`
 
@@ -66,6 +67,7 @@
 | paper stability | 안정성 지표 |
 | paper feasibility | 물리 가능성과 inhibit 원인 |
 | paper ontology | ontology signal과 relation residual |
+| ontology R-GAT explorer | 전체 스키마·특징 텐서·Actor/Critic attention·파라미터 audit |
 
 ## 제거 범위
 

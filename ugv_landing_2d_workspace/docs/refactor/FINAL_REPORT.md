@@ -341,6 +341,16 @@ S1~S3 판정:
 | 최소 PNG export | 통과 |
 | relation performance guard | 결과율 비열화 차단 통과 |
 | architecture audit | relation path 활성 탐지 |
+| ontology R-GAT explorer | 9노드·26간선·5관계·108특징·Actor/Critic 렌더링 통과 |
+
+## 전체 온톨로지·R-GAT 시각화
+
+- 단일 코드: `src/orchestration/+landing2d/+viz/ontologyRgatExplorer.m`
+- 스키마 탭: 노드·클래스·그룹·causal provenance·전체 간선
+- 런타임 탭: 실제 최종 체크포인트의 Actor/Critic attention 그래프와 행렬
+- 특징 탭: 12×9 노드 특징 텐서·그룹 readout·관계별 사용량
+- 감사 탭: 26개 간선 score·attention·message와 전체 그래프 파라미터
+- 기본 분석 지점: S3 최대 가시성 복구 필요 시점
 
 ## 최종 파일
 
@@ -354,6 +364,7 @@ S1~S3 판정:
 - `src/orchestration/+landing2d`
 - `src/simulations/+landing2d`
 - `src/algorithms/+landing2d`
+- `src/orchestration/+landing2d/+viz/ontologyRgatExplorer.m`
 
 문서:
 

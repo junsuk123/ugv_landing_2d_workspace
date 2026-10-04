@@ -1,6 +1,6 @@
 {
   "schema_version": "final_workspace_v3_compact",
-  "updated_at": "2026-10-04T15:24:23+09:00",
+  "updated_at": "2026-10-04T20:45:23+09:00",
   "branch": "main",
   "code_commit_before_document_refresh": "7efcc10",
   "implementation": {
@@ -13,7 +13,8 @@
     "paper_visualization": "complete",
     "documentation_refresh": "complete",
     "three_root_source_layout": "complete",
-    "legacy_cleanup": "complete"
+    "legacy_cleanup": "complete",
+    "ontology_rgat_explorer": "complete"
   },
   "contracts": {
     "experiment": "planar_visibility_v2",
@@ -33,12 +34,13 @@
     "single_scenario_S3": "passed",
     "checkpoint_compatibility": "passed",
     "task_fingerprint_parity": "passed",
-    "minimal_figure_export": "passed"
+    "minimal_figure_export": "passed",
+    "ontology_rgat_explorer_render": "passed"
   },
   "workspace": {
     "root_entry_points": ["run.m", "run_scenario.m"],
     "source_roots": ["src/orchestration", "src/simulations", "src/algorithms"],
-    "matlab_source_files": 128,
+    "matlab_source_files": 129,
     "removed_individual_tests": 34,
     "removed_visualization_modules": 18,
     "removed_legacy_modules": 47
