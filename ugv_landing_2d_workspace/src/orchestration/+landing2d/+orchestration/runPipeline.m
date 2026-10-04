@@ -1,0 +1,65 @@
+function output = runPipeline(options)
+% RUNPIPELINE  Final train -> validate -> visualize orchestration.
+if nargin < 1, options=struct(); end
+defaults=struct('executionMode','full','retrain',true, ...
+    'runSelfTest',true,'generatePaper',true,'figureVisible',true, ...
+    'saveResults',true,'showLiveDashboard',true, ...
+    'profileRepetitions',500,'trainingOptions',struct());
+options=parseOptions(options,defaults);
+
+fprintf('\nUGV landing final pipeline\n');
+fprintf('  mode: %s | scratch retrain: %d | paper study: %d\n', ...
+    options.executionMode,options.retrain,options.generatePaper);
+if options.runSelfTest
+    testReport=landing2d.orchestration.selfTest();
+else
+    testReport=table();
+end
+
+trainingOptions=options.trainingOptions;
+trainingOptions.executionMode=options.executionMode;
+trainingOptions.rlRetrain=options.retrain;
+trainingOptions.figureVisible=options.figureVisible;
+trainingOptions.saveResults=options.saveResults;
+trainingOptions.showLiveDashboard=options.showLiveDashboard;
+[comparison,summaryTable,cfg]=landing2d.orchestration.trainEvaluate( ...
+    trainingOptions);
+
+study=[]; figures=struct();
+if options.generatePaper
+    paperOptions=struct('checkpointDir',cfg.outputDir, ...
+        'outputDir',fullfile(cfg.outputDir,'paper'), ...
+        'saveResults',options.saveResults,'saveFigures',options.saveResults, ...
+        'figureVisible',options.figureVisible,'exportPdf',false, ...
+        'profileRepetitions',options.profileRepetitions);
+    [study,figures]=landing2d.orchestration.runStudy(paperOptions);
+end
+output=struct('schemaVersion','landing2d_final_pipeline_v1', ...
+    'generatedAt',datetime('now'),'config',cfg,'tests',testReport, ...
+    'comparison',comparison,'summary',summaryTable, ...
+    'paperStudy',study,'figures',figures);
+fprintf('Final pipeline complete: %s\n',cfg.outputDir);
+end
+
+function options=parseOptions(options,defaults)
+assert(isstruct(options) && isscalar(options), ...
+    'landing2d:InvalidOptions','options must be a scalar struct.');
+unknown=setdiff(fieldnames(options),fieldnames(defaults));
+assert(isempty(unknown),'landing2d:UnknownOption', ...
+    'Unknown run option: %s',strjoin(unknown,', '));
+keys=fieldnames(defaults);
+for i=1:numel(keys)
+    if ~isfield(options,keys{i}), options.(keys{i})=defaults.(keys{i}); end
+end
+options.executionMode=char(options.executionMode);
+assert(ismember(options.executionMode,{'full','smoke'}), ...
+    'landing2d:ExecutionMode','executionMode must be full or smoke.');
+for key={'retrain','runSelfTest','generatePaper','figureVisible', ...
+        'saveResults','showLiveDashboard'}
+    options.(key{1})=logical(options.(key{1}));
+end
+validateattributes(options.profileRepetitions,{'numeric'}, ...
+    {'scalar','integer','positive'});
+assert(isstruct(options.trainingOptions) && isscalar(options.trainingOptions), ...
+    'landing2d:TrainingOptions','trainingOptions must be a scalar struct.');
+end

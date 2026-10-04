@@ -3,7 +3,7 @@
 ## 결론
 
 - 정적 구조 확인: `docs/assets/ontology_graph.svg`
-- 실시간 정책 신호 확인: `run_paper`의 `paper_ontology`
+- 실시간 정책 신호 확인: `run`의 `paper_ontology`
 - 전체 궤적 비교: `paper_trajectories`
 - 물리 가능성·하강 금지 원인: `paper_feasibility`
 - checkpoint 관계 경로 활성 여부: `paper_architecture_audit.csv`
@@ -12,13 +12,13 @@
 ## 실행
 
 ```matlab
-[study,figures] = run_paper;
+output = run(struct('retrain',false));
 ```
 
 창 없이 파일 생성:
 
 ```matlab
-run_paper(struct('figureVisible',false));
+output = run(struct('retrain',false,'figureVisible',false));
 ```
 
 ## 생성 figure

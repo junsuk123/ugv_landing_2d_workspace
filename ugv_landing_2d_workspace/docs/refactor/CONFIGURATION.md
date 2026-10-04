@@ -15,6 +15,23 @@
 - 구버전 checkpoint 자동 거부
 - 보상·환경·그래프 설정 변경 시 재학습 요구
 
+## `run.m` 기본값
+
+| 옵션 | 기본값 | 의미 |
+|---|---|---|
+| `executionMode` | `full` | validation·test 각 100 episode |
+| `retrain` | `true` | 세 모델 scratch PPO 재학습 |
+| `runSelfTest` | `true` | 최종 계약 검사 8개 선행 |
+| `generatePaper` | `true` | 대표 시나리오 검증·PNG 생성 |
+| `figureVisible` | `true` | 학습·평가 figure 표시 |
+| `saveResults` | `true` | checkpoint·MAT·CSV·PNG 저장 |
+| `showLiveDashboard` | `true` | 실시간 학습 상태 표시 |
+| `profileRepetitions` | 500 | 정책·Actor/Critic 실행시간 반복 측정 |
+
+- `run`: 처음부터 전체 과정 실행
+- `run(struct('retrain',false))`: 최종 checkpoint 재사용
+- `run_scenario('S1'|'S2'|'S3')`: 단일 대표 시나리오 실행
+
 ## 시간·동역학
 
 | 항목 | 값 |

@@ -2,9 +2,11 @@
 
 ## 결론
 
-- MATLAB R2025b 비그래픽 28/28·그래픽 포함 33/33 통과
+- MATLAB R2025b 최종 계약 self-test 8/8 통과
+- 세 모델 smoke 학습·평가 pipeline 통과
+- S3 단일 시나리오 실행 통과
 - 최종 checkpoint 기반 3개 고정 시나리오 실행 성공
-- 논문 그림 PNG·PDF·FIG 생성 확인
+- 논문 그림 PNG 생성 확인
 - fresh test 100 seed 결과 저장 확인
 - R-GAT 전체 성능 우월성 미확인
 - 최종 R-GAT checkpoint 관계 경로 활성 확인
@@ -15,9 +17,9 @@
 ## 실행 명령
 
 ```matlab
-run_tests(false)
-run_activate_rgat_checkpoint
-[study,figures] = run_paper(struct('figureVisible',false));
+run(struct('executionMode','smoke','generatePaper',false, ...
+    'figureVisible',false,'saveResults',false,'showLiveDashboard',false))
+run_scenario('S3',struct('figureVisible',false))
 ```
 
 결과 위치:
@@ -210,26 +212,22 @@ $$
 
 ![온톨로지 신호와 관계 감사](assets/paper/paper_ontology.png)
 
-## 회귀 테스트 범위
+## 최종 self-test 범위
 
 | 범주 | 검증 |
 |---|---|
-| 레거시 보존 | PD 기준 수치 동일성 |
-| 동역학 | PN·CV/CA/CV·접촉 interpolation |
-| 센서 | body-fixed projection·가시성 경계 |
-| 정보경계 | 비가시 hidden truth 누수 차단 |
-| 추정기 | causal 갱신·불확실성·재포착 |
-| 보상 | terminal 1회·progress shaping·순서 |
-| PPO | gradient·GAE·rollout·checkpoint |
-| R-GAT | 순전파·역전파·typed relation |
+| 공통 계약 | action 2차원·observation 26필드·split 분리·task fingerprint |
+| 동역학 | CV–CA–CV 속도·위치 연속성 |
+| 정보경계 | hidden truth·미래·결과 라벨 누수 차단 |
+| 종료 | 안전 접촉·비허가 접촉 분리 |
+| 그래프 | 9노드·26간선·5관계·그룹 readout |
+| PPO | 1회 bounded scratch update |
 | 관계 성능 가드 | raw policy 불변·비영 readout·결과율 비열화 차단 |
-| 그래프 | 9노드·26간선·context tensor |
-| 논문 실행 | 고정 시나리오 주입·metric 범위 |
+| 논문 시나리오 | S1~S3 정의·물리 가능성·dropout 계약 |
 
 ## 미검증 범위
 
 - 다중 학습 seed 평균·표준편차
-- 활성 relation checkpoint 성능
 - 실제 ROS 2 transport
 - 실제 센서 latency·dropout 분포
 - 실제 기체 공력·제어 지연

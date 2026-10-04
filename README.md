@@ -7,8 +7,8 @@
 - 비교 변수: Actor/Critic 상태 표현만 변경
 - 비교군: 저수준 관측 MLP, semantic-flat MLP, ontology R-GAT PPO
 - 최신 코드: `planar_visibility_v2`, 알고리즘 `planar-visibility-ppo-v2.8`
-- 최신 회귀 검증: MATLAB R2025b 비그래픽 28/28·그래픽 포함 33/33 통과
-- 논문용 진입점: `run_paper.m`
+- 최신 통합 검증: MATLAB R2025b self-test 8/8·smoke pipeline·S3 scenario 통과
+- 기본 진입점: `ugv_landing_2d_workspace/run.m`
 - 관계 경로: 검증 성능 가드 기반 비영 R-GAT readout 활성화
 - 핵심 제한: 성능 보존 신뢰구간에 따른 relation scale 0.001
 - 해석 범위: 관계 경로 활성 검증 완료·R-GAT 우월성 주장 제외
@@ -63,6 +63,19 @@
 ## 시스템 구조
 
 ![전체 파이프라인](ugv_landing_2d_workspace/docs/assets/pipeline.svg)
+
+### 최종 소스 계층
+
+```text
+src/
+├─ orchestration/  실행·설정·검증·저장·최소 시각화
+├─ simulations/    환경·동역학·센서·시나리오·안전 감독기
+└─ algorithms/     PPO·그래프 상태·온톨로지·R-GAT
+```
+
+- 루트 실행 파일: `run.m`, `run_scenario.m`
+- MATLAB 소스: 128개
+- 구 진입점·분산 테스트·중복 시각화·미사용 레거시 모듈 제거
 
 | 비교군 | Actor/Critic 입력 | 그래프 관계 사용 |
 |---|---|---|
@@ -245,35 +258,44 @@ $$
 
 ```matlab
 cd('C:\Users\user\Downloads\ugv_landing_2d_workspace_refactor')
-run_tests(false)
-run_activate_rgat_checkpoint
-run_paper
+run
 ```
 
-창 없이 논문 산출물 저장:
+기본 실행 범위:
+
+- 최종 계약 self-test
+- 세 모델 scratch PPO 학습
+- validation checkpoint 선택
+- held-out test 100 seed 평가
+- Monte Carlo·논문 그림 저장
+
+저장 checkpoint 재사용:
 
 ```matlab
-run_paper(struct('figureVisible',false))
+run(struct('retrain',false))
 ```
 
-문서용 500회 추론 프로파일 재생성:
+빠른 smoke 검사:
 
 ```matlab
-run_paper(struct('figureVisible',false,'profileRepetitions',500))
+run(struct('executionMode','smoke','generatePaper',false, ...
+    'figureVisible',false,'saveResults',false,'showLiveDashboard',false))
 ```
 
-전체 재학습:
+특정 시나리오:
 
 ```matlab
-run_all(struct('executionMode','full','rlRetrain',true))
+run_scenario('S1')
+run_scenario('S2')
+run_scenario('S3')
 ```
 
 산출물 위치: `results/paper/`
 
-- `paper_trajectories.*`: 대표 시나리오 궤적
-- `paper_stability.*`: 안정성 지표
-- `paper_feasibility.*`: 물리 가능성·하강 금지 원인
-- `paper_ontology.*`: 온톨로지 신호·관계 residual 감사
+- `paper_trajectories.png`: 대표 시나리오 궤적
+- `paper_stability.png`: 안정성 지표
+- `paper_feasibility.png`: 물리 가능성·하강 금지 원인
+- `paper_ontology.png`: 온톨로지 신호·관계 residual 감사
 - `paper_stability_metrics.csv`: 수치 원본
 - `paper_architecture_audit.csv`: 관계 경로 활성 여부
 - `docs/assets/paper/data/`: 문서 표·그림의 최신 CSV 사본

@@ -1,6 +1,6 @@
 {
-  "schema_version": "final_status_v2_8_guarded_rgat",
-  "updated_at": "2026-10-04T14:52:34+09:00",
+  "schema_version": "final_workspace_v3_compact",
+  "updated_at": "2026-10-04T15:24:23+09:00",
   "branch": "main",
   "code_commit_before_document_refresh": "7efcc10",
   "implementation": {
@@ -11,7 +11,9 @@
     "scratch_ppo_training": "complete",
     "paper_validation": "complete",
     "paper_visualization": "complete",
-    "documentation_refresh": "complete"
+    "documentation_refresh": "complete",
+    "three_root_source_layout": "complete",
+    "legacy_cleanup": "complete"
   },
   "contracts": {
     "experiment": "planar_visibility_v2",
@@ -23,18 +25,23 @@
   },
   "tests": {
     "matlab_version": "R2025b",
-    "non_graphics": {
-      "passed": 28,
+    "final_contract_self_test": {
+      "passed": 8,
       "failed": 0
     },
-    "graphics_inclusive": {
-      "passed": 33,
-      "failed": 0
-    },
-    "paper_pipeline": "passed",
+    "smoke_pipeline": "passed",
+    "single_scenario_S3": "passed",
     "checkpoint_compatibility": "passed",
     "task_fingerprint_parity": "passed",
-    "figure_export": "passed"
+    "minimal_figure_export": "passed"
+  },
+  "workspace": {
+    "root_entry_points": ["run.m", "run_scenario.m"],
+    "source_roots": ["src/orchestration", "src/simulations", "src/algorithms"],
+    "matlab_source_files": 128,
+    "removed_individual_tests": 34,
+    "removed_visualization_modules": 18,
+    "removed_legacy_modules": 47
   },
   "held_out_test_100": {
     "baseline": {

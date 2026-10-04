@@ -230,8 +230,7 @@ Truth 사용 금지:
 
 ## 관련 코드
 
-- `src/+landing2d/+rl/computeReward.m`
-- `src/+landing2d/+environment/evaluateTermination.m`
-- `src/+landing2d/+rl/rewardAudit.m`
-- `tests/test_reward_transition.m`
-- `tests/test_termination_reward_v2.m`
+- `src/algorithms/+landing2d/+rl/computeReward.m`
+- `src/simulations/+landing2d/+environment/evaluateTermination.m`
+- `src/algorithms/+landing2d/+rl/rewardAudit.m`
+- `src/orchestration/+landing2d/+orchestration/selfTest.m`

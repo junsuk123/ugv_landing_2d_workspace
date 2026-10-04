@@ -10,7 +10,8 @@
 - scratch PPO 2,500회 최종 checkpoint 생성
 - fresh test 100 seed 평가 완료
 - 논문용 고정 3시나리오·안정성·가능성 시각화 완료
-- MATLAB R2025b 비그래픽 28/28·그래픽 포함 33/33 통과
+- MATLAB R2025b 최종 계약 self-test 8/8 통과
+- 세 모델 smoke pipeline·S3 단일 시나리오 통과
 - 최신 R-GAT checkpoint relation readout 활성 확인
 - 활성화 전후 test 결과율 동일 확인
 - 최종 그림·CSV 갱신: 2026-10-04 14:52 KST
@@ -331,13 +332,13 @@ S1~S3 판정:
 
 | 검증 | 결과 |
 |---|---|
-| 비그래픽 회귀 테스트 | 28/28 통과 |
-| 그래픽 포함 회귀 테스트 | 33/33 통과 |
-| paper pipeline test | 통과 |
+| 최종 계약 self-test | 8/8 통과 |
+| 세 모델 smoke pipeline | 통과 |
+| S3 단일 시나리오 | 통과 |
 | checkpoint signature | 통과 |
 | task fingerprint A/B/C 동일성 | 통과 |
 | 고정 scenario 주입 | 통과 |
-| PNG·PDF·FIG export | 통과 |
+| 최소 PNG export | 통과 |
 | relation performance guard | 결과율 비열화 차단 통과 |
 | architecture audit | relation path 활성 탐지 |
 
@@ -345,20 +346,14 @@ S1~S3 판정:
 
 실행:
 
-- `run_all.m`
-- `run_finalTest.m`
-- `run_paper.m`
-- `run_paper_validation.m`
-- `run_activate_rgat_checkpoint.m`
+- `run.m`
+- `run_scenario.m`
 
 핵심 구현:
 
-- `src/+landing2d/+sensing`
-- `src/+landing2d/+environment`
-- `src/+landing2d/+graphstate`
-- `src/+landing2d/+rgat`
-- `src/+landing2d/+rl`
-- `src/+landing2d/+paper`
+- `src/orchestration/+landing2d`
+- `src/simulations/+landing2d`
+- `src/algorithms/+landing2d`
 
 문서:
 

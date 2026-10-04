@@ -1,170 +1,76 @@
-# 최종 코드 모듈 지도
+# 최종 코드 구조
 
 ## 결론
 
-- 기본 진입점: `run_all.m`
-- 논문 진입점: `run_paper.m`
-- 고정 시나리오 검증: `run_paper_validation.m`
-- 관계 경로 안전 활성화: `run_activate_rgat_checkpoint.m`
-- 공통 환경: `+environment`
-- causal sensing: `+sensing`
-- 온톨로지 상태: `+graphstate`
-- 관계 연산: `+rgat`
-- PPO: `+rl`
-- 논문 metric·plot: `+paper`
+- 루트 진입점 2개
+- `src` 상위 계층 3개
+- MATLAB 소스 128개
+- 최종 계약 self-test 8개
+- 과거 실험·가중치 설계·중복 GUI·분산 테스트 제거
 
-## 실행 파일
+## 루트 진입점
 
 | 파일 | 역할 |
 |---|---|
-| `setup_project.m` | root와 `src` 경로 등록 |
-| `run_all.m` | 기본 full A/B/C 학습·평가 |
-| `run_planar_visibility.m` | `planar_visibility_v2` 실행 |
-| `run_finalTest.m` | 최종 checkpoint 실시간 비교 |
-| `run_paper.m` | 논문 figure·CSV·MAT 생성 |
-| `run_paper_validation.m` | 고정 3시나리오 공정 비교 |
-| `run_activate_rgat_checkpoint.m` | 비활성 R-GAT checkpoint 안전 활성화 |
-| `run_multiseed_study.m` | 다중 PPO seed 연구 |
-| `run_graph_ablation.m` | node-pool·GAT·R-GAT 제거 실험 |
-| `run_tests.m` | 회귀 테스트 통합 실행 |
+| `run.m` | scratch 학습→validation→held-out test→논문 시각화 |
+| `run_scenario.m` | S1·S2·S3 중 단일 시나리오 최종 정책 비교 |
 
-## 설정
+## `src/orchestration`
 
-| 코드 | 역할 |
+| 패키지 | 역할 |
 |---|---|
-| `+config/primaryConfig.m` | 최종 실험 설정 조립 |
-| `+config/defaultPlanarVisibilityConfig.m` | 환경·센서·안전·보상 기본값 |
-| `+rl/defaultRlConfig.m` | PPO 기본값 |
-| `+rl/applyScratchSettings.m` | 2,500회 scratch 설정 |
-| `+graphstate/defaultGraphStateConfig.m` | R-GAT·readout·사전학습 설정 |
+| `+orchestration` | 전체 파이프라인·검증·단일 시나리오·self-test |
+| `+config` | `planar_visibility_v2` 설정과 계약 검증 |
+| `+paper` | 대표 시나리오·안정성·가능성·논문 그림 |
+| `+viz` | 학습 대시보드·Monte Carlo 요약·R-GAT field |
+| `+io` | 최종 탭 figure 저장 |
+| `+util` | 수치 최적화 공통 유틸리티 |
 
-## 환경·시나리오
+핵심 파일:
 
-| 코드 | 역할 |
+- `src/orchestration/+landing2d/+orchestration/runPipeline.m`
+- `src/orchestration/+landing2d/+orchestration/trainEvaluate.m`
+- `src/orchestration/+landing2d/+orchestration/validateStudy.m`
+- `src/orchestration/+landing2d/+orchestration/runStudy.m`
+- `src/orchestration/+landing2d/+orchestration/runScenario.m`
+- `src/orchestration/+landing2d/+orchestration/selfTest.m`
+
+## `src/simulations`
+
+| 패키지 | 역할 |
 |---|---|
-| `+environment/reset.m` | scenario·sensor event·초기 packet 생성 |
-| `+environment/step.m` | 정책 action hold·물리 적분·reward·terminal |
-| `+environment/updateDecisionContext.m` | `LandingInhibit`·abort 요청 갱신 |
-| `+environment/evaluateTermination.m` | 접촉·timeout·safety 사건 판정 |
-| `+environment/taskFingerprint.m` | A/B/C 공통 문제 계약 지문 |
-| `+scenario/sampleParameters.m` | CV–CA–CV parameter sampling |
-| `+scenario/evaluateTrajectory.m` | 연속 위치·속도·가속도 계산 |
+| `+environment` | reset·step·종료·접촉·안전 문맥 |
+| `+dynamics` | 2D 기체·추력·피치 동역학 |
+| `+sensing` | 카메라·26필드 packet·causal 추정기 |
+| `+scenario` | CV–CA–CV 이동 패드 |
+| `+control` | 공통 안전 감독기와 제어 변환 |
+| `+simulation` | 최종 rollout 초기화 |
+| `+metrics` | 회복·거리 metric |
 
-## 동역학·제어
+## `src/algorithms`
 
-| 코드 | 역할 |
+| 패키지 | 역할 |
 |---|---|
-| `+dynamics/stepPlanar.m` | pitch/thrust planar dynamics |
-| `+control/safetySupervisor.m` | causal recovery·descent veto |
-| `+control/pnGuidanceV2.m` | V2 PN 기준 유도 |
+| `+rl` | PPO·Actor/Critic·reward·checkpoint·평가 |
+| `+graphstate` | 9노드 상황 그래프·encoder·사전학습 |
+| `+rgat` | typed relation attention 순전파·역전파 |
+| `+ontology` | 최종 노드 스키마·노드 값 |
 
-## 센서·관측 기억
+## 최소 시각화
 
-| 코드 | 역할 |
+| 출력 | 내용 |
 |---|---|
-| `+sensing/observationSchema.m` | 26필드 single source of truth |
-| `+sensing/projectPad.m` | body-fixed camera projection |
-| `+sensing/generateMeasurement.m` | noisy bearing·relative position 생성 |
-| `+sensing/initialPadTrack.m` | causal memory 초기화 |
-| `+sensing/updatePadTrack.m` | 위치·속도·가속도 추정 갱신 |
-| `+sensing/buildPacket.m` | Actor/Critic용 causal packet 구성 |
-| `+sensing/normalizePacket.m` | finite signed normalization |
-| `+sensing/sampleEvents.m` | dropout·pitch event 사전 결정 |
+| 학습 대시보드 | return·성공률·안전률·R-GAT 학습 상태 |
+| Monte Carlo summary | 평균·1시그마 궤적·결과율·학습 곡선·추론시간·attention |
+| paper trajectories | 고정 시나리오 착륙 궤적 |
+| paper stability | 안정성 지표 |
+| paper feasibility | 물리 가능성과 inhibit 원인 |
+| paper ontology | ontology signal과 relation residual |
 
-## 온톨로지 그래프 상태
+## 제거 범위
 
-| 코드 | 역할 |
-|---|---|
-| `+graphstate/contextSchema.m` | 9노드·17관계·9 self-edge 정의 |
-| `+graphstate/contextGraph.m` | packet → $12\times9$ 특징 텐서 |
-| `+graphstate/applyStateRepresentation.m` | baseline·flat·R-GAT 분기 |
-| `+graphstate/encoderInit.m` | graph encoder·group readout 초기화 |
-| `+graphstate/encoderForward.m` | message passing·raw bypass 순전파 |
-| `+graphstate/encoderBackward.m` | PPO gradient 역전파 |
-| `+graphstate/pretrainCausalEncoder.m` | masked same-time reconstruction |
-| `+graphstate/assertSameProblem.m` | 보상·행동·환경 동일성 검사 |
-
-## R-GAT
-
-| 코드 | 역할 |
-|---|---|
-| `+rgat/topology.m` | typed edge topology 구성 |
-| `+rgat/relationForward.m` | relation attention 순전파 |
-| `+rgat/relationBackward.m` | relation attention 역전파 |
-
-## PPO
-
-| 코드 | 역할 |
-|---|---|
-| `+rl/agentInit.m` | Actor·Critic·encoder 생성 |
-| `+rl/policyAction.m` | base mean + relation residual 계산 |
-| `+rl/relationPolicyResidual.m` | `DescentEligibility` gate 적용 |
-| `+rl/valueForward.m` | base value + relation value 계산 |
-| `+rl/rolloutEpisodeV2.m` | 공통 V2 rollout |
-| `+rl/computeReward.m` | 공통 reward 계산 |
-| `+rl/computeAdvantage.m` | variable-time GAE |
-| `+rl/ppoTrain.m` | scratch PPO·checkpoint 선택 |
-| `+rl/ensureRelationalPath.m` | raw 정책 고정 관계 전용 PPO |
-| `+rl/guardRelationalCandidate.m` | validation 성능·residual trust region |
-| `+rl/scaleRelationalReadout.m` | 후보 관계 스케일 조정 |
-| `+rl/relationalPathActive.m` | Policy/Value 관계 경로 감사 |
-| `+rl/evaluateV2.m` | validation·test 평가 |
-| `+rl/profileAgent.m` | inference time·parameter count |
-| `+rl/loadCheckpoint.m` | signature 검증 후 load |
-
-## 논문 평가·시각화
-
-| 코드 | 역할 |
-|---|---|
-| `+paper/representativeScenarios.m` | S1~S3 고정 정의 |
-| `+paper/scenarioFeasibility.m` | speed·acceleration·time margin |
-| `+paper/trajectoryMetrics.m` | 안정성·FOV·inhibit 원인 계산 |
-| `+paper/plotStudy.m` | 4종 논문 figure 생성 |
-
-산출물:
-
-- `paper_trajectories.png/pdf/fig`
-- `paper_stability.png/pdf/fig`
-- `paper_feasibility.png/pdf/fig`
-- `paper_ontology.png/pdf/fig`
-- `paper_stability_metrics.csv`
-- `paper_architecture_audit.csv`
-- `paper_validation.mat`
-
-## 최종 데이터 흐름
-
-```text
-environment.reset
-→ sensing.generateMeasurement
-→ sensing.updatePadTrack
-→ sensing.buildPacket
-→ baseline: normalizePacket
-  또는 contextGraph
-→ policyAction / valueForward
-→ safetySupervisor
-→ dynamics.stepPlanar
-→ computeReward / evaluateTermination
-```
-
-## 변경 위치 선택
-
-| 변경 목적 | 우선 파일 |
-|---|---|
-| 센서 필드 추가 | `observationSchema.m`, `buildPacket.m`, `normalizePacket.m` |
-| 온톨로지 노드 추가 | `contextSchema.m`, `contextGraph.m` |
-| 관계 추가 | `contextSchema.m` |
-| Actor graph 결합 변경 | `encoderForward.m`, `policyAction.m` |
-| Critic graph 결합 변경 | `encoderForward.m`, `valueForward.m` |
-| 하강 제약 변경 | `relationPolicyResidual.m` |
-| 관계 성능 가드 변경 | `guardRelationalCandidate.m` |
-| 보상 변경 | `computeReward.m`, algorithm version·signature |
-| 시나리오 변경 | `sampleParameters.m`, `evaluateTrajectory.m` |
-| 논문 metric 변경 | `trajectoryMetrics.m` |
-| 논문 plot 변경 | `plotStudy.m` |
-
-## 레거시 경로
-
-- 호출: `run_all(struct('experimentVersion','legacy_v1'))`
-- 기본 연구 결론 사용 제외
-- 11차원 관측·온톨로지 보상 가중치 문서 사용 제외
-- 회귀 보존 목적 한정
+- 구 진입점 13개
+- 개선과정 개별 테스트 34개
+- 미사용 시각화 모듈 18개
+- 최종 파이프라인 비의존 레거시 모듈 47개
+- 중간 checkpoint·구형 그림·구형 비교 결과

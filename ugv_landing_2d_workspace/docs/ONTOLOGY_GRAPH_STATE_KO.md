@@ -323,17 +323,17 @@ $$
 
 | 기능 | 코드 |
 |---|---|
-| 노드·간선 스키마 | `src/+landing2d/+graphstate/contextSchema.m` |
-| 노드 특징 구성 | `src/+landing2d/+graphstate/contextGraph.m` |
-| R-GAT 순전파 | `src/+landing2d/+rgat/relationForward.m` |
-| R-GAT 역전파 | `src/+landing2d/+rgat/relationBackward.m` |
-| graph encoder | `src/+landing2d/+graphstate/encoderForward.m` |
-| Actor relation residual | `src/+landing2d/+rl/relationPolicyResidual.m` |
-| Critic relation residual | `src/+landing2d/+rl/valueForward.m` |
-| causal 사전학습 | `src/+landing2d/+graphstate/pretrainCausalEncoder.m` |
-| 관계 전용 미세조정 | `src/+landing2d/+rl/ensureRelationalPath.m` |
-| 성능 보존 가드 | `src/+landing2d/+rl/guardRelationalCandidate.m` |
-| 체크포인트 감사 | `run_paper_validation.m` |
+| 노드·간선 스키마 | `src/algorithms/+landing2d/+graphstate/contextSchema.m` |
+| 노드 특징 구성 | `src/algorithms/+landing2d/+graphstate/contextGraph.m` |
+| R-GAT 순전파 | `src/algorithms/+landing2d/+rgat/relationForward.m` |
+| R-GAT 역전파 | `src/algorithms/+landing2d/+rgat/relationBackward.m` |
+| graph encoder | `src/algorithms/+landing2d/+graphstate/encoderForward.m` |
+| Actor relation residual | `src/algorithms/+landing2d/+rl/relationPolicyResidual.m` |
+| Critic relation residual | `src/algorithms/+landing2d/+rl/valueForward.m` |
+| causal 사전학습 | `src/algorithms/+landing2d/+graphstate/pretrainCausalEncoder.m` |
+| 관계 전용 미세조정 | `src/algorithms/+landing2d/+rl/ensureRelationalPath.m` |
+| 성능 보존 가드 | `src/algorithms/+landing2d/+rl/guardRelationalCandidate.m` |
+| 체크포인트 감사 | `src/orchestration/+landing2d/+orchestration/validateStudy.m` |
 
 ## 주장 범위
 
