@@ -1,319 +1,284 @@
-# 최종 설정과 데이터 계약
+# 실험 파라미터
 
-## 버전
+## 요약
 
-| 계약 | 값 |
-|---|---|
-| 실험 | `planar_visibility_v2` |
-| 환경 | `environment_v2` |
-| 관측 | `causal_packet_v2` |
-| 그래프 | `compact_context_graph_v3_grouped` |
-| 정책 알고리즘 | `planar-visibility-ppo-v2.8` |
-| 논문 검증 | `paper_validation_v1` |
+- 전 비교 대상 공통 파라미터: 동역학·시나리오·센서·추정기·안전·종료·보상·PPO
+- 비교 대상 간 차이: 상태 표현과 그에 딸린 그래프 사전학습·관계 경로 가드만 존재
+- 시간 척도: $\Delta t_s=0.01$ s, $\Delta t_p=0.10$ s, $T_{\max}=70$ s
+- 행동 한계: $a_{x,\max}=2.5$ m/s², $a_{z,\max}=2.0$ m/s²
+- 센서: 시야각 50°, 최대 거리 50 m, 측정 잡음 0.02 m·0.15°, own-state 이상 측정
+- 추정기 이득: $k_p/k_v/k_a=0.20/0.02/0.00005$
+- 학습: PPO 2,500회 반복, 반복당 6 에피소드, 학습 전용 커리큘럼, 모방학습 제외
+- 평가 분할: 검증 $\mathcal{S}_{val}$ 100개, 시험 $\mathcal{S}_{te}$ 100개, 시험 분할 기반 선택 제외
+- 기호 정의: 공통 기호는 기호 정의 문서, 신규 기호는 시스템 모델 문서 첫 정의 기준
 
-- 설정 원본: `landing2d.config.primaryConfig` → `defaultPlanarVisibilityConfig`
-- 정책 호환성: `trainingSignature` 완전 일치 요구
-- 구버전 checkpoint 자동 거부
-- 보상·환경·그래프 설정 변경 시 재학습 요구
+## 1. 시간·동역학
 
-## `run.m` 기본값
+- 핵심: 가속도 명령의 pitch·추력 변환, 2차 pitch 루프와 1차 추력 지연의 저차 모델
 
-| 옵션 | 기본값 | 의미 |
-|---|---|---|
-| `executionMode` | `full` | validation·test 각 100 episode (`smoke`: 1반복 통합 검사) |
-| `retrain` | `true` | 세 모델 scratch PPO 재학습 |
-| `runSelfTest` | `true` | 최종 계약 검사 8개 선행 |
-| `generatePaper` | `true` | 대표 시나리오 검증·PNG 생성 |
-| `figureVisible` | `true` | 학습·평가 figure 표시 |
-| `saveResults` | `true` | checkpoint·MAT·CSV·PNG 저장 |
-| `showLiveDashboard` | `true` | 실시간 학습 상태 표시 |
-| `profileRepetitions` | 500 | 정책·Actor/Critic 실행시간 반복 측정 |
-| `trainingOptions` | `struct()` | `trainEvaluate` 전달 옵션 (`modes`, `ppoIterations`, `rlSeed` 등) |
+| 기호 | 의미 | 값 | 단위 |
+|---|---|---:|---|
+| $\Delta t_s$ | 물리 적분·센서·추정·감독 주기 | 0.01 | s |
+| $\Delta t_p$ | 정책 결정 주기 | 0.10 | s |
+| $T_{\max}$ | 최대 임무 시간 | 70 | s |
+| $m$ | 기체 질량 | 1.5 | kg |
+| $g$ | 중력가속도 | 9.81 | m/s² |
+| $\theta_{\max}$ | pitch 한계 | 20 | ° |
+| $\omega_{\max}$ | pitch rate 한계 | 90 | °/s |
+| $\omega_n$ | pitch 루프 고유진동수 | 10 | rad/s |
+| $\zeta$ | pitch 루프 감쇠비 | 1.0 | — |
+| $\tau_F$ | 추력 1차 지연 시정수 | 0.05 | s |
+| $\kappa_F$ | 최대 추력중량비 | 1.6 | — |
+| $a_{x,\max}$ | 수평 요청 가속도 한계 | 2.5 | m/s² |
+| $a_{z,\max}$ | 수직 요청 가속도 한계 | 2.0 | m/s² |
 
-- `run`: 처음부터 전체 과정 실행
-- `run(struct('retrain',false))`: 최종 checkpoint 재사용
-- `run_scenario('S1'|'S2'|'S3')`: 단일 대표 시나리오 실행 (기본 `saveResults=false`, `profileRepetitions=100`)
-- `run_live(target,options)`: 세 checkpoint 실시간 lockstep 비교, 학습 없음
+## 2. 시나리오
 
-`run_live` 옵션:
+- 핵심: CV–CA–CV 패드 운동의 독립 변수 균등 표본, 공칭 범위에서 기각 조건 상시 충족
 
-| 옵션 | 기본값 | 의미 |
-|---|---|---|
-| `target` | `'S3'` | `'S1'`·`'S2'`·`'S3'` 또는 정수 manifest seed (예: 3001) |
-| `playbackSpeed` | 1 | 실시간 배속, `Inf`는 대기 없음 |
-| `checkpointDir` | `results/` | checkpoint 위치 |
-| `videoFile` | `''` | MPEG-4 녹화 파일 |
-| `showFullTrajectoryAtEnd` | `true` | 종료 후 전체 궤적 표시 |
-| `viewHalfWidth` | 15 | 표시 창 반폭 [m] |
+| 기호 | 의미 | 값 | 단위 |
+|---|---|---:|---|
+| $v_1$ | 1구간 등속 속도 | 0.5–2.5 | m/s |
+| $a_2$ | 2구간 등가속도 | 0.3–1.5 | m/s² |
+| $T_1$ | 1구간 지속시간 | 0.5–4.0 | s |
+| $T_2$ | 2구간 지속시간 | 0.5–4.0 | s |
+| $T_3$ | 3구간 지속시간 | 15–55 | s |
+| $h_0$ | 초기 패드 상대 고도 | 4–8 | m |
+| $v_3$ | 3구간 속도 $v_1+a_2T_2$ (종속) | 0.65–8.5 | m/s |
+| $T_d$ | 시나리오 마감 시간 $T_1+T_2+T_3$ (종속) | 16–63 | s |
+| $x_0$ | 패드·기체 초기 수평 위치 | 0 | m |
+| $z_p$ | 패드 면 높이 | 0.6 | m |
+| $L_{pad}$ | 패드 반길이 | 0.5 | m |
+| $\bar v_d-v_{res}$ | 허용 $v_3$ 상한 ($10-0.5$) | 9.5 | m/s |
+| — | 허용 $T_d$ 상한 | 70 | s |
+| $N_{rej}$ | 최대 재표본 횟수 | 1000 | 회 |
 
-- 동일 scenario·sensor event·측정 잡음 stream 공유
-- 결정론적 정책 행동
-- `taskFingerprint` 일치 검사
+## 3. 센서·외란
 
-## 시간·동역학
+- 핵심: 시야각·거리 제한 카메라, 소잡음 측정, 사전 확정 dropout·pitch rate 외란
 
-| 항목 | 값 |
-|---|---:|
-| 물리 주기 | 0.01 s |
-| 정책 주기 | 0.10 s |
-| 최대 임무시간 | 70 s |
-| 질량 | 1.5 kg |
-| 중력 | 9.81 m/s² |
-| pitch 제한 | 20 deg |
-| pitch-rate 제한 | 90 deg/s |
-| pitch 고유진동수·감쇠비 | 10 rad/s, 1.0 |
-| thrust 시정수 | 0.05 s |
-| 최대 추력/중량비 | 1.6 |
-| $a_{x,\max}$ | 2.5 m/s² |
-| $a_{z,\max}$ | 2.0 m/s² |
+| 기호 | 의미 | 값 | 단위 |
+|---|---|---:|---|
+| — | 검출 주기 | 0.01 (100 Hz) | s |
+| $\varphi$ | 카메라 전체 시야각 | 50 | ° |
+| $R_{\max}$ | 최대 검출 거리 | 50 | m |
+| — | 카메라 장착 pitch 오프셋 | 0 | ° |
+| $\sigma_e$ | 상대 위치 측정 잡음 표준편차 | 0.02 | m |
+| $\sigma_\beta$ | bearing 측정 잡음 표준편차 | 0.15 | ° |
+| $c_{fl}$ | 검출 신뢰도 하한 | 0.05 | — |
+| — | own-state 측정 잡음 | 없음 (이상 측정) | — |
+| — | 무사건 확률 | 0.50 | — |
+| — | 단기 dropout 확률·지속 시간 | 0.25 / 0.2–0.5 | — / s |
+| — | 지속 dropout 확률·지속 시간 | 0.25 / 3.5–5.0 | — / s |
+| $t^\delta_0$ | dropout 시작 시각 | $\mathcal{U}[0.5,\max(0.5,T_d-5)]$ | s |
+| — | pitch rate 외란 확률 (dropout과 독립) | 0.25 | — |
+| $w_\theta$ | pitch rate 외란 크기 | $\mathcal{U}[-2,2]$ | °/s |
+| — | pitch rate 외란 지속 시간 | 0.15–0.4 | s |
+| $t^w_0$ | pitch rate 외란 시작 시각 | $\mathcal{U}[0.5,\max(0.5,T_d-1)]$ | s |
 
-## 시나리오 분포
+## 4. 추정기
 
-| 독립 변수 | 범위 |
-|---|---:|
-| $v_1$ | 0.5–2.5 m/s |
-| $a_2$ | 0.3–1.5 m/s² |
-| $T_1$ | 0.5–4.0 s |
-| $T_2$ | 0.5–4.0 s |
-| $T_3$ | 15–55 s |
-| 초기 고도 (패드 기준) | 4–8 m |
+- 핵심: 작은 속도·가속도 이득과 gate로 100 Hz 측정 잡음의 미분 증폭 억제
 
-- 패드 표면 높이 0.6 m, 패드 반길이 0.5 m
-- 시나리오 seed: `baseSeed` 20261002 + manifest seed
-- sensor stream: 시나리오 seed + 1,000,000
+| 기호 | 의미 | 값 | 단위 |
+|---|---|---:|---|
+| $k_p$ | 위치 innovation 이득 | 0.20 | — |
+| $k_v$ | 속도 innovation 이득 | 0.02 | — |
+| $k_a$ | 가속도 innovation 이득 | 0.00005 | — |
+| $\hat a_{\max}$ | 가속도 추정 포화 | 3.0 | m/s² |
+| $\tau_a$ | 가속도 추정 감쇠 시정수 | 1.5 | s |
+| $\sigma_q$ | 공정 가속도 표준편차 | 1.5 | m/s² |
+| $n_g$ | innovation gate 배수 | 4 | — |
+| $\nu_{\min}$ | innovation gate 하한 | 0.25 | m |
+| $\hat\sigma_p(0)$ | 초기 위치 불확실성 | 2 | m |
+| $\hat\sigma_v(0)$ | 초기 속도 불확실성 | 3 | m/s |
+| $\hat\sigma_a(0)$ | 초기 가속도 불확실성 | 2 | m/s² |
+| $T_h$ | 예측 bearing·시야 여유 지평 | 0.5 | s |
 
-종속 변수:
+## 5. 안전 감독기·종료
+
+- 핵심: 최근성·신뢰도 기반 착륙 허가, 정지 높이 제동, 접촉 직전 상태 기준 착지 판정
+
+| 기호 | 의미 | 값 | 단위 |
+|---|---|---:|---|
+| $T_{gr}$ | 최근 검출 허용 시간 | 0.5 | s |
+| $T_{loss}$ | 장기 소실 판정 시간 (abort 요청) | 3.0 | s |
+| $c_{th}$ | 최소 추적 신뢰도 | 0.25 | — |
+| $t_{resp}$ | 감독기 반응 지연 | 0.15 | s |
+| $a_{brake}$ | 가용 수직 제동 가속도 $(\kappa_F-1)g$ | 5.886 | m/s² |
+| $h_{hold}$ | abort 유지 고도 | 1.0 | m |
+| $v_{tol}$ | abort 수직 속도 허용치 | 0.10 | m/s |
+| $T_{bk}$ | backup 최소 지속 시간 | 8 | s |
+| $h_{td}$ | 접촉 판정 높이 | 0.04 | m |
+| $L_{pad}$ | 착지 수평 허용 (패드 반길이) | 0.5 | m |
+| $v_{x,td}$ | 착지 상대 수평 속도 한계 | 0.35 | m/s |
+| $v_{z,td}$ | 착지 수직 속도 한계 | 0.30 | m/s |
+| $\theta_{td}$ | 착지 pitch 한계 | 5 | ° |
+| $\omega_{td}$ | 착지 pitch rate 한계 | 10 | °/s |
+| $z_{ceil}$ | 천장 고도 (world, 지면 기준) | 25 | m |
+| — | 최저 고도 (world) | 0 | m |
+| — | 안전 범위 위반 pitch 여유 | $\theta_{\max}+1$ | ° |
+
+## 6. 보상
+
+- 핵심: 실제 상태 기반 공통 보상, 진행량 shaping과 1회 종료 보너스 분리
+
+| 기호 | 의미 | 값 | 단위 |
+|---|---|---:|---|
+| $T_{ref}$ | running cost 기준 시간 | 70 | s |
+| $\tau_\gamma$ | 할인 시정수 | 70 | s |
+| $L_x$ | 목표 비용 수평 기준 길이 | 3 | m |
+| $L_h$ | 목표 비용 고도 기준 길이 | 4 | m |
+| $\varpi$ | 목표 비용 수평 비중 | 0.65 | — |
+| $w_g$ | 목표 비용 가중치 | 2.0 | — |
+| $w_v$ | 시야 비용 가중치 | 1.0 | — |
+| $w_u$ | 제어 비용 가중치 | 0.25 | — |
+| $w_r$ | 착륙 준비도 진행량 가중치 | 8.0 | — |
+| $h_r$ | 착륙 준비도 기준 고도 | 1.0 | m |
+| $w_p$ | potential 가중치 | 2.0 | — |
+| — | SUCCESS 종료 보너스 | +25 | — |
+| — | SAFE_ABORT 종료 보너스 | −15 | — |
+| — | TASK_TIMEOUT 종료 보너스 | −12 | — |
+| — | UNSAFE_CONTACT·UNAUTHORIZED_CONTACT·MISSED_PAD_CONTACT·SAFETY_ENVELOPE_VIOLATION 종료 보너스 | −40 | — |
+
+## 7. PPO
+
+- 핵심: 비교 대상 공통 하이퍼파라미터, 무작위 초기화 정책의 순수 강화학습
+
+| 기호 | 의미 | 값 | 단위 |
+|---|---|---:|---|
+| $N_{it}$ | PPO 반복 수 | 2,500 | 회 |
+| $N_{ep}$ | 반복당 학습 에피소드 | 6 | 개 |
+| $N_{epoch}$ | 반복당 최적화 epoch | 8 | 회 |
+| $N_{mb}$ | minibatch 크기 | 256 | 표본 |
+| $\epsilon$ | clip 비율 | 0.2 | — |
+| $\lambda$ | GAE 계수 | 0.95 | — |
+| $\gamma_{\Delta t_p}$ | 명목 결정 할인율 $e^{-0.1/70}$ | 0.99857 | — |
+| $\mathrm{lr}_\pi$ | Actor 학습률 | $5\times10^{-4}$ | — |
+| $\mathrm{lr}_V$ | Critic 학습률 | $10^{-3}$ | — |
+| $\mathrm{lr}_G$ | 그래프 인코더 학습률 | $3\times10^{-4}$ | — |
+| $c_H$ | entropy 가중치 | 0.0025 | — |
+| $\log\sigma_{\pi,0}$ | 초기 log 표준편차 | −1.1 | — |
+| $\log\sigma_{\pi,\min}$ | 최소 log 표준편차 | −2.5 | — |
+| $G_{\max}$ | gradient norm 상한 | 1.0 | — |
+| — | Critic 단독 학습 초기 반복 | 2 | 회 |
+| — | MLP 은닉층 | 48×2 | 노드 |
+| — | 검증 평가 주기 | 25 | 회 |
+| — | 모방학습 | 제외 | — |
+| — | 관계 경로 학습 시작 | 전체 반복의 90% 이후 | — |
+| — | 관계 경로 checkpoint 교체 요구 개선폭 | 5.0 | 점수 |
+
+- checkpoint 선택 점수 (검증 분할 기준, 커리큘럼 $\ell=1$ 도달 이후 평가만 후보):
 
 $$
-v_3=v_1+a_2T_2
+J=1000\,p_s-2500\,p_u-10\,p_\tau-100\,p_a+\bar G
 $$
 
-샘플 허용 조건 (최대 1000회 재표본):
+## 8. 커리큘럼 (학습 에피소드 전용)
 
-$$
-v_3\le10-0.5=9.5\ \mathrm{m/s}
-$$
+- 핵심: 성능 기반 난이도 $\ell$ 승급 + 일정 기반 하한, 검증·시험은 공칭 설정 고정
 
-$$
-T_1+T_2+T_3\le70\ \mathrm{s}
-$$
+| 기호 | 의미 | 값 | 단위 |
+|---|---|---:|---|
+| $\ell$ | 커리큘럼 난이도 | 0 → 1 | — |
+| — | 승급 판정 창 | 25 | 회 |
+| — | 승급 기준 (현재 난이도 에피소드 성공률) | ≥ 0.10 | — |
+| — | 승급 요구 연속 창 수 | 3 | 개 |
+| — | 승급 폭 | 0.10 | — |
+| — | 난이도 하한 0 유지 구간 | 전체 반복의 30% | — |
+| — | 난이도 하한 1.0 도달 시점 | 전체 반복의 80% | — |
+| — | 초기 고도 배율 하한·상한 ($\ell=0$ → 1) | [0.025, 0.05] → [1, 1] | — |
+| — | 초기 고도 범위 ($\ell=0$ → 1) | 0.1–0.4 → 4–8 | m |
+| — | $v_1,a_2$ 범위 배율 ($\ell=0$ → 1) | 0.15 → 1.0 | — |
+| — | $T_1$ 범위 ($\ell=0$ → 1) | 0.1–0.3 → 0.5–4.0 | s |
+| — | $T_{loss}$ ($\ell=0$ → 1) | 12 → 3 | s |
+| — | $v_{x,td},v_{z,td}$ 배율 ($\ell=0$ → 1) | 2 → 1 | — |
+| — | 위험 계열 종료 보너스 ($\ell=0$ → 1) | −20 → −40 | — |
+| — | 반복당 쉬운 재생 ($\ell=0$) 비율 | 1/6 | — |
+| — | 반복당 중간 재생 ($\ell/2$) 비율 | 1/6 | — |
 
-## Seed 분할
+- 모든 완화 항목: $\ell$에 대한 선형 보간
+- 일정 기반 하한: $\ell\ge\mathrm{clip}\big((i_{it}-750)/(2000-750),0,1\big)$, $i_{it}$: PPO 반복 번호 — 신규 기호 $i_{it}$
 
-| 분할 | 선언 seed | 사용 | 용도 |
+## 9. 그래프 상태 표현
+
+- 핵심: 9노드·5관계 유형 소형 그래프, raw semantic 우회 + 4차원 관계 문맥
+
+| 기호 | 의미 | 값 | 단위 |
+|---|---|---:|---|
+| $\lvert\mathcal{V}\rvert$ | 노드 수 | 9 | 개 |
+| — | 노드 특징 차원 | 12 | — |
+| $s_t$ | raw semantic 상태 차원 | 108 | — |
+| — | 의미 간선 / 자기 간선 | 17 / 9 | 개 |
+| $\lvert\mathcal{R}\rvert$ | 관계 유형 수 | 5 | 개 |
+| $h_j$ | 노드 임베딩 차원 | 8 | — |
+| $\rho_r$ | 관계 임베딩 차원 | 4 | — |
+| $c_t$ | 관계 문맥 차원 (Perception·Tracking·Vehicle·Safety 그룹) | 4 | — |
+| — | message passing 층 수 | 1 | 층 |
+
+## 10. 그래프 사전학습
+
+- 핵심: 동시각 노드 특징의 masked 재구성, 행동·보상·결과·미래·은닉 truth 미사용
+
+| 기호 | 의미 | 값 | 단위 |
+|---|---|---:|---|
+| — | 사전학습 에피소드 ($\mathcal{S}_{tr}$ 앞 12개) | 12 | 개 |
+| — | 에피소드당 최대 결정 | 80 | 회 |
+| — | 방문 행동 분포 | $\tanh(0.5\,n),\;n\sim\mathcal{N}(0,I)$ | — |
+| — | epoch | 8 | 회 |
+| — | batch | 128 | 표본 |
+| $p_{mask}$ | 동적 특징 mask 확률 | 0.25 | — |
+| — | 학습률 | $10^{-3}$ | — |
+| — | PPO 중 정적 backbone | 고정 | — |
+
+## 11. 관계 경로 가드
+
+- 핵심: raw 정책 고정 상태의 관계 전용 미세조정 후, 검증 성능 비저하 조건의 최대 배율 채택
+
+| 기호 | 의미 | 값 | 단위 |
+|---|---|---:|---|
+| — | raw Actor·Critic 갱신 | 제외 | — |
+| — | 관계 전용 PPO 반복 | 25 | 회 |
+| — | 관계 전용 반복당 에피소드 | 6 | 개 |
+| — | 관계 전용 epoch | 4 | 회 |
+| — | 관계 전용 학습 중 검증 에피소드 | 20 ($\mathcal{S}_{val}$ 앞부분) | 개 |
+| — | 최종 가드 검증 에피소드 | 100 ($\mathcal{S}_{val}$) | 개 |
+| $\nu_{rel}$ | 관계 readout 축소 배율 격자 (내림차순, 첫 통과 채택) | 1, 0.75, 0.5, 0.25, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001 | — |
+| — | 관계 residual norm 허용 범위 | $[10^{-6},\;0.005]$ | — |
+| — | 성공률 허용 감소 | 0 | — |
+| — | 위험 접촉·안전 중단·시간 초과율 허용 증가 | 0 | — |
+| — | 평균 return 허용 감소 | 0.25 | — |
+| — | 선택 점수 $J$ 허용 감소 | 0.25 | — |
+| — | 최종 채택 배율 (학습 결과) | 0.001 | — |
+
+- 시험 분할 기반 배율 선택 제외
+
+## 12. 데이터 분할
+
+- 핵심: 학습·검증·시험 seed 집합 상호 배타, 시험 분할은 최종 보고 전용
+
+| 기호 | 의미 | 선언 범위 | 사용 범위 |
 |---|---|---|---|
-| train | 1:2000 | 1:12 | causal graph 사전학습 |
-| validation | 2001:2200 | 2001:2100 (100개) | checkpoint 선택 |
-| test | 3001:3200 | 3001:3100 (100개) | 최종 보고 |
-| stress | 9001:9200 | 미사용 | 분할 중복 검사용 예약 |
+| $\mathcal{S}_{tr}$ | 학습 분할 (그래프 사전학습) | 1–2000 | 1–12 |
+| $\mathcal{S}_{val}$ | 검증 분할 (checkpoint 선택·관계 가드) | 2001–2200 | 2001–2100 (100개) |
+| $\mathcal{S}_{te}$ | 시험 분할 (최종 보고) | 3001–3200 | 3001–3100 (100개) |
+| — | 예비 분할 (중복 검사용) | 9001–9200 | 미사용 |
 
-- PPO 학습 episode seed: `RandStream('threefry', rl.seed+404)` 추출 정수 (manifest train 분할 미사용)
-- `rl.seed` = 20240501
-- 분할 중복 제외 (`validatePrimaryConfig`)
-- test 기반 checkpoint 선택 제외
-- 논문 대표 시나리오 seed `41001:41003`
+- PPO 학습 에피소드 seed: 학습 분할 대신 독립 정책 난수열에서 추출한 정수
+- 학습 기준 seed: 20240501
+- 시나리오 표본 seed: 분할 seed + 20261002
+- 센서 사건·잡음 seed: 시나리오 seed + 1,000,000 (시나리오와 독립)
+- 동일 seed의 비교 대상 간 시나리오·센서 사건·측정 잡음 공유
 
-## 센서
+## 13. 대표 시나리오
 
-| 항목 | 값 |
-|---|---:|
-| 검출 주기 | 0.01 s (100 Hz) |
-| FOV | 50 deg |
-| 최대 거리 | 50 m |
-| bearing noise | 0.15 deg 표준편차 |
-| 상대위치 noise | 0.02 m 표준편차 |
-| 검출 신뢰도 하한 | 0.05 |
-| own-state noise | 없음 |
-| 추정기 이득 $\alpha/\beta/\gamma$ | 0.20 / 0.02 / 0.00005 |
-| 가속도 추정 포화 | 3.0 m/s² |
-| 가속도 추정 감쇠 시정수 | 1.5 s |
-| 추정 process acceleration | 1.5 m/s² 표준편차 |
-| 재검출 innovation gate | 4σ (최소 0.25 m) |
-| 초기 위치·속도·가속도 std | 2 m, 3 m/s, 2 m/s² |
-| 예측 horizon | 0.5 s |
+- 핵심: 정책 성능 확인 이전에 고정한 온톨로지 경로별 사례, 결과 기반 선택 제외
 
-Perturbation 구성:
+| 시나리오 | 의미 | $v_1$ | $a_2$ | $T_1$ | $T_2$ | $T_3$ | $v_3$ | $h_0$ | 센서 사건 |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| S1 | 공칭 정렬 (PadVisibility → RelativeTracking → DescentEligibility) | 1.5 | 0.6 | 2.0 | 1.5 | 28.0 | 2.4 | 6.0 | 무사건 |
+| S2 | 급가속 (PadMotion → RelativeTracking → TrackingCorrection) | 1.0 | 1.5 | 2.0 | 2.25 | 28.0 | 4.375 | 7.0 | 무사건 |
+| S3 | 시야 복구 (PadVisibility → ViewRecovery → LandingInhibit) | 1.0 | 1.2 | 2.0 | 2.75 | 30.0 | 4.3 | 6.5 | 단기 dropout 4.2–5.0 s |
 
-- clean 50%
-- short dropout 25% (0.2–0.5 s)
-- sustained dropout 25% (3.5–5.0 s)
-- dropout 시작 시각: 0.5 s–max(0.5, deadline−5 s) 균등
-- pitch-rate event 확률 25% (±2 deg/s 균등, 0.15–0.4 s, dropout과 독립)
-
-## 26필드 관측 packet
-
-| 그룹 | 필드 |
-|---|---|
-| `own_motion` | `h`, `vx`, `vz`, `sinTheta`, `cosTheta`, `pitchRate` |
-| `pad_track` | `exEstimate`, `relativeVxEstimate`, `padVxEstimate`, `padAxEstimate`, `positionStd`, `velocityStd`, `accelerationStd`, `trackInitialized` |
-| `visibility` | `detected`, `measuredBearing`, `bearingValid`, `detectionConfidence`, `timeSinceLastDetection`, `predictedBearing`, `predictedFovMargin` |
-| `task_memory` | `remainingMissionTime`, `previousNormalizedActionX`, `previousNormalizedActionZ`, `landingInhibited`, `abortRequested` |
-
-규칙:
-
-- 차원 수의 코드 중복 선언 제외
-- `observationSchema` 기반 자동 산출
-- 부호 정보 보존
-- missing value 0 대체 시 validity mask 동반
-- hidden truth 대체값 사용 제외
-- `remainingMissionTime`: 시나리오 deadline 기준
-
-## 그래프 설정
-
-| 항목 | 값 |
-|---|---:|
-| 노드 | 9 |
-| 노드 특징 | 12 |
-| raw semantic 차원 | 108 |
-| 의미 간선 | 17 |
-| 자기 간선 | 9 |
-| relation type | 5 |
-| hidden dimension | 8 |
-| relation embedding | 4 |
-| relation context | 4 |
-| message-passing layer | 1 |
-| readout | `raw_plus_groups` |
-
-Readout 그룹:
-
-- Perception
-- Tracking
-- Vehicle
-- Safety
-
-Causal 사전학습 (R-GAT 전용):
-
-| 항목 | 값 |
-|---|---:|
-| 목적 | masked 동시각 노드 재구성 |
-| episode | 12 (train seed 1:12) |
-| episode당 최대 결정 | 80 |
-| epoch | 8 |
-| batch | 128 |
-| mask 확률 | 0.25 |
-| 학습률 | $10^{-3}$ |
-| PPO 중 정적 backbone | 고정 |
-
-## 학습 설정
-
-| 항목 | 값 |
-|---|---:|
-| PPO 반복 | 2,500 |
-| episode/반복 | 6 |
-| PPO epoch | 8 |
-| minibatch | 256 |
-| clip ratio | 0.2 |
-| GAE $\lambda$ | 0.95 |
-| $\gamma$ | $e^{-0.1/70}\approx0.99857$ |
-| policy 학습률 | $5\times10^{-4}$ |
-| value 학습률 | $10^{-3}$ |
-| graph encoder 학습률 | $3\times10^{-4}$ |
-| entropy 가중치 | 0.0025 |
-| 초기 log std | -1.1 |
-| minimum log standard deviation | -2.5 |
-| gradient norm 상한 | 1.0 |
-| value warm-up | 2 반복 |
-| 은닉층 | 48×2 |
-| validation 평가 주기 | 25 반복 |
-| 모방학습 | 제외 |
-| graph adaptation 시작 | 전체 반복의 90% 이후 |
-| graph selection margin | 5.0 |
-| validation episode | 100 |
-| test episode | 100 |
-
-Checkpoint selection score (validation):
-
-$$
-S=1000\,p_{succ}-2500\,p_{unsafe}-10\,p_{timeout}-100\,p_{abort}+\bar R
-$$
-
-- 선택 후보: curriculum level 1.0 도달 이후 평가만
-
-관계 경로 안전 활성화:
-
-| 항목 | 값 |
-|---|---:|
-| raw Actor/Critic 갱신 | 제외 |
-| 관계 전용 PPO 반복 | 25 |
-| 관계 전용 PPO episode/반복 | 6 |
-| 관계 전용 PPO epoch | 4 |
-| 내부 학습 평가 seed | validation 20개 |
-| 최종 성능 가드 seed | validation 100개 |
-| residual norm 하한 | $10^{-6}$ |
-| residual norm 상한 | 0.005 |
-| scale 탐색 격자 | 1 → 0.001 (11단계, 첫 통과 채택) |
-| 선택 scale | 0.001 |
-
-- 성공률 하락 불허
-- 위험 접촉·안전 중단·시간초과율 증가 불허
-- 평균 return·selection score 허용 감소 각각 0.25
-- test seed 기반 scale 선택 제외
-
-Curriculum (학습 episode 전용):
-
-- 모드: `performance` (25반복 학습창의 현재 난도 성공률 ≥ 10%, 3창 연속 시 level +0.10)
-- 강제 하한: 전체 반복 30%까지 0, 80%에서 1.0 도달
-- 초기 고도 배율 0.025–0.05 (0.1–0.4 m) → 명목 4–8 m
-- 초기 pad motion scale 0.15 → 1.0 ($v_1$, $a_2$ 범위 배율)
-- 초기 $T_1$ 0.1–0.3 s → 0.5–4.0 s
-- prolonged loss 12 s → 3 s
-- touchdown 속도 한계 2배 → 1배
-- 위험 접촉 계열 보상 -20 → -40
-- easy replay 1/6
-- bridge replay 1/6
-- 명목 evaluation 설정 불변
-
-## 안전 설정
-
-| 항목 | 값 |
-|---|---:|
-| recent track grace | 0.5 s |
-| prolonged loss | 3.0 s |
-| minimum confidence | 0.25 |
-| touchdown height | 0.04 m |
-| touchdown 수평 허용 (패드 반길이) | 0.5 m |
-| touchdown relative speed | 0.35 m/s |
-| touchdown vertical speed | 0.30 m/s |
-| touchdown pitch | 5 deg |
-| touchdown pitch rate | 10 deg/s |
-| ceiling | world z 25 m (지면 기준) |
-| minimum height | 0 m |
-| abort hold height | 1.0 m |
-| abort vertical speed tolerance | 0.10 m/s |
-| 감독기 반응 지연 | 0.15 s |
-| backup duration | 8 s |
-
-## 보상 설정
-
-| 항목 | 값 |
-|---|---:|
-| reference time·discount 시정수 | 70 s |
-| goal 길이 $x$ / $h$ | 3 m / 4 m |
-| goal 수평 비중 | 0.65 |
-| goal·view·control 가중치 | 2.0 / 1.0 / 0.25 |
-| readiness 가중치·기준 고도 | 8.0 / 1.0 m |
-| potential 가중치 | 2.0 |
-| `SUCCESS` | +25 |
-| `SAFE_ABORT` | -15 |
-| `TASK_TIMEOUT` | -12 |
-| `UNSAFE_CONTACT`·`UNAUTHORIZED_CONTACT`·`MISSED_PAD_CONTACT`·`SAFETY_ENVELOPE_VIOLATION` | -40 |
-
-## Checkpoint 파일
-
-| 모델 | 파일 |
-|---|---|
-| Baseline | `results/ppo_baseline_planar_visibility_v2.mat` |
-| Semantic-flat | `results/ppo_context_flat_planar_visibility_v2.mat` |
-| Ontology R-GAT | `results/ppo_context_rgat_planar_visibility_v2.mat` |
-
-## 논문 시각화 설정
-
-| 시나리오 | $v_1$ | $a_2$ | $T_1$ | $T_2$ | $T_3$ | $v_3$ | 고도 | 센서 이벤트 |
-|---|---:|---:|---:|---:|---:|---:|---:|---|
-| S1 | 1.5 | 0.6 | 2.0 | 1.5 | 28.0 | 2.4 | 6.0 | clean |
-| S2 | 1.0 | 1.5 | 2.0 | 2.25 | 28.0 | 4.375 | 7.0 | clean |
-| S3 | 1.0 | 1.2 | 2.0 | 2.75 | 30.0 | 4.3 | 6.5 | 0.8 s short dropout (4.2–5.0 s) |
-
-- 모델 성능 확인 전 고정된 시나리오 값
-- 시나리오별 공통 seed 사용
-- 결과 기반 seed 선택 제외
+- 단위: $v_1,v_3$ m/s, $a_2$ m/s², $T_1,T_2,T_3$ s, $h_0$ m
+- 시나리오별 고정 seed 41001–41003

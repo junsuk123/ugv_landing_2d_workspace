@@ -40,6 +40,6 @@
   <rect x="830" y="763" width="22" height="18" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/><text x="862" y="778" class="s">Tracking</text>
   <rect x="970" y="763" width="22" height="18" rx="4" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/><text x="1002" y="778" class="s">Vehicle</text>
   <rect x="1100" y="763" width="22" height="18" rx="4" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/><text x="1132" y="778" class="s">Safety</text>
-  <text x="680" y="811" class="s">Node colour = readout group (mean-pooled, then W_g).</text>
+  <text x="680" y="811" class="s">Node colour = readout group (group mean, then readout W_c, b_c).</text>
   <text x="180" y="847" class="s">Self edges (relation "self") on all 9 nodes are omitted from the drawing; 26 directed edges in total, no symmetrization.</text>
 </svg>

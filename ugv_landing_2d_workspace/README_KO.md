@@ -1,102 +1,67 @@
-# UGV 착륙 2D 최종 실행 안내
+# UGV 착륙 2D 연구 개요
 
-## 핵심 상태
+## 요약
 
-- 기본 실험: `planar_visibility_v2`
-- 최종 알고리즘: `planar-visibility-ppo-v2.8`
-- 비교군: baseline·semantic-flat·ontology R-GAT PPO
-- 기본 실행: self-test→scratch 학습→validation→held-out test→시각화
-- 진입점: `run.m`·`run_scenario.m`·`run_live.m`
-- 최종 계약 검사: 8/8 통과
-- 관계 경로: Policy/Value readout 비영점·`ACTIVE`
-- 결과 기준: test seed `3001:3100` 100개
+- 연구 문제: 가속 UGV 이동 패드에 대한 2차원 드론 착륙의 부분관측 강화학습
+- 비교 원리: 환경·센서·추정기·보상·안전 감독기 $\Pi_s$ 동일, Actor/Critic 상태 표현만 변경
+- 비교군: 저수준 관측 $o_t$ MLP, semantic-flat $s_t$ MLP, ontology R-GAT($s_t$ + $c_t$) PPO
+- 관계 경로: Actor·Critic 양쪽 그룹 readout $W_c$ 비영 활성
+- 관계 readout 축소 배율: $\nu_{rel}=0.001$
+- 시험 결과: 성공률 72–75%의 유사 수준, R-GAT 우월성 미확인
+- 결과 기준: 시험 seed 집합 $\mathcal S_{te}=\{3001,\dots,3100\}$ 100개
 
-## 기본 실행
+## 문제 정의
 
-```matlab
-cd ugv_landing_2d_workspace   % 이 폴더(run.m 위치)로 이동
-run
-```
+- 결론: 시나리오 분포 $\mathcal D$ 위의 가변 시간 할인 POMDP
 
-- 기본값: `full`
-- scratch 재학습: 활성
-- 세 모델 순차 학습: 활성
-- validation·test: 활성
-- 논문 그림 생성: 활성
-- 실시간 학습 대시보드: 활성
-- 옵션: `executionMode`(`'full'`·`'smoke'`), `retrain`, `runSelfTest`, `generatePaper`, `figureVisible`, `saveResults`, `showLiveDashboard`, `profileRepetitions`(기본 500), `trainingOptions`
-- 산출물: `results/` checkpoint·요약 CSV·Monte Carlo PNG, `results/paper/` 논문 그림·CSV
+| 요소 | 정의 |
+|---|---|
+| 은닉 상태 | 드론 상태 $\xi$, 패드 운동 $(x_p,v_p,a_p)$, 시나리오 $\sigma=(v_1,a_2,T_1,T_2,T_3,h_0)$, 센서·외란 일정 |
+| 관측 | 하향 카메라 측정 $(d_k,\tilde e_{x,k},\tilde\beta_k,c_k)$ + 이상적 자기 상태 |
+| 정책 입력 | 추정 $\hat\chi$ 경유 인과 관측 패킷 $o_t\in\mathbb R^{26}$, 또는 그래프 상태 $X_t\in\mathbb R^{12\times9}$ |
+| 행동 | $u_t\in\mathbb R^2$, $a_t=\mathrm{diag}(a_{x,\max},a_{z,\max})\tanh(u_t)$ |
+| 전이 | $\Delta t_p=0.10$ s zero-order hold, $\Delta t_s=0.01$ s 단위 감독기·동역학·인지 갱신 |
+| 보상·할인 | 세 비교군 공통 $r_t$, $\gamma_{\Delta t}=\exp(-\Delta t/\tau_\gamma)$ |
+| 종료 | SUCCESS, SAFE_ABORT, TASK_TIMEOUT, UNSAFE_CONTACT, UNAUTHORIZED_CONTACT, MISSED_PAD_CONTACT, SAFETY_ENVELOPE_VIOLATION |
 
-빠른 구조 검사:
+- 정보 경계: 패드 참값의 정책·그래프·감독기 입력 제외, 보상·평가에만 사용
 
-```matlab
-run(struct('executionMode','smoke','generatePaper',false, ...
-    'figureVisible',false,'saveResults',false,'showLiveDashboard',false))
-```
+## 방법 개요
 
-저장 checkpoint 재사용:
+- 결론: 인지→추정→그래프→정책→감독기→동역학의 폐루프, R-GAT는 gate 적용 관계 residual만 추가
 
-```matlab
-run(struct('retrain',false))
-```
+**Algorithm 1. 결정 1회**
 
-## 특정 시나리오
+1. 인지: 하향 카메라 기하 투영 검출, dropout $\delta_k$ 적용
+2. 추정: 등가속도 예측 + innovation 이득 $k_p,k_v,k_a$ 보정으로 $\hat\chi$ 갱신
+3. 관측 구성: $o_t\in\mathbb R^{26}$
+4. 그래프 구성: 9노드·26간선·5관계 유형 $\mathcal G$, $s_t=\mathrm{vec}(X_t)$
+5. 관계 문맥: R-GAT attention $\alpha^{(r)}_{ij}$·그룹 readout으로 $c_t\in\mathbb R^4$
+6. 정책: $\mu_t=f_\pi(s_t)+\tilde\delta_t$, 하강 방향 residual에 하강 허용 gate $g_t$ 적용
+7. 감독기: $\tilde a_k=\Pi_s(a_t,\xi_k,o_k)$, 하강 차단·제동·복구 상승
+8. 동역학: pitch·추력 setpoint $(\theta^{sp},F^{sp})$ 변환 후 적분, 종료 판정
 
-```matlab
-run_scenario('S1')  % 정상 정렬
-run_scenario('S2')  % 급가속
-run_scenario('S3')  % 가시성 손실·재포착
-```
+**Algorithm 2. 학습**
 
-- 옵션: `figureVisible`(기본 `true`), `saveResults`(기본 `false`, 활성 시 `results/scenario/`), `profileRepetitions`(기본 100)
+1. 그래프 사전학습 (R-GAT 한정): $\mathcal S_{tr}$ 인과 그래프의 masked 노드 특징 재구성
+2. PPO 2,500 iteration × 6 에피소드, 성능 기반 커리큘럼 난이도 $\ell$
+3. 마지막 10%: raw semantic MLP 고정, 관계 파라미터만 적응
+4. 25 iteration마다 $\mathcal S_{val}=\{2001,\dots,2100\}$ 평가, $\ell\ge1$ 정책 중 최고 선택 점수 $J$ 보존
+5. 관계 경로 성능 가드: $\nu_{rel}$ 내림차순 탐색, 검증 결과율 비악화 최대 배율 채택
+6. 최종 평가: $\mathcal S_{te}$ 결정론적 rollout
 
-## 실시간 세 비교군 테스트
+## 결과
 
-```matlab
-run_live            % S3, 실제 시간 재생
-run_live('S2')      % 고정 대표 시나리오
-run_live(3001)      % held-out test seed
-run_live('S1',struct('playbackSpeed',4,'videoFile','results/live_s1.mp4'))
-```
+- 결론: 세 비교군 시험 성공률 3%p 이내, R-GAT는 대표 시나리오 S1~S3 전 성공
 
-- 세 checkpoint를 같은 시나리오·센서 이벤트·잡음으로 10 Hz lockstep 실행
-- 비교군별 드론·UGV·FOV·궤적과 수평 오차·고도·속도 시계열 표시
-- 옵션: `playbackSpeed`(기본 1, `Inf`=대기 없음), `viewHalfWidth`(기본 15 m), `videoFile`, `checkpointDir`(기본 `results/`), `showFullTrajectoryAtEnd`(기본 `true`)
-- 결과 표: workspace 변수 `landingLive`
-
-## 온톨로지·R-GAT 전체 시각화
-
-```matlab
-addpath(fullfile(pwd,'src','orchestration'), ...
-    fullfile(pwd,'src','simulations'),fullfile(pwd,'src','algorithms'))
-view = landing2d.viz.ontologyRgatExplorer();
-```
-
-- 단일 코드: `src/orchestration/+landing2d/+viz/ontologyRgatExplorer.m`
-- 탭 1: 의미 그룹 카드·typed relation 행렬·causal provenance·26개 간선 전체 목록
-- 탭 2: 저장 체크포인트 기반 Actor/Critic 관계별 attention 누적 막대와 원본 행렬
-- 탭 3: 대표 상태의 12×9 특징 텐서·4개 그룹 readout·관계별 사용량
-- 탭 4: 전체 간선 score·attention·message와 학습 파라미터 목록
-- 기본 스냅샷: S3 가시성 복구 구간의 최대 복구 필요 시점
-
-## 소스 구조
-
-```text
-src/
-├─ orchestration/  실행·설정·검증·시각화
-├─ simulations/    환경·동역학·센서·시나리오
-└─ algorithms/     PPO·온톨로지·R-GAT
-```
-
-상세 구조: [최종 코드 구조](docs/MODULE_MAP_KO.md)
-
-## 최신 결과
-
-| 모델 | 성공 | 위험 | 안전 중단 | 시간 초과 | 평균 return |
+| 모델 | 성공 $p_s$ | 위험 $p_u$ | 안전 중단 $p_a$ | 시간 초과 $p_\tau$ | 평균 return $\bar G$ |
 |---|---:|---:|---:|---:|---:|
-| Baseline | 74% | 2% | 23% | 1% | 19.139 |
-| Semantic-flat | 75% | 9% | 13% | 3% | 18.496 |
+| Low-level MLP | 74% | 2% | 23% | 1% | 19.139 |
+| Semantic-flat MLP | 75% | 9% | 13% | 3% | 18.496 |
 | Ontology R-GAT | 72% | 9% | 14% | 5% | 17.930 |
+
+- 단일 학습 seed 결과
+- 다중 학습 seed 평균·분산 검증 필요
 
 ![Monte Carlo 평가](docs/assets/paper/planar_visibility_monte_carlo.png)
 
@@ -107,9 +72,12 @@ src/
 ## 문서
 
 - [전체 README](../README.md)
-- [최종 보고](docs/refactor/FINAL_REPORT.md)
+- [연구 결과 보고](docs/refactor/FINAL_REPORT.md)
+- [시스템 모델](docs/refactor/SYSTEM_SPEC.md)
 - [온톨로지 상태 설계](docs/ONTOLOGY_GRAPH_STATE_KO.md)
-- [검증 결과](docs/VALIDATION_KO.md)
-- [최종 코드 구조](docs/MODULE_MAP_KO.md)
-- [온톨로지 시각화 안내](docs/ONTOLOGY_VIEW_KO.md)
+- [보상 설계](docs/refactor/REWARD_RATIONALE.md)
+- [평가 프로토콜·결과](docs/VALIDATION_KO.md)
+- [알고리즘 구성](docs/MODULE_MAP_KO.md)
+- [관계 해석 지표](docs/ONTOLOGY_VIEW_KO.md)
+- [기호 정의](docs/NOTATION_KO.md)
 - [문서 색인](docs/README.md)
