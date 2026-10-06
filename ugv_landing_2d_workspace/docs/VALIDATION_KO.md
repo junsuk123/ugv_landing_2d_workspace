@@ -12,7 +12,7 @@
 - 최종 R-GAT checkpoint 관계 경로 활성 확인
 - 관계 활성화 전후 test 결과율 동일 확인
 - 실제 비행 안전성 검증 제외
-- 최종 그림·CSV 갱신: 2026-10-04 14:52 KST
+- 최종 그림·CSV 갱신: 2026-10-06 09:31 KST
 
 ## 실행 명령
 
@@ -22,10 +22,13 @@ run(struct('executionMode','smoke','generatePaper',false, ...
 run_scenario('S3',struct('figureVisible',false))
 ```
 
-결과 위치:
+- smoke·S3 명령: `saveResults=false`·결과 파일 미저장
+
+결과 위치 (기본 `run` 전체 실행):
 
 ```text
-results/paper/
+results/        checkpoint 3개·planar_visibility_full_summary.csv·Monte Carlo PNG
+results/paper/  paper_*.png·paper_*.csv·paper_validation.mat
 ```
 
 ## 최종 held-out 결과
@@ -39,9 +42,9 @@ results/paper/
 
 | 모델 | 평균 return | 성공 | 위험 | 안전 중단 | 시간 초과 | 파라미터 | 정책 추론 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Low-level MLP PPO | 19.139 | 74% | 2% | 23% | 1% | 7,445 | **0.150 ms** |
-| Semantic-flat MLP PPO | 18.496 | **75%** | 9% | **13%** | 3% | 15,317 | 0.163 ms |
-| Ontology R-GAT PPO | 17.930 | 72% | 9% | 14% | 5% | 17,001 | 0.253 ms |
+| Low-level MLP PPO | 19.139 | 74% | 2% | 23% | 1% | 7,445 | **0.105 ms** |
+| Semantic-flat MLP PPO | 18.496 | **75%** | 9% | **13%** | 3% | 15,317 | 0.115 ms |
+| Ontology R-GAT PPO | 17.930 | 72% | 9% | 14% | 5% | 17,001 | 0.179 ms |
 
 판정:
 
@@ -214,16 +217,16 @@ $$
 
 ## 최종 self-test 범위
 
-| 범주 | 검증 |
-|---|---|
-| 공통 계약 | action 2차원·observation 26필드·split 분리·task fingerprint |
-| 동역학 | CV–CA–CV 속도·위치 연속성 |
-| 정보경계 | hidden truth·미래·결과 라벨 누수 차단 |
-| 종료 | 안전 접촉·비허가 접촉 분리 |
-| 그래프 | 9노드·26간선·5관계·그룹 readout |
-| PPO | 1회 bounded scratch update |
-| 관계 성능 가드 | raw policy 불변·비영 readout·결과율 비열화 차단 |
-| 논문 시나리오 | S1~S3 정의·물리 가능성·dropout 계약 |
+| 검사 | 범주 | 검증 |
+|---|---|---|
+| `contract` | 공통 계약 | action 2차원·observation 26필드·validation/test 100 seed 분리·task fingerprint |
+| `causal-boundary` | 정보경계 | hidden truth·미래·결과 라벨 누수 차단 |
+| `scenario-dynamics` | 동역학 | CV–CA–CV 속도·위치 연속성 |
+| `termination` | 종료 | 안전 접촉·비허가 접촉 분리 |
+| `context-graph` | 그래프 | 9노드·26간선·5관계·그룹 readout·flat/R-GAT 동일 입력 |
+| `ppo-smoke` | PPO | 1 iteration scratch update·유한 score |
+| `relation-guard` | 관계 성능 가드 | scale 탐색·결과율 열화 후보 기각·활성 관계 경로 |
+| `paper-scenarios` | 논문 시나리오 | S1~S3 정의·물리 가능성·dropout 계약 |
 
 ## 미검증 범위
 

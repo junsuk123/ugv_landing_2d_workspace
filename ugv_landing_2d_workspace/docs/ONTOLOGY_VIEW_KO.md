@@ -38,15 +38,25 @@
 - [MathWorks Graph Plotting and Customization](https://www.mathworks.com/help/matlab/math/graph-plotting-and-customization.html)
 - [MathWorks Layered Graph Layout](https://www.mathworks.com/help/matlab/ref/matlab.graphics.chart.primitive.graphplot.layout.html)
 
-최종 coordinated multiple views:
+최종 coordinated multiple views (`uitabgroup` 4개 탭):
 
-1. 의미 그룹 카드: 9개 노드의 그룹·클래스·risk/goal·self 관계
-2. Typed relation matrix: 17개 의미 간선과 9개 self 간선의 방향·관계형
-3. Runtime attention composition: 목적 노드별 관계형 attention 질량
-4. Raw attention matrix: source→destination 개별 attention
-5. 특징·감사 표: 108개 특징, 4개 readout 그룹, 26개 message, 전체 파라미터
+| 탭 | 구성 |
+|---|---|
+| `1  Ontology schema` | 4개 readout 그룹 카드(노드 번호·클래스·risk/goal/state·self), typed relation matrix(행 source·열 destination·대각 self), 9행 노드 표(class·group·role·causal provenance), 26행 간선 표(17 semantic + 9 self) |
+| `2  Runtime R-GAT` | Actor·Critic 목적 노드별 관계형 inbound attention 누적 막대 + 정규화 $\lVert h_j\rVert$ 선, Actor·Critic source→destination attention matrix |
+| `3  Features and readout` | $X_t$ 12×9 = 108 값 heatmap, 4×9 grouped readout 행렬, 관계별 Actor/Critic $\lVert W_r\rVert_F$·평균 $\alpha$ 막대 |
+| `4  Full audit` | 추론 경로 도식(packet→$X_t$→R-GAT→hidden→grouped readout→raw bypass+residual→Actor/Critic)·Actor/Critic context norm, 26개 간선별 score·$\alpha$·weighted message 표, 학습 텐서 목록($W_r$, $a_r$, $E_r$, $W_0$, $b_0$, $W_g$, $b_g$, relation head) |
+
+- 입력 상태: 저장된 paper validation의 R-GAT trajectory 중 대표 1 step
+- score 열: $\mathrm{LeakyReLU}_{0.2}$ 적용 logit
+- message 열: $\alpha_{ij}^{(r)}\lVert W_r x_i\rVert_2$
 
 ## 실행
+
+필요 파일:
+
+- `results/ppo_context_rgat_planar_visibility_v2.mat`: 최종 R-GAT checkpoint
+- `results/paper/paper_validation.mat`: 대표 상태용 paper validation
 
 전체 온톨로지·R-GAT explorer:
 
@@ -56,12 +66,25 @@ addpath(fullfile(pwd,'src','orchestration'), ...
 view = landing2d.viz.ontologyRgatExplorer();
 ```
 
+- 출력 인수 생략 시 base workspace 변수 `ontologyRgatView` 저장
+- 기본값: `scenarioId='S3'`, `snapshotMode='max_recovery'`, `figureVisible=true`
+
 대표 시나리오 변경:
 
 ```matlab
 view = landing2d.viz.ontologyRgatExplorer(struct( ...
     'scenarioId','S2','snapshotMode','max_recovery'));
 ```
+
+| 옵션 | 값 |
+|---|---|
+| `scenarioId` | `S1`, `S2`, `S3` |
+| `snapshotMode` | `max_recovery`, `middle`, `final` |
+| `checkpointFile` | checkpoint 경로 |
+| `studyFile` | paper validation 경로 |
+| `figureVisible` | `true`, `false` |
+
+- `max_recovery`: `ViewRecovery` urgency·uncertainty, `LandingInhibit` primary, `RelativeTracking` uncertainty 가중합 최대 step
 
 논문 결과 전체 생성:
 
@@ -140,8 +163,8 @@ output = run(struct('retrain',false,'figureVisible',false));
 
 왼쪽 축:
 
-- `DescentEligibility`
-- `LandingInhibit`
+- `DescentEligibility` primary
+- 공개 `landingInhibited` 플래그
 - pad detected
 - vertical gate active
 
@@ -151,7 +174,7 @@ output = run(struct('retrain',false,'figureVisible',false));
 
 상단 감사 문구:
 
-- `ACTIVE`: policy·value graph readout의 비영 norm 확인
+- `ACTIVE`: Policy/Value $\lVert W_g\rVert_F$와 Policy/Value relation head norm 모두 $>10^{-10}$
 - `INACTIVE`: raw semantic bypass만 사용한 선택 checkpoint
 
 최신 결과:
@@ -168,10 +191,11 @@ output = run(struct('retrain',false,'figureVisible',false));
 
 포함 내용:
 
-- 9개 의미 노드
-- 주요 typed relation
+- 9개 의미 노드, readout 그룹별 색
+- 17개 의미 간선 전체
+- 관계형별 선 스타일: `informs`·`affects_visibility`·`supports`·`inhibits`
 - `LandingInhibit → DescentEligibility` 억제 관계
-- self-edge 생략 표기
+- self-edge 9개 생략 표기
 
 용도:
 

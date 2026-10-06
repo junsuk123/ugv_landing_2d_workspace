@@ -9,24 +9,25 @@
 - 최신 코드: `planar_visibility_v2`, 알고리즘 `planar-visibility-ppo-v2.8`
 - 최신 통합 검증: MATLAB R2025b self-test 8/8·smoke pipeline·S3 scenario 통과
 - 기본 진입점: `ugv_landing_2d_workspace/run.m`
+- 보조 진입점: `run_scenario.m` 단일 시나리오 비교, `run_live.m` 세 비교군 실시간 lockstep 테스트
 - 관계 경로: 검증 성능 가드 기반 비영 R-GAT readout 활성화
 - 핵심 제한: 성능 보존 신뢰구간에 따른 relation scale 0.001
 - 해석 범위: 관계 경로 활성 검증 완료·R-GAT 우월성 주장 제외
 
 ## 최신 결과
 
-- 평가 갱신: 2026-10-04 14:52 KST
+- 평가 갱신: 2026-10-06 09:31 KST (최신 코드·기존 체크포인트 재평가, 결과율 동일 재현)
 - 성능 평가: 고정 test seed `3001:3100` 100개
 - 논문 시나리오·그림: 최종 활성 R-GAT checkpoint 재실행
-- 추론 시간: 동일 호스트 단일 실행의 500회 반복 평균
+- 추론 시간: 동일 호스트(Intel i7-14700F) 단일 실행의 500회 반복 평균, packet·graph 구성 + Actor 순전파
 
 ### 100개 fresh test seed 평가
 
 | 모델 | 성공률 | 위험 접촉률 | 안전 중단률 | 시간 초과율 | 평균 return | 파라미터 | 추론 시간 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Low-level MLP PPO | 74% | 2% | 23% | 1% | 19.139 | 7,445 | 0.150 ms |
-| Semantic-flat MLP PPO | 75% | 9% | 13% | 3% | 18.496 | 15,317 | 0.163 ms |
-| Ontology R-GAT PPO | 72% | 9% | 14% | 5% | 17.930 | 17,001 | 0.253 ms |
+| Low-level MLP PPO | 74% | 2% | 23% | 1% | 19.139 | 7,445 | 0.105 ms |
+| Semantic-flat MLP PPO | 75% | 9% | 13% | 3% | 18.496 | 15,317 | 0.115 ms |
+| Ontology R-GAT PPO | 72% | 9% | 14% | 5% | 17.930 | 17,001 | 0.179 ms |
 
 - 단일 학습 seed의 최종 체크포인트 평가
 - 모델 선택에 사용하지 않은 test seed `3001:3100` 사용
@@ -56,8 +57,8 @@
 
 - 왼쪽 상단: 100개 test seed의 평균 궤적과 1시그마 공분산 윤곽
 - 오른쪽 상단: 동일 test seed의 성공·위험·안전 중단·포착률
-- 왼쪽 하단: 학습 중 validation return 궤적
-- 가운데 하단: 정책 상태 구성과 Actor 순전파를 포함한 추론 시간
+- 왼쪽 하단: 학습 중 validation return 궤적 (25 iteration 간격)
+- 가운데 하단: packet·graph 구성과 Actor·Critic 순전파 합계 시간 (25회 반복)
 - 오른쪽 하단: 최종 R-GAT 평균 relation attention
 
 ## 실험 설정
@@ -75,6 +76,8 @@
 | 병렬화 | 반복당 에피소드 수집 `parfor`, 에피소드별 사전 난수열로 직렬 실행과 동일 결과 |
 | 물리 적분 주기 | 0.01 s (100 Hz) |
 | 정책 결정 주기 | 0.10 s (10 Hz), 결정 사이 zero-order hold |
+| 학습 호스트 | Intel Core i7-14700F (20코어), RAM 16 GB, Windows 11, Parallel Computing Toolbox |
+| 학습 소요 시간 | Low-level 1.14 h, Semantic-flat 1.55 h, R-GAT 1.91 h (체크포인트 `info.trainingSeconds`) |
 | 최대 임무 시간 | 70 s |
 | 난수 생성기 | `threefry`, 시나리오·센서·정책 독립 스트림 (offset 0 / 1,000,000 / 2,000,000) |
 
@@ -89,7 +92,7 @@
 | pitch 내부 루프 | 2차 응답, ωₙ = 10 rad/s, ζ = 1.0 |
 | pitch / pitch rate 한계 | ±20° / ±90°/s |
 | 행동 한계 | $a_{x,\max}$ = 2.5 m/s², $a_{z,\max}$ = 2.0 m/s² |
-| 운용 고도 상한 | 패드 기준 25 m |
+| 운용 고도 상한 | 지면 기준 25 m (world z, 초과 시 envelope violation) |
 
 ### UGV 이동 패드 시나리오
 
@@ -200,7 +203,7 @@
 | 항목 | 설정 |
 |---|---|
 | 방식 | 성능 기반 승급 (착륙률 ≥ 10%가 3개 평가창 연속 시 +0.1) + 일정 기반 하한 |
-| 초기 고도 | 공칭 범위의 0.025–1.0배에서 시작해 공칭 4–8 m로 확장 |
+| 초기 고도 | 공칭 4–8 m의 0.025–0.05배(0.1–0.4 m)에서 시작해 공칭 범위로 확장 |
 | UGV 운동 | 속도·가속도 범위 0.15배에서 시작, 전체 학습의 65% 지점까지 공칭 복귀 |
 | 장기 시야 상실 한계 | 12 s에서 시작, 55% 지점까지 공칭 3 s로 복귀 |
 | 착륙 속도 허용치 | 공칭의 2배에서 시작해 공칭으로 수렴 |
@@ -230,7 +233,7 @@
 | Validation | `2001:2100` | 100 × 101회 | 학습 전 1회 + 25 iteration마다 checkpoint 선택 (공칭 커리큘럼 도달 후 checkpoint만 대상) |
 | Test | `3001:3100` | 100 | 최종 성능 보고 (선택에 미사용) |
 | 대표 시나리오 | S1–S3 고정 | 3 | 논문 궤적·안정성 그림 |
-| 추론 시간 측정 | — | 500회 반복 | 정책 상태 구성 + Actor 순전파 |
+| 추론 시간 측정 | — | 500회 반복 | 정책 상태 구성 + Actor 순전파 (표), Actor+Critic 합계 별도 기록 |
 
 - 평가 정책: 결정론적 (Gaussian 평균 행동)
 - Monte Carlo 그림: test 100 seed와 동일 표본
@@ -257,8 +260,8 @@ src/
 └─ algorithms/     PPO·그래프 상태·온톨로지·R-GAT
 ```
 
-- 루트 실행 파일: `run.m`, `run_scenario.m`
-- MATLAB 소스: 129개
+- 루트 실행 파일: `run.m`, `run_scenario.m`, `run_live.m`
+- MATLAB 소스: 133개
 - 구 진입점·분산 테스트·중복 시각화·미사용 레거시 모듈 제거
 
 ### 온톨로지·R-GAT 전체 시각화
@@ -342,7 +345,8 @@ $$
 - $\tau_i$: 변화 추세
 - $q_i$: 긴급도
 - $T_i$: 잔여 임무시간
-- $\kappa_i$: 노드 유형 식별자
+- $\kappa_i$: 노드 유형 식별자 $i/9$
+- 전 특징 $[-1,1]$ clipping, $p_i\in[0,1]$
 
 ## 온톨로지의 강화학습 입력 방식
 
@@ -351,23 +355,26 @@ $$
 관계 $r$을 갖는 간선 $i\rightarrow j$의 attention logit:
 
 $$
-e_{ij}^{(r)}=\mathrm{LeakyReLU}\!\left(
+e_{ij}^{(r)}=\mathrm{LeakyReLU}_{0.2}\!\left(
 {a_r}^{\top}[W_r x_i\,\Vert\,W_r x_j\,\Vert\,E_r]
 \right)
 $$
 
-관계별 정규화와 노드 갱신:
+- $W_r\in\mathbb{R}^{8\times12}$, $E_r\in\mathbb{R}^{4}$, $a_r\in\mathbb{R}^{20}$
+- 단일 R-GAT 층
+
+목적 노드 기준 정규화(전 관계 유형·자기 간선 포함 incoming 간선 전체)와 노드 갱신:
 
 $$
 \alpha_{ij}^{(r)}=
 \frac{\exp(e_{ij}^{(r)})}
-{\sum_{(k,r')\in\mathcal{N}(j)}\exp(e_{kj}^{(r')})},
+{\sum_{(k,r')\in\mathcal{N}(j)}\exp(e_{kj}^{(r')})+10^{-9}},
 \qquad
 h_j=\tanh\!\left(\sum_{(i,r)\in\mathcal{N}(j)}
 \alpha_{ij}^{(r)}W_r x_i+W_0x_j+b_0\right)
 $$
 
-4개 의미 그룹 readout:
+4개 의미 그룹 readout ($\bar h$: 그룹 내 노드 평균, $W_g\in\mathbb{R}^{4\times32}$, 0 초기화):
 
 $$
 c_t=\tanh\!\left(W_g\,
@@ -382,15 +389,15 @@ $$
 Raw semantic bypass $s_t=\mathrm{vec}(X_t)\in\mathbb{R}^{108}$ 보존:
 
 $$
-\mu_t=f_{\pi}(s_t)+\delta_t,
+\mu_t=f_{\pi}(s_t)+\tilde\delta_t,
 \qquad
-\delta_t=W_{\pi}c_t
+\delta_t=W_{\pi}c_t,\quad W_\pi\in\mathbb{R}^{2\times4}
 $$
 
 추가 하강 residual의 의미 제약:
 
 $$
-\delta_{z,t}^{\mathrm{gate}}=
+\tilde\delta_{z,t}=
 \begin{cases}
 \delta_{z,t}, & \delta_{z,t}\ge 0,\\
 E_t\delta_{z,t}, & \delta_{z,t}<0,
@@ -404,10 +411,13 @@ $$
 V_t=f_V(s_t)+w_V^{\top}c_t
 $$
 
-- $E_t$: `DescentEligibility` 첫 번째 특징
-- `LandingInhibit=1` 조건의 추가 하강 residual 차단
-- 상승·제동·수평 복구 residual 유지
-- Actor와 Critic의 독립 encoder·head 적용
+- $E_t$: `DescentEligibility` 노드의 primary 특징, $[0,1]$ clipping, gradient 미전달
+- $E_t$ 구성: 신뢰도 × track 초기화 × (1−위치 위험)(1−속도 위험)(1−자세 위험)(1−각속도 위험) × ¬`landingInhibited`
+- 공개 `landingInhibited` 플래그 활성 시 $E_t=0$, 추가 하강 residual 차단
+- 상승·제동 residual과 수평 residual $\tilde\delta_{x,t}=\delta_{x,t}$ 유지
+- Actor·Critic encoder: 사전학습 encoder 복사 후 독립 파라미터
+- PPO 중 고정: $E_r$, $W_0$, $b_0$ / 적응: $W_r$, $a_r$, $W_g$, $b_g$
+- Critic gate 없음, $w_V\in\mathbb{R}^4$
 
 ## 사전학습과 PPO 학습
 
@@ -417,7 +427,7 @@ $$
 - PPO 초기 90%: raw semantic base 정책 학습
 - PPO 마지막 10%: base 고정 후 관계 residual 미세조정
 - checkpoint 선택: 100 validation seed와 안전 가중 점수 사용
-- 비활성 checkpoint 복구: raw 정책 고정·관계 전용 PPO 25회
+- 비활성 checkpoint 복구: raw 정책 고정·관계 전용 PPO 25 iteration × 6 episode
 - 성능 가드: 성공률 비하락·위험/중단/시간초과율 비증가·residual trust region
 - test split: checkpoint 선택에서 제외
 
@@ -453,7 +463,7 @@ $$
 ## 실행
 
 ```matlab
-cd('C:\Users\user\Downloads\ugv_landing_2d_workspace_refactor')
+cd ugv_landing_2d_workspace   % 저장소 루트 기준 프로젝트 폴더(run.m 위치)
 run
 ```
 
@@ -464,6 +474,7 @@ run
 - validation checkpoint 선택
 - held-out test 100 seed 평가
 - Monte Carlo·논문 그림 저장
+- 옵션: `executionMode`(기본 `'full'`, `'smoke'`), `retrain`·`runSelfTest`·`generatePaper`·`figureVisible`·`saveResults`·`showLiveDashboard`(기본 `true`), `profileRepetitions`(기본 500), `trainingOptions`
 
 저장 checkpoint 재사용:
 
@@ -486,15 +497,48 @@ run_scenario('S2')
 run_scenario('S3')
 ```
 
-산출물 위치: `results/paper/`
+- 저장 checkpoint 기반 궤적 그림만 생성, 학습 없음
+- 옵션: `figureVisible`(기본 `true`), `saveResults`(기본 `false`, 활성 시 `results/scenario/`), `profileRepetitions`(기본 100)
+
+실시간 세 비교군 테스트:
+
+```matlab
+run_live            % S3 가시성 손실·재포착
+run_live('S2')      % 고정 대표 시나리오 S1·S2·S3
+run_live(3001)      % held-out test seed
+run_live('S1',struct('playbackSpeed',4))                   % 4배속
+run_live('S3',struct('videoFile','results/live_s3.mp4'))   % MP4 저장
+```
+
+- 저장 checkpoint 3개 로드, 학습 없음
+- 동일 시나리오·센서 dropout·pitch 외란·측정 잡음 열을 세 에이전트에 동시 적용
+- 정책 주기 10 Hz lockstep 진행, 결정론적 행동
+- 왼쪽: 비교군별 드론·UGV·패드·카메라 FOV·궤적 (FOV 초록=검출, 빨강=미검출)
+- 오른쪽: 수평 오차·패드 상대 고도·드론/UGV 수평 속도 시계열 (주황=UGV 가속 구간, 빨강=dropout)
+- 종료 후 전체 궤적 보기로 전환, 결과 표는 workspace 변수 `landingLive`
+- 옵션: `playbackSpeed`(기본 1, `Inf`=대기 없음), `viewHalfWidth`(기본 15 m), `videoFile`, `checkpointDir`, `showFullTrajectoryAtEnd`
+
+산출물 위치: `ugv_landing_2d_workspace/results/`
+
+- `ppo_{baseline,context_flat,context_rgat}_planar_visibility_v2.mat`: 최종 checkpoint 3개
+- `planar_visibility_full_summary.csv`: test 성능·파라미터·추론 시간 요약 (smoke 모드: `planar_visibility_smoke_summary.csv`)
+- `planar_visibility_full.mat`: 비교 구조체·요약 표·설정 (smoke 모드: `planar_visibility_smoke.mat`)
+- `reward_audit_v2.csv`: 공통 보상 감사
+- `planar_visibility_monte_carlo.png`: Monte Carlo 요약 그림
+
+`results/paper/`:
 
 - `paper_trajectories.png`: 대표 시나리오 궤적
 - `paper_stability.png`: 안정성 지표
 - `paper_feasibility.png`: 물리 가능성·하강 금지 원인
 - `paper_ontology.png`: 온톨로지 신호·관계 residual 감사
-- `paper_stability_metrics.csv`: 수치 원본
+- `paper_stability_metrics.csv`: 안정성 수치 원본
+- `paper_scenario_feasibility.csv`: 시나리오 authority margin
+- `paper_runtime_profile.csv`: 정책·Actor/Critic 추론 프로파일
 - `paper_architecture_audit.csv`: 관계 경로 활성 여부
-- `docs/assets/paper/data/`: 문서 표·그림의 최신 CSV 사본
+- `paper_validation.mat`: 논문 검증 구조체
+
+문서용 사본: `ugv_landing_2d_workspace/docs/assets/paper/` (PNG), `ugv_landing_2d_workspace/docs/assets/paper/data/` (CSV·`latest_document_summary.csv`)
 
 ## 최종 문서
 
@@ -505,6 +549,8 @@ run_scenario('S3')
 - [설정·데이터 계약](ugv_landing_2d_workspace/docs/refactor/CONFIGURATION.md)
 - [검증 범위와 결과](ugv_landing_2d_workspace/docs/VALIDATION_KO.md)
 - [모듈 지도](ugv_landing_2d_workspace/docs/MODULE_MAP_KO.md)
+- [온톨로지 시각화 안내](ugv_landing_2d_workspace/docs/ONTOLOGY_VIEW_KO.md)
+- [문서 색인](ugv_landing_2d_workspace/docs/README.md)
 
 ## 제한
 

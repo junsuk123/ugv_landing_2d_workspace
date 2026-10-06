@@ -1,4 +1,4 @@
 Method,StateRepresentation,MeanReturn,SuccessRate,UnsafeRate,SafeAbortRate,TimeoutRate,ParameterCount,InferenceMs
-Low-level MLP PPO,baseline,19.138580281012,0.74,0.02,0.23,0.01,7445,0.141528
-Semantic-flat MLP PPO,context_flat,18.4962619246904,0.75,0.09,0.13,0.03,15317,0.128912
-Ontology R-GAT PPO,context_rgat,17.9303748052037,0.72,0.09,0.14,0.05,17001,0.184124
+Low-level MLP PPO,baseline,19.138580281012,0.74,0.02,0.23,0.01,7445,0.146356
+Semantic-flat MLP PPO,context_flat,18.4962619246904,0.75,0.09,0.13,0.03,15317,0.127368
+Ontology R-GAT PPO,context_rgat,17.9303748052037,0.72,0.09,0.14,0.05,17001,0.185796

@@ -6,6 +6,7 @@
 - 최종 알고리즘: `planar-visibility-ppo-v2.8`
 - 비교군: baseline·semantic-flat·ontology R-GAT PPO
 - 기본 실행: self-test→scratch 학습→validation→held-out test→시각화
+- 진입점: `run.m`·`run_scenario.m`·`run_live.m`
 - 최종 계약 검사: 8/8 통과
 - 관계 경로: Policy/Value readout 비영점·`ACTIVE`
 - 결과 기준: test seed `3001:3100` 100개
@@ -13,7 +14,7 @@
 ## 기본 실행
 
 ```matlab
-cd('C:\Users\user\Downloads\ugv_landing_2d_workspace_refactor')
+cd ugv_landing_2d_workspace   % 이 폴더(run.m 위치)로 이동
 run
 ```
 
@@ -23,6 +24,8 @@ run
 - validation·test: 활성
 - 논문 그림 생성: 활성
 - 실시간 학습 대시보드: 활성
+- 옵션: `executionMode`(`'full'`·`'smoke'`), `retrain`, `runSelfTest`, `generatePaper`, `figureVisible`, `saveResults`, `showLiveDashboard`, `profileRepetitions`(기본 500), `trainingOptions`
+- 산출물: `results/` checkpoint·요약 CSV·Monte Carlo PNG, `results/paper/` 논문 그림·CSV
 
 빠른 구조 검사:
 
@@ -44,6 +47,22 @@ run_scenario('S1')  % 정상 정렬
 run_scenario('S2')  % 급가속
 run_scenario('S3')  % 가시성 손실·재포착
 ```
+
+- 옵션: `figureVisible`(기본 `true`), `saveResults`(기본 `false`, 활성 시 `results/scenario/`), `profileRepetitions`(기본 100)
+
+## 실시간 세 비교군 테스트
+
+```matlab
+run_live            % S3, 실제 시간 재생
+run_live('S2')      % 고정 대표 시나리오
+run_live(3001)      % held-out test seed
+run_live('S1',struct('playbackSpeed',4,'videoFile','results/live_s1.mp4'))
+```
+
+- 세 checkpoint를 같은 시나리오·센서 이벤트·잡음으로 10 Hz lockstep 실행
+- 비교군별 드론·UGV·FOV·궤적과 수평 오차·고도·속도 시계열 표시
+- 옵션: `playbackSpeed`(기본 1, `Inf`=대기 없음), `viewHalfWidth`(기본 15 m), `videoFile`, `checkpointDir`(기본 `results/`), `showFullTrajectoryAtEnd`(기본 `true`)
+- 결과 표: workspace 변수 `landingLive`
 
 ## 온톨로지·R-GAT 전체 시각화
 
@@ -92,3 +111,5 @@ src/
 - [온톨로지 상태 설계](docs/ONTOLOGY_GRAPH_STATE_KO.md)
 - [검증 결과](docs/VALIDATION_KO.md)
 - [최종 코드 구조](docs/MODULE_MAP_KO.md)
+- [온톨로지 시각화 안내](docs/ONTOLOGY_VIEW_KO.md)
+- [문서 색인](docs/README.md)

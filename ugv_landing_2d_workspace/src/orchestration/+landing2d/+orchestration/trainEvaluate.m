@@ -129,7 +129,9 @@ if cfg.saveResults
 end
 
 if cfg.makeFinalPlots
-    vizRuns=struct('results',results,'label',labels,'info',infos, ...
+    % Report the held-out test split, matching summaryTable. Validation
+    % results stay in comparison for checkpoint-selection auditing.
+    vizRuns=struct('results',testResults,'label',labels,'info',testInfos, ...
         'profile',profiles,'training',histories);
     replayOptions=struct('animate',false,'playbackSpeed',Inf);
     [fig,tabs,layouts]=landing2d.viz.replayPlanarVisibilityComparison( ...

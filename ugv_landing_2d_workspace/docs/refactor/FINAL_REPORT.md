@@ -7,14 +7,14 @@
 - 9노드·26간선 causal ontology graph 구현
 - raw semantic bypass + relation residual Actor/Critic 구현
 - causal masked reconstruction 사전학습 구현
-- scratch PPO 2,500회 최종 checkpoint 생성
+- scratch PPO 2,500 iteration × 6 episode 최종 checkpoint 생성
 - fresh test 100 seed 평가 완료
 - 논문용 고정 3시나리오·안정성·가능성 시각화 완료
 - MATLAB R2025b 최종 계약 self-test 8/8 통과
 - 세 모델 smoke pipeline·S3 단일 시나리오 통과
 - 최신 R-GAT checkpoint relation readout 활성 확인
 - 활성화 전후 test 결과율 동일 확인
-- 최종 그림·CSV 갱신: 2026-10-04 14:52 KST
+- 최종 그림·CSV 갱신: 2026-10-06 09:31 KST
 - 활성 R-GAT 성능 우월성 주장 제외
 
 ## 연구 질문
@@ -157,6 +157,9 @@ E_t\delta_{z,t},&\delta_{z,t}<0
 \end{cases}
 $$
 
+- $\delta_t=W_\pi c_t$: relation residual, $\delta_{z,t}$: 수직 성분
+- $E_t=\mathrm{clip}(x_{\mathrm{DescentEligibility},1},0,1)$: `DescentEligibility` 노드 primary 특징 (`relationPolicyResidual.m`)
+- 실제 Actor 평균: $\mu_t=f_\pi(s_t)+[\delta_{x,t},\,\delta_{z,t}^{gate}]^\top$
 - 추가 하강 residual만 eligibility 적용
 - 상승·제동 residual 유지
 - `LandingInhibit` 활성 시 추가 하강 차단
@@ -193,21 +196,54 @@ $$
 ## 공통 보상
 
 $$
-r_t=B_t-C_t+w_r(q_t-q_{t-1})+gamma_{\Delta t}\Phi_t-\Phi_{t-1}
+r_t=B_t-C_t+w_r(q_t-q_{t-1})+\gamma_{\Delta t}\Phi_t-\Phi_{t-1}
+$$
+
+$$
+C_t=\frac{\Delta t}{70}\left(2c_{goal,t}+c_{view,t}+0.25c_{control,t}\right),
+\quad
+\gamma_{\Delta t}=e^{-\Delta t/70},
+\quad
+\Phi_t=-2c_{goal,t},\ \Phi_{terminal}=0,
+\quad w_r=8
 $$
 
 구성:
 
 - bounded goal cost
 - camera view cost
-- normalized control cost
+- normalized control cost $\tfrac12\lVert\tanh(u_t)\rVert^2$
 - landing-readiness progress
 - potential-difference shaping
-- one-time terminal bonus
+- one-time terminal bonus: `SUCCESS` +25, `SAFE_ABORT` −15, `TASK_TIMEOUT` −12, 네 실패 유형 −40
+- 학습 curriculum: 실패 −20에서 −40으로 level 비례 강화, 평가는 −40
+- 상세 정의: `docs/refactor/REWARD_RATIONALE.md`
 
 모델별 reward 변경:
 
 - 없음
+
+## 학습 절차
+
+| 항목 | 값 | 코드 |
+|---|---|---|
+| 초기화 | 세 모델 모두 random weight, 모방학습 제외 | `applyScratchSettings.m` |
+| PPO budget | 2,500 iteration × 6 episode | `defaultRlConfig.m` `rl.scratch` |
+| PPO 갱신 | 8 epoch, minibatch 256, clip 0.2, GAE $\lambda=0.95$ | `ppoTrain.m` |
+| step discount | $\gamma_k=e^{-\Delta t_k/70}$ | `rolloutEpisodeV2.m` |
+| 학습 seed | 단일 `rl.seed` 20240501, PPO stream seed $+404$ | `trainAgent.m` |
+| episode seed | PPO RandStream의 `randi`, manifest `trainSeeds` 미사용 | `ppoTrain.m` |
+| curriculum | performance level, easy 1·bridge 1·current 4 episode | `curriculumBatchLevels.m` |
+| 평가 주기 | 25 iteration | `rl.scratch.evaluateEvery` |
+| validation | seed 2001:2100, 결정론 정책 | `evaluateV2.m` |
+| checkpoint 자격 | curriculum level 1.0 | `checkpointEligible.m` |
+| 선택 점수 | $1000p_{succ}-2500p_{unsafe}-10p_{timeout}-100p_{abort}+\bar G$ | `selectionScoreV2.m` |
+| R-GAT 사전학습 | causal masked reconstruction | `pretrainCausalEncoder.m` |
+| R-GAT 관계 경로 활성화 | 관계 전용 PPO 25 iteration × 6 episode, 4 epoch | `ensureRelationalPath.m` |
+| test | seed 3001:3100, 선택 과정 미사용 | `defaultPlanarVisibilityConfig.m` |
+
+- $\bar G$: validation 비할인 episode return 평균
+- R-GAT 그래프 적응 구간(iteration > 2,250): 기존 최고 대비 +5.0 초과 선택 점수 요구
 
 ## 전체 test 결과
 
@@ -223,9 +259,9 @@ $$
 
 | 모델 | Policy 추론 | Actor/Critic 전체 |
 |---|---:|---:|
-| Low-level | **0.150 ms** | **0.166 ms** |
-| Semantic-flat | 0.163 ms | 0.279 ms |
-| Ontology R-GAT | 0.253 ms | 0.406 ms |
+| Low-level | **0.105 ms** | **0.115 ms** |
+| Semantic-flat | 0.115 ms | 0.209 ms |
+| Ontology R-GAT | 0.179 ms | 0.329 ms |
 
 - 실행시간: MATLAB 소프트웨어 프로파일
 - 경성 실시간 보장·WCET 판정 제외
@@ -263,19 +299,24 @@ $$
 
 ![안정성 지표](../assets/paper/paper_stability.png)
 
-지표 구성:
+지표 구성 (`trajectoryMetrics.m`, decision 간격 $\Delta t_k$ 가중 시간 평균, $D=\sum_k\Delta t_k$):
 
-- tracking RMSE
-- relative-speed RMSE
-- measured FOV loss
-- supervisor intervention
-- pitch RMS
-- control jerk RMS
+| 지표 | 정의 | 점수 $S_k$ |
+|---|---|---|
+| tracking RMSE | $x_{rms}=\sqrt{\sum\Delta t_k e_{x,k}^2/D}$ | $S_1=\exp\left(-(x_{rms}/0.5)^2\right)$ |
+| relative-speed RMSE | $v_{rms}=\sqrt{\sum\Delta t_k \Delta v_{x,k}^2/D}$ | $S_2=\exp\left(-(v_{rms}/0.35)^2\right)$ |
+| measured FOV loss | 미검출 시간 비율 $f_{fov}$ | $S_3=1-f_{fov}$ |
+| supervisor intervention | 개입 decision 시간 비율 $f_{sup}$ | $S_4=1-f_{sup}$ |
+| pitch RMS | $\theta_{rms}=\sqrt{\sum\Delta t_k\theta_k^2/D}$ | $S_5=\exp\left(-(\theta_{rms}/5^\circ)^2\right)$ |
+| control jerk RMS | 적용 가속도 차분 $j_{rms}$ | $S_6=1/\left(1+j_{rms}/j_{ref}\right)$ |
+
+- $j_{ref}=\sqrt{a_{x,max}^2+a_{z,max}^2}/\Delta t_{policy}=\sqrt{2.5^2+2.0^2}/0.1\approx32.0$ m/s³
+- 기준값: $L_{pad}=0.5$ m, $v_{x,td}=0.35$ m/s, $\theta_{td}=5^\circ$
 
 종합 지수:
 
 $$
-S_{stability}=\frac{100}{6}\sum_{k=1}^{6}S_k
+S_{stability}=\frac{100}{6}\sum_{k=1}^{6}S_k\in[0,100]
 $$
 
 - return 제외
@@ -285,6 +326,21 @@ $$
 ## 착륙 가능성 결과
 
 ![가능성과 inhibit](../assets/paper/paper_feasibility.png)
+
+정책 무관 authority margin (`scenarioFeasibility.m`):
+
+$$
+m_v=(v_{sus}-v_{margin})-v_3,
+\quad
+m_a=a_{x,max}-a_2,
+\quad
+m_T=T_{mission}-T_{deadline}
+$$
+
+- $v_3=v_1+a_2T_2$, $T_{deadline}=T_1+T_2+T_3$
+- $v_{sus}=10$ m/s, $v_{margin}=0.5$ m/s, $a_{x,max}=2.5$ m/s², $T_{mission}=70$ s
+- 물리적 가능: $m_v\ge0\wedge m_a>0\wedge m_T\ge0$
+- 불가능 원인 우선순위: speed → acceleration → mission time
 
 S1~S3 판정:
 
@@ -313,10 +369,11 @@ S1~S3 판정:
 해결 구조:
 
 - flat-equivalent anchor의 raw Actor/Critic 고정
-- attention·readout·relation head 전용 PPO 25회
-- 100 validation seed 결과율 비열화 가드
+- attention·readout·relation head 전용 PPO 25 iteration × 6 episode (`ensureRelationalPath.m`)
+- 100 validation seed 결과율 비열화 가드 (`guardRelationalCandidate.m`)
+- 평균 return·선택 점수 허용 저하 0.25
 - relation residual norm $[10^{-6},0.005]$ 신뢰구간
-- 최대 안전 스케일 자동 선택
+- scale grid $\{1,0.75,\dots,0.001\}$ 내림차순 중 첫 통과 스케일 선택
 - test seed의 선택 과정 사용 제외
 
 연구 주장 영향:
@@ -358,8 +415,9 @@ S1~S3 판정:
 
 실행:
 
-- `run.m`
-- `run_scenario.m`
+- `run.m`: scratch 학습·validation·test·시각화 전체 파이프라인 → `landing2d.orchestration.runPipeline`
+- `run_scenario.m`: 고정 시나리오 S1·S2·S3 단일 평가 → `landing2d.orchestration.runScenario`
+- `run_live.m`: 세 최종 checkpoint의 실시간 lockstep 시험, drone·UGV·FOV 애니메이션 → `src/orchestration/+landing2d/+orchestration/runLive.m`
 
 핵심 구현:
 
@@ -370,8 +428,9 @@ S1~S3 판정:
 
 문서:
 
-- `README.md`
+- 저장소 루트 `../README.md`
 - `README_KO.md`
+- `docs/README.md`
 - `docs/ONTOLOGY_GRAPH_STATE_KO.md`
 - `docs/refactor/SYSTEM_SPEC.md`
 - `docs/refactor/CONFIGURATION.md`

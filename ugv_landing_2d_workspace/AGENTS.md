@@ -5,6 +5,7 @@
 - 기본 실험: `planar_visibility_v2`
 - 단일 진입점: `run.m`
 - 단일 시나리오 진입점: `run_scenario.m`
+- 실시간 비교 진입점: `run_live.m`
 - 비교군: baseline, semantic-flat, ontology R-GAT PPO
 - 공통 계약: 동일 환경·센서·보상·행동·종료·안전 감독기
 - 핵심 차이: Actor/Critic 상태 표현
@@ -16,7 +17,7 @@
 - `src/algorithms`: PPO·그래프 상태·온톨로지·R-GAT
 - 세 소스 루트의 `+landing2d` 네임스페이스 공동 사용
 - 루트 MATLAB 파일 추가 금지
-- 예외: 사용자 진입점 `run.m`, `run_scenario.m`
+- 예외: 사용자 진입점 `run.m`, `run_scenario.m`, `run_live.m`
 
 ## 유지 계약
 
@@ -51,9 +52,15 @@ run(struct('executionMode','smoke','generatePaper',false, ...
 run_scenario('S3')
 ```
 
+실시간 세 비교군 테스트:
+
+```matlab
+run_live('S3')
+```
+
 ## 검증 계약
 
-- `landing2d.orchestration.selfTest`: 최종 계약 8개 검사
+- `landing2d.orchestration.selfTest`: 최종 계약 8개 검사 (`contract`, `causal-boundary`, `scenario-dynamics`, `termination`, `context-graph`, `ppo-smoke`, `relation-guard`, `paper-scenarios`)
 - `run.m`: self-test 후 학습·validation·held-out test·시각화 순서
 - 구조 변경 후 smoke pipeline과 S1~S3 중 1개 이상 실행
 - 실제 MATLAB 미실행 시 통과 주장 금지

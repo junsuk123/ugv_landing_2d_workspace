@@ -1,5 +1,13 @@
 # 최종 문서 색인
 
+## 진입 문서
+
+| 문서 | 내용 |
+|---|---|
+| [전체 README](../../README.md) | 결론·결과·실험 설정·실행 방법 |
+| [실행 안내](../README_KO.md) | `run`·`run_scenario`·`run_live`·explorer 실행 |
+| [유지 가이드](../AGENTS.md) | 코드 유지·실행·검증 계약 |
+
 ## 핵심 문서
 
 | 문서 | 내용 |
@@ -11,7 +19,7 @@
 | [설정·데이터 계약](refactor/CONFIGURATION.md) | 버전·seed·시나리오·PPO·checkpoint |
 | [검증 결과](VALIDATION_KO.md) | held-out 결과·대표 시나리오·안정성 지표 |
 | [모듈 지도](MODULE_MAP_KO.md) | 기능별 코드 위치 |
-| [시각화 안내](ONTOLOGY_VIEW_KO.md) | figure·CSV 해석 |
+| [시각화 안내](ONTOLOGY_VIEW_KO.md) | 온톨로지·R-GAT explorer·figure·CSV 해석 |
 
 ## 최종 자산
 

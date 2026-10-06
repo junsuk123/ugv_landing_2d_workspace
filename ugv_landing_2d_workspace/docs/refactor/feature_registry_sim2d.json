@@ -2,6 +2,9 @@
   "schema_version": "causal_packet_v2",
   "profile": "planar_visibility_v2",
   "policy_vector_dimension": 26,
+  "packet_update_rate_hz": 100,
+  "policy_decision_rate_hz": 10,
+  "own_state_noise": "none (ideal own-state)",
   "source_of_truth": "landing2d.sensing.observationSchema",
   "groups": {
     "own_motion": [
@@ -44,6 +47,10 @@
     "node_count": 9,
     "feature_count_per_node": 12,
     "flattened_dimension": 108,
+    "semantic_edge_count": 17,
+    "self_edge_count": 9,
+    "relation_type_count": 5,
+    "readout": "raw_plus_groups",
     "relation_context_dimension": 4
   },
   "causal_boundary": {

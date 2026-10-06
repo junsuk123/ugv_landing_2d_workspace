@@ -3,7 +3,7 @@ function info = plotRgatField(ax,schema,nodeMean,nodeVariance,edgeAttention,mode
 %
 % The surface is a Gaussian interpolation of the discrete ontology node
 % values for display only. Node markers are the measured values. Arrows or
-% matrix cells use the second R-GAT layer's learned attention coefficients.
+% matrix cells use the single R-GAT layer's learned attention coefficients.
 if nargin < 6 || isempty(mode), mode = 'surface'; end
 if nargin < 7 || isempty(label), label = 'Ontology R-GAT'; end
 nodeMean = nodeMean(:);
@@ -84,7 +84,7 @@ ax.Color = [0.91,0.91,0.91];
 h = imagesc(ax,A);
 h.AlphaData = isfinite(A);
 colormap(ax,turbo(128)); clim(ax,[0,1]);
-cb = colorbar(ax); cb.Label.String = 'Layer-2 attention coefficient';
+cb = colorbar(ax); cb.Label.String = 'R-GAT attention coefficient';
 axis(ax,'image'); ax.YDir = 'normal';
 ticks = 1:schema.nNodes;
 labels = cellfun(@shortLabel,schema.nodeNames,'UniformOutput',false);

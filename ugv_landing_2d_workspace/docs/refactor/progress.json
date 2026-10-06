@@ -1,6 +1,6 @@
 {
   "schema_version": "final_workspace_v3_compact",
-  "updated_at": "2026-10-04T21:02:46+09:00",
+  "updated_at": "2026-10-06T09:31:00+09:00",
   "branch": "main",
   "code_commit_before_document_refresh": "7efcc10",
   "implementation": {
@@ -39,9 +39,17 @@
     "ontology_rgat_explorer_render": "passed"
   },
   "workspace": {
-    "root_entry_points": ["run.m", "run_scenario.m"],
-    "source_roots": ["src/orchestration", "src/simulations", "src/algorithms"],
-    "matlab_source_files": 129,
+    "root_entry_points": [
+      "run.m",
+      "run_scenario.m",
+      "run_live.m"
+    ],
+    "source_roots": [
+      "src/orchestration",
+      "src/simulations",
+      "src/algorithms"
+    ],
+    "matlab_source_files": 133,
     "removed_individual_tests": 34,
     "removed_visualization_modules": 18,
     "removed_legacy_modules": 47
@@ -75,21 +83,33 @@
       "baseline_terminal": "SUCCESS",
       "semantic_flat_terminal": "UNAUTHORIZED_CONTACT",
       "ontology_rgat_terminal": "SUCCESS",
-      "stability_index": [88.746, 85.037, 93.498]
+      "stability_index": [
+        88.746,
+        85.037,
+        93.498
+      ]
     },
     "S2": {
       "challenge": "rapid_acceleration",
       "baseline_terminal": "SAFE_ABORT",
       "semantic_flat_terminal": "SUCCESS",
       "ontology_rgat_terminal": "SUCCESS",
-      "stability_index": [37.930, 75.938, 74.337]
+      "stability_index": [
+        37.93,
+        75.938,
+        74.337
+      ]
     },
     "S3": {
       "challenge": "visibility_recovery",
       "baseline_terminal": "SAFE_ABORT",
       "semantic_flat_terminal": "SUCCESS",
       "ontology_rgat_terminal": "SUCCESS",
-      "stability_index": [47.599, 70.797, 80.645]
+      "stability_index": [
+        47.599,
+        70.797,
+        80.645
+      ]
     }
   },
   "architecture_audit": {
@@ -99,23 +119,26 @@
     "value_relation_head_norm": 0.479223014828098,
     "relational_path_active": true,
     "calibration_scale": 0.001,
-    "mean_abs_action_residual": [0.000012728, 0.000038613],
+    "mean_abs_action_residual": [
+      1.2728e-05,
+      3.8613e-05
+    ],
     "interpretation": "typed relation path active inside a validation-guarded residual trust region"
   },
   "runtime_profile_500": {
     "unit": "ms",
     "profile_type": "software timing; not WCET",
     "baseline": {
-      "policy": 0.1499714,
-      "actor_critic_total": 0.1655826
+      "policy": 0.1051956,
+      "actor_critic_total": 0.1152966
     },
     "semantic_flat": {
-      "policy": 0.1627232,
-      "actor_critic_total": 0.2793984
+      "policy": 0.1146328,
+      "actor_critic_total": 0.2093024
     },
     "ontology_rgat": {
-      "policy": 0.2534084,
-      "actor_critic_total": 0.4064472
+      "policy": 0.1787696,
+      "actor_critic_total": 0.3293314
     }
   },
   "relation_activation": {

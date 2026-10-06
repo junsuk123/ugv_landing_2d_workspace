@@ -1,4 +1,4 @@
 Method,StateRepresentation,ParameterCount,PolicyInference_ms,ActorCriticTotal_ms
-Low-level MLP PPO,baseline,7445,0.1499714,0.1655826
-Semantic-flat MLP PPO,context_flat,15317,0.1627232,0.2793984
-Ontology R-GAT PPO,context_rgat,17001,0.2534084,0.4064472
+Low-level MLP PPO,baseline,7445,0.1051956,0.1152966
+Semantic-flat MLP PPO,context_flat,15317,0.1146328,0.2093024
+Ontology R-GAT PPO,context_rgat,17001,0.1787696,0.3293314

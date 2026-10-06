@@ -128,7 +128,7 @@ $$
 
 | 채널 | 의미 | 범위 |
 |---|---|---|
-| `primary` | 주요 의미 크기 | $[-1,1]$ |
+| `primary` | 주요 의미 크기 | $[0,1]$ |
 | `signedPrimary` | 주요 방향 | $[-1,1]$ |
 | `secondary` | 보조 의미 크기 | $[-1,1]$ |
 | `signedSecondary` | 보조 방향 | $[-1,1]$ |
@@ -139,7 +139,9 @@ $$
 | `urgency` | FOV·복구·금지 긴급도 | $[0,1]$ |
 | `remainingTime` | 정규화 잔여시간 | $[0,1]$ |
 | `bias` | 상수 1 | 1 |
-| `typeId` | 노드 식별자 | $(0,1]$ |
+| `typeId` | 노드 식별자 $i/9$ | $(0,1]$ |
+
+- 전체 특징 공통 $[-1,1]$ clip
 
 설계 효과:
 
@@ -154,24 +156,30 @@ $$
 관계 $r$의 선형 변환과 relation embedding:
 
 $$
-z_i^{(r)}=W_r x_i,\qquad E_r\in\mathbb{R}^{d_r}
+z_i^{(r)}=W_r x_i,\qquad W_r\in\mathbb{R}^{8\times12},\qquad E_r\in\mathbb{R}^{4}
 $$
 
-Attention logit:
+간선 $(i\rightarrow j,r)$의 attention logit:
 
 $$
-e_{ij}^{(r)}=\mathrm{LeakyReLU}\left(
+e_{ij}^{(r)}=\mathrm{LeakyReLU}_{0.2}\left(
 a_r^\top[z_i^{(r)}\Vert z_j^{(r)}\Vert E_r]
-\right)
+\right),\qquad a_r\in\mathbb{R}^{2\cdot8+4}
 $$
+
+- $z_i^{(r)}$: 출발 노드, $z_j^{(r)}$: 도착 노드, 동일 $W_r$ 사영
+- $\mathrm{LeakyReLU}_{0.2}(x)=0.6x+0.4|x|$
 
 수신 노드별 정규화:
 
 $$
 \alpha_{ij}^{(r)}=
 \frac{\exp(e_{ij}^{(r)})}
-{\sum_{(k,r')\in\mathcal{N}(j)}\exp(e_{kj}^{(r')})}
+{\sum_{(k,r')\in\mathcal{N}(j)}\exp(e_{kj}^{(r')})+10^{-9}}
 $$
+
+- $\mathcal{N}(j)$: $j$로 들어오는 전체 간선, 관계 유형 무관·자기 간선 $(j,\mathrm{self})$ 포함
+- 관계별 분리 softmax 아님
 
 단일층 노드 갱신:
 
@@ -179,16 +187,19 @@ $$
 h_j=\tanh\left(
 \sum_{(i,r)\in\mathcal{N}(j)}\alpha_{ij}^{(r)}W_rx_i
 +W_0x_j+b_0
-\right)
+\right),\qquad h_j\in\mathbb{R}^{8}
 $$
 
 설정:
 
 - hidden dimension 8
 - relation embedding dimension 4
+- relation 5종: `informs`, `affects_visibility`, `supports`, `inhibits`, `self`
 - message-passing layer 1개
-- local residual $W_0x_j+b_0$
-- Actor encoder와 Critic encoder 분리
+- local residual $W_0x_j+b_0$, $W_0\in\mathbb{R}^{8\times12}$
+- Actor·Critic encoder: 사전학습 encoder 복사본에서 출발·별도 파라미터
+- PPO 중 고정: $E_r$, $W_0$, $b_0$
+- PPO 중 적응: $W_r$, $a_r$, $W_g$, $b_g$
 
 ## 그룹 readout
 
@@ -208,8 +219,11 @@ $$
 4차원 관계 문맥:
 
 $$
-c_t=\tanh\left(W_g[\bar h_1\Vert\bar h_2\Vert\bar h_3\Vert\bar h_4]+b_g\right)
+c_t=\tanh\left(W_g[\bar h_1\Vert\bar h_2\Vert\bar h_3\Vert\bar h_4]+b_g\right),\qquad W_g\in\mathbb{R}^{4\times32}
 $$
+
+- $W_g=0$, $b_g=0$ 초기화
+- 초기 $c_t=0$: semantic-flat과 동일한 초기 행동·가치
 
 ## Actor/Critic 입력
 
@@ -222,14 +236,18 @@ $$
 Actor 평균:
 
 $$
-\mu_t=f_{\pi}(s_t)+W_{\pi}c_t
+\mu_t=f_{\pi}(s_t)+\tilde\delta_t,\qquad \delta_t=W_{\pi}c_t,\quad W_\pi\in\mathbb{R}^{2\times4}
 $$
+
+- $\tilde\delta_t$: 아래 하강 gate 적용 residual
 
 Critic 값:
 
 $$
-V_t=f_V(s_t)+w_V^\top c_t
+V_t=f_V(s_t)+w_V^\top c_t,\qquad w_V\in\mathbb{R}^{4}
 $$
+
+- Critic residual gate 미적용
 
 목적:
 
@@ -243,7 +261,7 @@ $$
 관계 residual $\delta_t=W_\pi c_t$의 수직 성분:
 
 $$
-\delta_{z,t}^{\mathrm{gate}}=
+\tilde\delta_{z,t}=
 \begin{cases}
 \delta_{z,t}, & \delta_{z,t}\ge0,\\
 E_t\delta_{z,t}, & \delta_{z,t}<0
@@ -253,31 +271,59 @@ $$
 여기서:
 
 $$
-E_t=\mathrm{clip}(X_t[\mathrm{DescentEligibility},1],0,1)
+E_t=\mathrm{clip}(X_t[\mathtt{primary},\mathrm{DescentEligibility}],0,1)
 $$
+
+$$
+X_t[\mathtt{primary},\mathrm{DescentEligibility}]=\bar c_t(1-\rho_x)(1-\rho_v)(1-\rho_\theta)(1-\rho_{\dot\theta})\,\mathbf{1}[\neg\mathtt{landingInhibited}]
+$$
+
+- $\bar c_t$: detection confidence × track 초기화
+- $\rho$: 위치·상대속도·자세·자세각속도 위험
+- 수평 성분 $\tilde\delta_{x,t}=\delta_{x,t}$
 
 의미:
 
 - 음의 수직 residual: 추가 하강
 - 양의 수직 residual: 상승·제동
-- `LandingInhibit` 활성 시 $E_t\rightarrow0$
+- 공개 `landingInhibited` 플래그 활성 시 $E_t=0$
 - 추가 하강 차단
 - 상승·제동 residual 유지
-- 동일 piecewise slope 기반 역전파
+- 동일 piecewise slope 기반 역전파, $E_t$ 경유 기울기 없음
 
 ## 사전학습
 
-목표:
+Masked same-time node reconstruction:
+
+$$
+\tilde X_t=X_t\odot(1-M_t),\qquad H_t=\mathrm{Enc}_\theta(\tilde X_t)
+$$
 
 $$
 \min_{\theta,\psi}
-\frac{1}{|M|}\sum_{(i,k)\in M}
-\left\|D_\psi(H_{i,k})-X_{i,k}\right\|_2^2
+\frac{1}{|M_t|}\sum_{(k,i)\in M_t}
+\left((W_d h_i+b_d)_k-X_{k,i}\right)^2,\qquad \psi=(W_d,b_d)
 $$
+
+- $M_t\subseteq\{1,\dots,9\}\times V$: 동적 채널 1~9만 Bernoulli(0.25) mask
+- `remainingTime`·`bias`·`typeId` mask 제외
+- decoder $W_d\in\mathbb{R}^{9\times8}$, $b_d\in\mathbb{R}^{9}$ 선형
+- $\theta$: $W_r$, $a_r$, $E_r$, $W_0$, $b_0$, $W_g$·$b_g$ 제외
+- 학습 후 Critic encoder ← Actor encoder 복사
+
+| 설정 | 값 |
+|---|---:|
+| train seed episode | 12 |
+| episode당 최대 decision | 80 |
+| epoch | 8 |
+| batch | 128 |
+| mask 확률 | 0.25 |
+| Adam learning rate | $10^{-3}$ |
+| 방문 행동 | $\tanh(0.5\,\epsilon)$, 최적화 전 폐기 |
 
 조건:
 
-- train seed만 사용
+- train seed만 사용, validation·test seed 중복 assert
 - 현재 시점 특징만 사용
 - masked feature 복원
 - 방문용 random action 즉시 폐기
@@ -289,14 +335,32 @@ $$
 
 ## PPO 단계
 
-- 1~90% 반복: 관계 readout adaptation 비활성
-- raw semantic base policy 학습
-- 마지막 10%: base MLP 고정
-- attention·group readout·relation head 최적화
-- validation 개선 margin 5.0 적용
-- unsafe outcome 가중 checkpoint 선택
-- 비활성 선택 시 raw 정책 고정 관계 전용 PPO 25회 적용
-- validation 결과율 비열화 가드와 residual trust region 적용
+전체 2500회 반복 기준:
+
+- 1~2250회(90%): encoder 기울기 0, $c_t=0$이므로 relation head 기울기도 0
+- raw semantic base policy·value 학습
+- 2251~2500회(마지막 10%): base MLP·$\log\sigma$·value MLP 고정
+- $W_r$·$a_r$·$W_g$·$b_g$·$W_\pi$·$w_V$ 최적화, $E_r$·$W_0$·$b_0$ 고정
+- adaptation 구간 checkpoint 교체: validation selection score 개선 margin 5.0 필요
+- selection score: $1000\,p_{\mathrm{succ}}-2500\,p_{\mathrm{unsafe}}-10\,p_{\mathrm{timeout}}-100\,p_{\mathrm{abort}}+\bar R$
+- checkpoint 후보: curriculum level 1.0 도달 이후
+
+관계 경로 비활성 checkpoint 처리(`ensureRelationalPath`):
+
+- 비활성 판정: Policy/Value $\lVert W_g\rVert_F$, Policy/Value relation head norm 중 하나라도 $\le10^{-10}$
+- raw 정책·가치 고정 관계 전용 PPO: 25회 × 6 episode, PPO epoch 4, warmup 0
+- 학습 중 validation 20 episode
+
+성능 보존 가드(`guardRelationalCandidate`):
+
+- $W_g$, $b_g$만 scale $\lambda$ 배율, Actor·Critic 공통
+- scale grid: 1, 0.75, 0.5, 0.25, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001
+- 큰 scale부터 첫 통과 값 선택
+- 결과율 가드: 착륙률 비감소, unsafe·safe abort·timeout 비증가, 허용오차 0
+- 점수 가드: 평균 return·selection score 감소 0.25 이내
+- residual trust region: 평균 절대 Actor residual norm $[10^{-6},\,0.005]$
+- 관계 경로 활성 조건 동시 만족
+- 미통과 시 anchor checkpoint 유지
 - test seed의 선택 과정 사용 제외
 
 ## 최신 체크포인트 감사
@@ -333,6 +397,9 @@ $$
 | causal 사전학습 | `src/algorithms/+landing2d/+graphstate/pretrainCausalEncoder.m` |
 | 관계 전용 미세조정 | `src/algorithms/+landing2d/+rl/ensureRelationalPath.m` |
 | 성능 보존 가드 | `src/algorithms/+landing2d/+rl/guardRelationalCandidate.m` |
+| readout scale | `src/algorithms/+landing2d/+rl/scaleRelationalReadout.m` |
+| 관계 경로 활성 판정 | `src/algorithms/+landing2d/+rl/relationalPathActive.m` |
+| PPO 단계 전환 | `src/algorithms/+landing2d/+rl/ppoTrain.m` |
 | 체크포인트 감사 | `src/orchestration/+landing2d/+orchestration/validateStudy.m` |
 
 ## 주장 범위
