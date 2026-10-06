@@ -24,7 +24,7 @@
 
 - 결론: 가변 시간 할인 POMDP 위 세 상태 표현 PPO 정책의 통제 비교, 관계 경로는 검증 성능 가드 하 residual로만 결합
 - 구성: 문제 정식화 → 시스템 모델 → 인지·추정 → 온톨로지 그래프 → 정책 구조 → 안전 감독기 → 보상 → 폐루프 실행 → 학습 → 평가
-- 상세 문서: [시스템 모델](ugv_landing_2d_workspace/docs/refactor/SYSTEM_SPEC.md), [온톨로지·R-GAT](ugv_landing_2d_workspace/docs/ONTOLOGY_GRAPH_STATE_KO.md), [보상 설계](ugv_landing_2d_workspace/docs/refactor/REWARD_RATIONALE.md), [실험 파라미터](ugv_landing_2d_workspace/docs/refactor/CONFIGURATION.md), [알고리즘 구성](ugv_landing_2d_workspace/docs/MODULE_MAP_KO.md), [기호 정의](ugv_landing_2d_workspace/docs/NOTATION_KO.md)
+- 상세 문서: [시스템 모델](docs/refactor/SYSTEM_SPEC.md), [온톨로지·R-GAT](docs/ONTOLOGY_GRAPH_STATE_KO.md), [보상 설계](docs/refactor/REWARD_RATIONALE.md), [실험 파라미터](docs/refactor/CONFIGURATION.md), [알고리즘 구성](docs/MODULE_MAP_KO.md), [기호 정의](docs/NOTATION_KO.md)
 
 ### 문제 정식화
 
@@ -55,7 +55,7 @@
 | Semantic-flat MLP | $s_t=\mathrm{vec}(X_t)$ | 108 | 제외 |
 | Ontology R-GAT | $s_t$ + 관계 문맥 $c_t$ | 108+4 | 포함 |
 
-![전체 파이프라인](ugv_landing_2d_workspace/docs/assets/pipeline.svg)
+![전체 파이프라인](docs/assets/pipeline.svg)
 
 ### 시스템 모델
 
@@ -171,7 +171,7 @@
 
 - 결론: 관측 패킷 $o_t$의 결정적 의미화로 구성한 9노드·26간선·5관계 유형 그래프 $\mathcal G$, 학습 대상 아님
 
-![온톨로지 상황 그래프](ugv_landing_2d_workspace/docs/assets/ontology_graph.svg)
+![온톨로지 상황 그래프](docs/assets/ontology_graph.svg)
 
 #### 노드
 
@@ -337,7 +337,7 @@ $$
 - $\psi_t\in(0,1]$: 착륙 준비도 (착륙 한계 대비 상대 상태 위험의 지수 변환)
 - $\Phi_t=-w_p c_{goal,t}$, 종료 시 0: 시간 할인 일치 potential shaping
 - 가중치: $T_{ref}=70$ s, $w_g=2.0$, $w_v=1.0$, $w_u=0.25$, $w_r=8.0$, $w_p=2.0$
-- 상세 근거: [보상 설계](ugv_landing_2d_workspace/docs/refactor/REWARD_RATIONALE.md)
+- 상세 근거: [보상 설계](docs/refactor/REWARD_RATIONALE.md)
 
 ### 폐루프 실행 알고리즘
 
@@ -532,7 +532,7 @@ run_live('S3')
 | Ontology R-GAT | 72 [62.5, 79.9] | 9 [4.8, 16.2] | 14 [8.5, 22.1] | 5 [2.2, 11.2] |
 
 - 참고 검정: 독립 표본 Fisher 양측, paired 구조 미반영
-- 상세: [평가 프로토콜·결과](ugv_landing_2d_workspace/docs/VALIDATION_KO.md), [연구 결과 보고](ugv_landing_2d_workspace/docs/refactor/FINAL_REPORT.md), [관계 해석 지표](ugv_landing_2d_workspace/docs/ONTOLOGY_VIEW_KO.md)
+- 상세: [평가 프로토콜·결과](docs/VALIDATION_KO.md), [연구 결과 보고](docs/refactor/FINAL_REPORT.md), [관계 해석 지표](docs/ONTOLOGY_VIEW_KO.md)
 
 ### 고정 대표 시나리오 평가
 
@@ -549,15 +549,15 @@ run_live('S3')
 - S1~S3 전부 양의 authority margin $m_v,m_a$ 확인
 - S3의 일시적 LandingInhibit 원인: 센서 dropout
 
-![대표 시나리오 착륙 궤적](ugv_landing_2d_workspace/docs/assets/paper/paper_trajectories.png)
+![대표 시나리오 착륙 궤적](docs/assets/paper/paper_trajectories.png)
 
-![안정성 지표](ugv_landing_2d_workspace/docs/assets/paper/paper_stability.png)
+![안정성 지표](docs/assets/paper/paper_stability.png)
 
 ### Monte Carlo 평균·분산 궤적
 
 - 결론: 시험 표본 전체의 궤적 분산·결과율·학습 추이·관계 attention의 통합 제시
 
-![Monte Carlo 평균·1시그마 궤적과 최종 평가](ugv_landing_2d_workspace/docs/assets/paper/planar_visibility_monte_carlo.png)
+![Monte Carlo 평균·1시그마 궤적과 최종 평가](docs/assets/paper/planar_visibility_monte_carlo.png)
 
 - 왼쪽 상단: $\mathcal S_{te}$ 100개 평균 궤적과 1시그마 공분산 윤곽
 - 오른쪽 상단: 동일 표본의 성공·위험·안전 중단·포착률
@@ -582,7 +582,7 @@ run_live('S3')
 - 시험 평균 절대 관계 residual $\lvert\tilde\delta_t\rvert$: 수평 $1.27\times10^{-5}$·수직 $3.86\times10^{-5}$
 - 제한: 안전 보존을 위한 작은 관계 residual, 다중 학습 seed 우월성 미확인
 
-![온톨로지 정책 추적 및 관계 경로 검증](ugv_landing_2d_workspace/docs/assets/paper/paper_ontology.png)
+![온톨로지 정책 추적 및 관계 경로 검증](docs/assets/paper/paper_ontology.png)
 
 ### 착륙 가능성과 LandingInhibit
 
@@ -595,7 +595,7 @@ run_live('S3')
 - LandingInhibit 의미: 영구적 착륙 불가 판정이 아닌 현재 시점 하강 금지
 - 원인 분해: 센서 dropout, 궤적·FOV 이탈, 상대 속도, 추정 불확실성·gate
 
-![착륙 가능성과 하강 금지 원인](ugv_landing_2d_workspace/docs/assets/paper/paper_feasibility.png)
+![착륙 가능성과 하강 금지 원인](docs/assets/paper/paper_feasibility.png)
 
 ## Assumptions
 

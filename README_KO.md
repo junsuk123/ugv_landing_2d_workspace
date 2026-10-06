@@ -71,7 +71,7 @@
 
 ## 문서
 
-- [전체 README](../README.md)
+- [전체 README](README.md)
 - [연구 결과 보고](docs/refactor/FINAL_REPORT.md)
 - [시스템 모델](docs/refactor/SYSTEM_SPEC.md)
 - [온톨로지 상태 설계](docs/ONTOLOGY_GRAPH_STATE_KO.md)

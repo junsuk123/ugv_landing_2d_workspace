@@ -2,55 +2,43 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "MATLAB: Run and save results",
+      "label": "MATLAB: Full pipeline (train, validate, test, figures)",
       "type": "process",
       "command": "matlab",
-      "args": [
-        "-batch",
-        "run_ugv_landing_2d(struct('animate',false,'figureVisible',false));"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
+      "args": ["-batch", "run(struct('showLiveDashboard',false,'figureVisible',false));"],
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": []
     },
     {
-      "label": "MATLAB: Run all comparisons",
+      "label": "MATLAB: Re-evaluate saved checkpoints",
       "type": "process",
       "command": "matlab",
-      "args": [
-        "-batch",
-        "run_all(struct('figureVisible',false));"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
+      "args": ["-batch", "run(struct('retrain',false,'showLiveDashboard',false,'figureVisible',false));"],
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": []
     },
     {
-      "label": "MATLAB: Run tests",
+      "label": "MATLAB: Smoke check",
       "type": "process",
       "command": "matlab",
-      "args": [
-        "-batch",
-        "run_tests;"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
+      "args": ["-batch", "run(struct('executionMode','smoke','generatePaper',false,'figureVisible',false,'saveResults',false,'showLiveDashboard',false));"],
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": []
     },
     {
-      "label": "MATLAB: Replot saved results",
+      "label": "MATLAB: Self-test",
       "type": "process",
       "command": "matlab",
-      "args": [
-        "-batch",
-        "replot_results([],struct('figureVisible',false));"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
+      "args": ["-batch", "addpath(fullfile(pwd,'src','orchestration'),fullfile(pwd,'src','simulations'),fullfile(pwd,'src','algorithms')); disp(landing2d.orchestration.selfTest());"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "MATLAB: Scenario S3",
+      "type": "process",
+      "command": "matlab",
+      "args": ["-batch", "run_scenario('S3',struct('figureVisible',false));"],
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": []
     }
   ]
