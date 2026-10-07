@@ -26,6 +26,22 @@
       "problemMatcher": []
     },
     {
+      "label": "MATLAB: Full 3D pipeline (train, validate, test, figures -> results/spatial3d)",
+      "type": "process",
+      "command": "matlab",
+      "args": ["-batch", "run(struct('spatialDimension',3,'showLiveDashboard',false,'figureVisible',false));"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "MATLAB: Scenario S3 (3D option)",
+      "type": "process",
+      "command": "matlab",
+      "args": ["-batch", "run_scenario('S3',struct('spatialDimension',3,'figureVisible',false));"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
       "label": "MATLAB: Smoke check (3D option)",
       "type": "process",
       "command": "matlab",

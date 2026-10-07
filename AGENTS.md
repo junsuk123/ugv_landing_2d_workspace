@@ -30,6 +30,7 @@
 - 2차원 기본 계약의 수치·task fingerprint·학습 서명 불변: 3차원 항목(`experiment.spatial`, `graphState.spatialDimension`)은 3차원 옵션에서만 생성
 - 3차원 설정의 단일 정의: `landing2d.config.defaultSpatialConfig`, 적용 `landing2d.config.applySpatialDimension`
 - 3차원 체크포인트: `results/spatial3d` 분리 저장
+- 3차원 계약 보완(3차원 전용, 세 비교군 공통): 최종 하강 단계(`experiment.spatial.finalDescent*`), 행동 변화량 보상 비용(`reward.actionChangeWeight`), 학습 에피소드 한정 커리큘럼(`rl.trackAuthorizationCurriculumScale`, `rl.touchdownAttitudeCurriculumScale`)과 탐색 잡음(`rl.initialLogStd`, `rl.lateralInitialLogStd`)
 - 정책 입력: causal sensor packet과 해당 packet 기반 graph만 허용
 - 비가시 시점 hidden pad truth·미래 상태·보상·결과 라벨 입력 금지
 - 공통 reward·environment·action·termination 변경 금지
