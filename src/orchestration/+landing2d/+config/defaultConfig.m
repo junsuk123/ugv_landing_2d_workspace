@@ -23,6 +23,9 @@ cfg.maxHeight = 18.0;             % 상승 탐색의 목표 상한 고도 [m]
 % 유도 법칙은 maxHeight에서 상승을 멈추므로 이 값에 닿지 않습니다.
 cfg.ceilingHeight = 25.0;         % 드론이 올라갈 수 있는 최대 패드 상대 고도 [m]
 cfg.cameraFovDeg = 50;            % 카메라 전체 시야각 [deg]
+% 공간 차원. 2: 기존 x-z 평면(기본), 3: 측방 y축·roll 축 추가.
+% 3차원 세부값은 landing2d.config.defaultSpatialConfig, 적용은 applySpatialDimension.
+cfg.spatialDimension = 2;
 
 cfg.controller = 'pn';            % 'pn' 비례 항법 유도(기본), 'pd' 기존 PD 회귀 경로
 

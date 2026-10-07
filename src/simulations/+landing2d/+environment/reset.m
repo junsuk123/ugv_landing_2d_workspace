@@ -17,32 +17,39 @@ if isfield(options,'scenarioHeightRange') && ~isempty(options.scenarioHeightRang
 end
 scenario = landing2d.scenario.sampleParameters(scenarioConfig,scenarioSeed);
 if isfield(options,'scenario'), scenario = options.scenario; end
+spatial = landing2d.environment.isSpatial(c);
+if spatial, scenario = withLateralMotion(scenario,c.experiment.scenario); end
 c.experiment.currentScenario = scenario;
 sensorStream = RandStream('threefry','Seed',sensorSeed);
 sensorEvents = landing2d.sensing.sampleEvents(c.experiment.sensor,scenario,sensorStream);
 if isfield(options,'sensorEvents') && ~isempty(options.sensorEvents)
     sensorEvents = validateSensorEvents(options.sensorEvents,scenario.deadline);
 end
-[padX,padVx,padAx,phase] = landing2d.scenario.evaluateTrajectory(scenario,0);
-pad = struct('x',padX,'z',scenario.padHeight,'vx',padVx,'ax',padAx, ...
-    'phase',phase);
+pad = landing2d.scenario.padState(scenario,0);
 % Start in the first constant-velocity engagement with matched horizontal
 % speed. Starting the pad at up to 2.5 m/s while the drone was stationary
 % made some low-altitude cases lose a body-fixed camera target before any
 % causal controller could respond; the experiment is about the later CA
 % maneuver, not an artificial initial velocity discontinuity.
 state = struct('x',scenario.x0,'z',scenario.padHeight+scenario.height, ...
-    'vx',padVx,'vz',0,'theta',0,'pitchRate',0, ...
+    'vx',pad.vx,'vz',0,'theta',0,'pitchRate',0, ...
     'collectiveThrust',c.experiment.dynamics.mass* ...
         c.experiment.dynamics.gravity);
+if spatial
+    % 3D option: also directly above the pad with matched lateral velocity.
+    state.y = pad.y; state.vy = pad.vy; state.roll = 0; state.rollRate = 0;
+end
 if isfield(options,'physicalState'), state = options.physicalState; end
-status = landing2d.environment.initialStatus();
-track = landing2d.sensing.initialPadTrack(c.experiment.sensor);
+assert(spatial == isfield(state,'y'),'landing2d:SpatialState', ...
+    'physicalState must match the configured spatial dimension.');
+status = landing2d.environment.initialStatus( ...
+    numel(landing2d.environment.actionLimits(c)));
+track = landing2d.sensing.initialPadTrack(c.experiment.sensor,spatial);
 measurement = landing2d.sensing.generateMeasurement(state,pad,0, ...
     c.experiment.sensor,sensorStream,struct('dropout',false));
 [track,estimatorInfo] = landing2d.sensing.updatePadTrack(track,measurement, ...
     state,0,c.experiment.sensor);
-status = landing2d.environment.updateDecisionContext(status,track,0,c);
+status = landing2d.environment.updateDecisionContext(status,track,0,c,state);
 packet = landing2d.sensing.buildPacket(state,track,measurement,status,scenario,0,c);
 observation = landing2d.sensing.normalizePacket(packet,c);
 env = struct('schemaVersion','environment_v2','config',c,'scenario',scenario, ...
@@ -56,6 +63,14 @@ info = struct('packet',packet,'measurement',measurement,'pad',pad, ...
     'evaluatorMetadata',struct('sensorEvents',sensorEvents), ...
     'provenance',struct('scenarioSeed',scenarioSeed,'sensorSeed',sensorSeed, ...
     'policySeed',base+c.experiment.randomStreams.policyOffset));
+end
+
+function scenario = withLateralMotion(scenario,scenarioConfig)
+% A supplied planar scenario runs in 3D with zero lateral pad motion.
+if ~isfield(scenario,'vy1'), scenario.vy1 = 0; end
+if ~isfield(scenario,'ay2'), scenario.ay2 = 0; end
+if ~isfield(scenario,'y0'), scenario.y0 = scenarioConfig.y0; end
+scenario.vy3 = scenario.vy1+scenario.ay2*scenario.T2;
 end
 
 function events = validateSensorEvents(events,deadline)

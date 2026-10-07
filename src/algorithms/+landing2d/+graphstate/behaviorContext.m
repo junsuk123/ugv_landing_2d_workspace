@@ -5,6 +5,13 @@ age = min(p.timeSinceLastDetection/c.experiment.safety.prolongedLoss,1);
 alignment = exp(-abs(p.exEstimate)/1.0);
 speedMatch = exp(-abs(p.relativeVxEstimate)/0.5);
 attitude = exp(-abs(atan2(p.sinTheta,p.cosTheta))/deg2rad(5));
+if isfield(p,'eyEstimate')
+    % 3D option: horizontal norms and the larger tilt angle.
+    alignment = exp(-hypot(p.exEstimate,p.eyEstimate)/1.0);
+    speedMatch = exp(-hypot(p.relativeVxEstimate,p.relativeVyEstimate)/0.5);
+    attitude = exp(-max(abs(atan2(p.sinTheta,p.cosTheta)), ...
+        abs(atan2(p.sinRoll,p.cosRoll)))/deg2rad(5));
+end
 consistent = p.trackInitialized*exp(-p.positionStd/1.0-p.velocityStd/1.0);
 boundary = min(1,max(0,-p.predictedFovMargin)/fov);
 lowHeightRisk = exp(-max(p.h,0)/0.5)*min(1,abs(p.vz)/0.3);

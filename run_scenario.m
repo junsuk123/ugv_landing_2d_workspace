@@ -1,5 +1,6 @@
 function output = run_scenario(scenarioId,options)
 % RUN_SCENARIO  Evaluate one fixed final-policy scenario: S1, S2, or S3.
+%   run_scenario('S3',struct('spatialDimension',3))   % 3D option checkpoints
 if nargin < 1 || isempty(scenarioId), scenarioId='S1'; end
 if nargin < 2, options=struct(); end
 root=fileparts(mfilename('fullpath'));

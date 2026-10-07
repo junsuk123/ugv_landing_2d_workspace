@@ -7,9 +7,12 @@ function study = validateStudy(options)
 if nargin < 1, options = struct(); end
 projectRoot = landing2d.orchestration.projectRoot();
 cfg = landing2d.config.primaryConfig(projectRoot);
+if isstruct(options) && isfield(options,'spatialDimension')
+    cfg = landing2d.config.applySpatialDimension(cfg,options.spatialDimension);
+end
 defaults = struct('checkpointDir',cfg.outputDir, ...
     'outputDir',fullfile(cfg.outputDir,'paper'),'saveResults',true, ...
-    'profileRepetitions',500,'scenarioIds',{{}});
+    'profileRepetitions',500,'scenarioIds',{{}},'spatialDimension',2);
 options = parseOptions(options,defaults);
 cfg.outputDir = char(options.checkpointDir);
 

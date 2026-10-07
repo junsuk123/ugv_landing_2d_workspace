@@ -30,6 +30,8 @@
 | [알고리즘 구성](MODULE_MAP_KO.md) | 인지·추정·그래프·정책·감독기·학습 알고리즘 구성 |
 | [평가 프로토콜·결과](VALIDATION_KO.md) | 시험 결과·대표 시나리오·안정성 지표 |
 | [관계 해석 지표](ONTOLOGY_VIEW_KO.md) | attention·관계 residual·그림 해석 |
+| [Simulink 실행·학습](SIMULINK_KO.md) | 블록 구조·RL Agent 학습·등가성 검증·실행 시간 |
+| [3차원 확장 옵션](SPATIAL_3D_KO.md) | 측방 $y$축·roll 축·원뿔 시야·37차원 packet·실행 방법 |
 | [연구 결과 보고](refactor/FINAL_REPORT.md) | 방법·결과·제한·최종 판정 |
 
 ## 그림

@@ -51,6 +51,10 @@ else
         rl.hiddenSize,1],0.1,valueRs);
 end
 agent.policy.logStd = rl.initialLogStd*ones(rl.actionDim,1);
+if rl.actionDim == 3 && isfield(rl,'lateralInitialLogStd')
+    % 3D option only: separate initial exploration noise for a_y.
+    agent.policy.logStd(2) = rl.lateralInitialLogStd;
+end
 agent.policy.encoder = policyEncoder;
 agent.value.encoder = valueEncoder;
 agent.encoderSpec = spec;

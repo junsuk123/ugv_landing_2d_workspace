@@ -23,7 +23,29 @@ if isfield(options,'rlSeed')
     validateattributes(options.rlSeed,{'numeric'},{'scalar','integer','nonnegative'});
     cfg.rl.seed=double(options.rlSeed); options=rmfield(options,'rlSeed');
 end
+% 학습 실행 방식. 'simulink'는 같은 환경 계약을 Simulink 블록으로 돌리고
+% RL Agent 블록 + rlPPOAgent로 학습하며, 체크포인트는 results/simulink에 둡니다.
+trainingBackend='matlab';
+if isfield(options,'trainingBackend')
+    trainingBackend=char(options.trainingBackend);
+    options=rmfield(options,'trainingBackend');
+end
+assert(ismember(trainingBackend,{'matlab','simulink'}), ...
+    'landing2d:TrainingBackend','trainingBackend must be matlab or simulink.');
+if isfield(options,'simulink')
+    cfg.simulink=options.simulink; options=rmfield(options,'simulink');
+end
 cfg=landing2d.config.applyOptions(cfg,options);
+% spatialDimension=3: 측방 y축·roll 추가, 체크포인트는 <outputDir>/spatial3d.
+cfg=landing2d.config.applySpatialDimension(cfg);
+assert(cfg.spatialDimension==2 || strcmp(trainingBackend,'matlab'), ...
+    'landing2d:SpatialBackend', ...
+    'spatialDimension=3 supports trainingBackend=''matlab'' only.');
+trainer=@landing2d.rl.ppoTrain;
+if strcmp(trainingBackend,'simulink')
+    trainer=@landing2d.rlsim.ppoTrain;
+    cfg.outputDir=fullfile(cfg.outputDir,'simulink');
+end
 if ~cfg.figureVisible, cfg.animate=false; end
 switch executionMode
     case 'smoke'
@@ -42,8 +64,9 @@ switch executionMode
         cfg.graphState.pretrain.epochs=1;
         cfg.graphState.pretrain.batchSize=16;
         cfg.makeFinalPlots=false;
-        fprintf(['planar_visibility_v2 bounded smoke: each method gets 1 PPO ' ...
-            'iteration each. This is not convergence/performance validation.\n']);
+        fprintf(['planar_visibility_v2 (%dD) bounded smoke: each method gets 1 PPO ' ...
+            'iteration each. This is not convergence/performance validation.\n'], ...
+            cfg.spatialDimension);
     case 'full'
         % Checkpoint selection sees validation only. The held-out test split
         % is evaluated once after training and never influences selection.
@@ -76,9 +99,9 @@ for i=1:nMethods
     fingerprints{i}=landing2d.environment.taskFingerprint(arm);
     fprintf('[%d/%d] %s (%s)\n',i,nMethods,labels{i},modes{i});
     if strcmp(executionMode,'full')
-        [agents{i},histories{i}]=landing2d.rl.loadOrTrainAgent(arm);
+        [agents{i},histories{i}]=landing2d.rl.loadOrTrainAgent(arm,trainer);
     else
-        [agents{i},trainInfo]=landing2d.rl.trainAgent(arm);
+        [agents{i},trainInfo]=landing2d.rl.trainAgent(arm,trainer);
         histories{i}=trainInfo;
         histories{i}.smokeOnly=true;
     end
@@ -112,7 +135,8 @@ summaryTable=table(labels',modes',meanReturn,successRate,unsafeRate,safeAbortRat
     'ParameterCount','InferenceMs'});
 disp(summaryTable);
 comparison=struct('schemaVersion','planar_visibility_comparison_v2', ...
-    'executionMode',executionMode,'agents',{agents},'training',{histories}, ...
+    'executionMode',executionMode,'trainingBackend',trainingBackend, ...
+    'agents',{agents},'training',{histories}, ...
     'results',{results},'info',{infos},'validationResults',{results}, ...
     'validationInfo',{infos},'testResults',{testResults}, ...
     'testInfo',{testInfos},'selectionSplit','validation', ...
@@ -138,6 +162,7 @@ if cfg.makeFinalPlots
         vizRuns,cfg,replayOptions);
     if cfg.saveResults
         names={'planar_visibility_monte_carlo'};
+        if numel(tabs)>1, names{end+1}='spatial_trajectories_3d'; end
         landing2d.io.saveTabbedFigure(fig,tabs,layouts,cfg,names, ...
             'planar_visibility_comparison');
     end

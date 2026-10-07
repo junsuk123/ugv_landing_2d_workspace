@@ -13,11 +13,12 @@ returns = zeros(1,numel(seeds)); success = false(size(returns));
 capture = zeros(size(returns)); unsafe = false(size(returns));
 abort = false(size(returns));
 timeout = false(size(returns));
-relationResidualMean = zeros(2,numel(seeds));
+relationResidualMean = zeros(c.rl.actionDim,numel(seeds));
 verticalGateFraction = zeros(size(returns));
 traceGraph=~strcmp(agent.encoderSpec.mode,'baseline');
 if traceGraph
-    graphSchema=landing2d.graphstate.schemaFor(agent.encoderSpec.mode);
+    graphSchema=landing2d.graphstate.schemaFor(agent.encoderSpec.mode, ...
+        landing2d.graphstate.graphDimension(c.graphState));
     finalNodeValues=nan(graphSchema.nNodes,numel(seeds));
     hasAttention=ismember(agent.encoderSpec.mode,{'context_rgat','context_gat'});
     if hasAttention, edgeAttention=nan(numel(graphSchema.src),numel(seeds)); end

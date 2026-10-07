@@ -1,5 +1,9 @@
-function [agent,info] = loadOrTrainAgent(c)
+function [agent,info] = loadOrTrainAgent(c,trainer)
 % LOADORTRAINAGENT  저장된 정책이 현재 설정과 같으면 재사용, 아니면 학습 후 저장.
+% trainer(선택): PPO 학습 함수. 기본 landing2d.rl.ppoTrain, Simulink 학습은
+% landing2d.rlsim.ppoTrain. 관계 경로 활성화도 같은 학습 함수를 씁니다.
+if nargin < 2 || isempty(trainer), trainer = @landing2d.rl.ppoTrain; end
+relationOptions = struct('trainer',trainer);
 file = fullfile(c.outputDir,c.rl.policyFile);
 signature = landing2d.rl.trainingSignature(c);
 if ~c.rl.retrain && isfile(file)
@@ -9,7 +13,7 @@ if ~c.rl.retrain && isfile(file)
         agent = landing2d.rl.normalizeAgent(saved.agent,c.rl);
         info = saved.info;
         [agent,relationActivation] = ...
-            landing2d.rl.ensureRelationalPath(agent,c);
+            landing2d.rl.ensureRelationalPath(agent,c,relationOptions);
         if relationActivation.attempted
             info.relationActivation = relationActivation;
             save(file,'agent','info','signature');
@@ -21,8 +25,9 @@ if ~c.rl.retrain && isfile(file)
         return;
     end
 end
-[agent,info] = landing2d.rl.trainAgent(c);
-[agent,relationActivation] = landing2d.rl.ensureRelationalPath(agent,c);
+[agent,info] = landing2d.rl.trainAgent(c,trainer);
+[agent,relationActivation] = landing2d.rl.ensureRelationalPath(agent,c, ...
+    relationOptions);
 info.relationActivation = relationActivation;
 if ~exist(c.outputDir,'dir')
     [ok,message] = mkdir(c.outputDir);

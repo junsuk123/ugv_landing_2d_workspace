@@ -26,6 +26,14 @@
       "problemMatcher": []
     },
     {
+      "label": "MATLAB: Smoke check (3D option)",
+      "type": "process",
+      "command": "matlab",
+      "args": ["-batch", "run(struct('executionMode','smoke','spatialDimension',3,'runSelfTest',false,'generatePaper',false,'figureVisible',false,'saveResults',false,'showLiveDashboard',false));"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
       "label": "MATLAB: Self-test",
       "type": "process",
       "command": "matlab",

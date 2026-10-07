@@ -3,6 +3,8 @@ function specs = representativeScenarios(c)
 % The cases are selected from the declared training support before any
 % policy is evaluated.  They are therefore reproducible and cannot be
 % changed by looking at which checkpoint wins a particular random seed.
+% The 3D option adds fixed lateral pad motion (vy1, ay2) inside the declared
+% lateral ranges; the planar parameters and sensor events are unchanged.
 
 specs(1) = makeSpec(c,1,'S1 Nominal alignment', ...
     'Nominal tracking / DescentEligibility', ...
@@ -22,6 +24,27 @@ specs(3) = makeSpec(c,3,'S3 Visibility recovery', ...
     'Bounded dropout / ViewRecovery and LandingInhibit', ...
     'PadVisibility -> ViewRecovery -> LandingInhibit', ...
     1.00,1.20,2.00,2.75,30.0,6.5,events);
+if landing2d.environment.isSpatial(c)
+    lateral = [0.30,0.00; 0.00,0.50; -0.20,-0.40];   % [vy1, ay2] per S1..S3
+    for k = 1:numel(specs)
+        specs(k).scenario = addLateral(specs(k).scenario,lateral(k,:),c);
+    end
+end
+end
+
+function scenario = addLateral(scenario,lateral,c)
+s = c.experiment.scenario;
+scenario.vy1 = lateral(1);
+scenario.ay2 = lateral(2);
+scenario.vy3 = scenario.vy1+scenario.ay2*scenario.T2;
+scenario.y0 = s.y0;
+scenario.feasibleSpeed = hypot(scenario.v3,scenario.vy3) <= ...
+    s.sustainedDroneSpeed-s.speedMargin;
+if scenario.feasibleSpeed
+    scenario.rejectionReason = '';
+else
+    scenario.rejectionReason = 'speed authority';
+end
 end
 
 function spec = makeSpec(c,index,name,challenge,ontologyPath, ...

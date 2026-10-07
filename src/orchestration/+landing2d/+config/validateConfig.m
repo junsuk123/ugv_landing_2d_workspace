@@ -89,8 +89,20 @@ if isfield(c,'experiment') && isfield(c.experiment,'enabled') && c.experiment.en
         'landing2d:ObservationSchema','Observation dimension/schema mismatch.');
     assert(c.rl.observationDim == e.observationSchema.dimension, ...
         'landing2d:ObservationSchema','RL dimension must come from named schema.');
-    assert(c.rl.actionDim == 2,'landing2d:ActionContract', ...
-        'The planar experiment has exactly two actions.');
+    spatial = landing2d.environment.isSpatial(c);
+    assert(c.rl.actionDim == 2+spatial,'landing2d:ActionContract', ...
+        'The planar experiment has two actions; the 3D option has three.');
+    if isfield(c,'spatialDimension')
+        assert(c.spatialDimension == 2+spatial,'landing2d:SpatialDimension', ...
+            ['spatialDimension=%d does not match the experiment contract. ' ...
+             'Apply landing2d.config.applySpatialDimension.'],c.spatialDimension);
+    end
+    graphDimension = 2;
+    if isfield(c.graphState,'spatialDimension')
+        graphDimension = c.graphState.spatialDimension;
+    end
+    assert(graphDimension == 2+spatial,'landing2d:SpatialDimension', ...
+        'graphState.spatialDimension does not match the experiment contract.');
     landing2d.config.validatePrimaryConfig(c);
 end
 if isfield(c,'useLegacyOntologyReward')

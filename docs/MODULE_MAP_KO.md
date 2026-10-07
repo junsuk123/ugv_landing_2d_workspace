@@ -152,3 +152,20 @@ $$
 - 그래프 사전학습 제약: 동시각 패킷 기반 특징만 재구성 대상, 행동·보상·결과·미래 표본·실제 상태 미사용
 - 분할 제약: 사전학습 $\mathcal{S}_{tr}$, 선택 $\mathcal{S}_{val}$, 보고 $\mathcal{S}_{te}$의 상호 배타, 시험 분할 기반 선택 제외
 - 학습 커리큘럼 제약: 학습 에피소드 생성에만 적용, 검증·시험은 공칭 설정 고정
+
+## 13. Simulink 구현
+
+- 핵심: §1의 구성 요소를 같은 주기의 Simulink 블록으로 배치, 블록은 같은 환경 함수 호출
+- 환경 모델·센서 모델·추정기·결정 문맥·안전 감독기: $\Delta t_s$ MATLAB System 블록
+- 관측 패킷·의미 그래프 구성·보상: $\Delta t_p$ 결정 출력 블록
+- 정책·가치 네트워크: RL Toolbox `RL Agent` 블록 (`rlPPOAgent`)
+- 상세: [Simulink 실행·학습](SIMULINK_KO.md)
+
+## 14. 3차원 확장 옵션
+
+- 핵심: `spatialDimension=3`에서 §1의 구성 요소에 측방 $y$축·roll 축 추가, 세 비교군 공통
+- 동역학: `dynamics.stepSpatial`·`dynamics.accelerationToAttitude` (pitch·roll 2차 루프)
+- 패드 궤적: `scenario.padState` (진행 방향·측방 CV–CA–CV)
+- 센서·추정기: 원뿔 시야 `sensing.projectPad`, 측방 추정 채널 `sensing.updatePadTrack`
+- 관측·그래프: 37차원 packet, 노드 특징 14채널, R-GAT 수직 gate는 마지막 행동 성분
+- 상세: [3차원 확장 옵션](SPATIAL_3D_KO.md)

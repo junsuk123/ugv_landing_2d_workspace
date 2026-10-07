@@ -21,7 +21,8 @@ if strcmp(mode,'baseline')
     spec.T = [];
     return;
 end
-[schema,T] = landing2d.graphstate.schemaFor(mode);
+[schema,T] = landing2d.graphstate.schemaFor(mode, ...
+    landing2d.graphstate.graphDimension(gs));
 dh = gs.hiddenDim;
 spec.schema = schema;
 spec.T = T;

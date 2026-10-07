@@ -1,7 +1,11 @@
 function event = evaluateTermination(previous,current,padPrevious,padCurrent, ...
     status,t0,dt,c,dynamicsInfo)
 % EVALUATETERMINATION  Earliest physical event with pre-impact quantities.
+% 3D option: the pad footprint is a rectangle (padHalfLength x padHalfWidth),
+% the horizontal touchdown speed is the norm of [relative vx, relative vy],
+% and roll/roll rate share the pitch touchdown tolerances.
 s = c.experiment.safety;
+spatial = isfield(current,'y');
 event = blankEvent(t0+dt);
 h0 = previous.z-padPrevious.z;
 h1 = current.z-padCurrent.z;
@@ -28,10 +32,21 @@ if contact
     relVx = padVx-drone.vx;
     relVz = -drone.vz;
     inFootprint = abs(ex) <= c.padHalfLength;
-    mechanicalSafe = inFootprint && abs(relVx)<=s.touchdownSpeedX ...
-        && abs(relVz)<=s.touchdownSpeedZ ...
-        && abs(drone.theta)<=s.touchdownPitchTolerance ...
+    horizontalSpeedSafe = abs(relVx)<=s.touchdownSpeedX;
+    attitudeSafe = abs(drone.theta)<=s.touchdownPitchTolerance ...
         && abs(drone.pitchRate)<=s.touchdownPitchRateTolerance;
+    if spatial
+        padY = padPrevious.y+alpha*(padCurrent.y-padPrevious.y);
+        padVy = padPrevious.vy+alpha*(padCurrent.vy-padPrevious.vy);
+        ey = padY-drone.y;
+        relVy = padVy-drone.vy;
+        inFootprint = inFootprint && abs(ey) <= c.experiment.spatial.padHalfWidth;
+        horizontalSpeedSafe = hypot(relVx,relVy)<=s.touchdownSpeedX;
+        attitudeSafe = attitudeSafe && abs(drone.roll)<=s.touchdownPitchTolerance ...
+            && abs(drone.rollRate)<=s.touchdownPitchRateTolerance;
+    end
+    mechanicalSafe = inFootprint && horizontalSpeedSafe ...
+        && abs(relVz)<=s.touchdownSpeedZ && attitudeSafe;
     authorized = ~status.landingInhibited && ~status.abortRequested;
     if ~inFootprint
         reason = 'MISSED_PAD_CONTACT';
@@ -47,10 +62,19 @@ if contact
         'mechanicallySafe',mechanicalSafe,'preImpact',struct( ...
         'xError',ex,'relativeVx',relVx,'relativeVz',relVz, ...
         'pitch',drone.theta,'pitchRate',drone.pitchRate));
+    if spatial
+        event.preImpact.yError = ey;
+        event.preImpact.relativeVy = relVy;
+        event.preImpact.roll = drone.roll;
+        event.preImpact.rollRate = drone.rollRate;
+    end
     return;
 end
 physicalVector = [current.x,current.z,current.vx,current.vz,current.theta, ...
     current.pitchRate,current.collectiveThrust];
+if spatial
+    physicalVector = [physicalVector,current.y,current.vy,current.roll,current.rollRate];
+end
 hardViolation = dynamicsInfo.hardEnvelopeViolation || current.z > s.ceilingHeight ...
     || current.z < s.minimumHeight-1e-9 || any(~isfinite(physicalVector));
 if hardViolation
@@ -86,6 +110,7 @@ end
 function out = interpolateState(a,b,q)
 out = a;
 names = {'x','z','vx','vz','theta','pitchRate','collectiveThrust'};
+if isfield(a,'y'), names = [names,{'y','vy','roll','rollRate'}]; end
 for i = 1:numel(names)
     name = names{i}; out.(name) = a.(name)+q*(b.(name)-a.(name));
 end

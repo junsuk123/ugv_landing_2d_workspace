@@ -2,6 +2,8 @@ function [fig,tabs,layouts] = replayPlanarVisibilityComparison(runs,c,options)
 % REPLAYPLANARVISIBILITYCOMPARISON  V2 A/B/C trajectories and R-GAT state.
 % Supports unequal terminal times, body-fixed-camera FOV footprints, fixed
 % world bounds, a Monte Carlo mean/covariance summary, and optional replay.
+% 3D option: x-z panels show the side view, and an extra last tab shows the
+% pad-relative 3D trajectories of every paired evaluation episode.
 if nargin < 3, options=struct(); end
 if ~isfield(options,'animate'), options.animate=true; end
 if ~isfield(options,'playbackSpeed'), options.playbackSpeed=c.playbackSpeed; end
@@ -74,6 +76,13 @@ plotTraining(nexttile(layouts(end),4),runs);
 plotProfiles(nexttile(layouts(end),5),runs);
 plotRgat(nexttile(layouts(end),6),runs,'R-GAT mean relation attention');
 group.SelectedTab=tabs(end);
+if isfield(runs(1).results(1),'yDrone')
+    tabs(end+1)=uitab(group,'Title','3D trajectories','BackgroundColor','w');
+    layouts(end+1)=tiledlayout(tabs(end),1,numel(runs), ...
+        'TileSpacing','compact','Padding','compact');
+    plotSpatialTrajectories(layouts(end),runs,c);
+    group.SelectedTab=tabs(end-1);
+end
 
 if options.animate
     animateViews(fig,views,runs,c,options.playbackSpeed);
@@ -220,6 +229,28 @@ yline(ax,c.padHeight,':','Pad height','HandleVisibility','off');
 xlabel(ax,'World horizontal position x [m]'); ylabel(ax,'Altitude z [m]');
 title(ax,'Monte Carlo trajectory mean and 1\sigma covariance');
 legend(ax,'Location','best','Interpreter','none','Box','off');
+end
+
+function plotSpatialTrajectories(layout,runs,c)
+title(layout,'Pad-relative 3D trajectories (circle: start, triangle: end)');
+pad=[c.padHalfLength,c.experiment.spatial.padHalfWidth];
+for i=1:numel(runs)
+    ax=nexttile(layout,i); hold(ax,'on'); grid(ax,'on'); box(ax,'on');
+    patch(ax,pad(1)*[-1 1 1 -1],pad(2)*[-1 -1 1 1],zeros(1,4), ...
+        [0.95 0.75 0.10],'FaceAlpha',0.5,'EdgeColor','k');
+    for j=1:numel(runs(i).results)
+        r=runs(i).results(j);
+        x=r.xDrone-r.xPad; y=r.yDrone-r.yPad; z=r.zDrone-r.scenario.padHeight;
+        plot3(ax,x,y,z,runs(i).lineStyle,'Color',[runs(i).color,0.55],'LineWidth',1.0);
+        plot3(ax,x(1),y(1),z(1),'o','Color',runs(i).color,'MarkerSize',4);
+        if strcmp(r.terminalReason,'SUCCESS'), face=runs(i).color; else, face='w'; end
+        plot3(ax,x(end),y(end),z(end),'v','Color',runs(i).color, ...
+            'MarkerFaceColor',face,'MarkerSize',5);
+    end
+    view(ax,-35,22);
+    xlabel(ax,'x - x_{pad} [m]'); ylabel(ax,'y - y_{pad} [m]'); zlabel(ax,'h [m]');
+    title(ax,runs(i).label,'Interpreter','none');
+end
 end
 
 function plotRates(ax,runs)

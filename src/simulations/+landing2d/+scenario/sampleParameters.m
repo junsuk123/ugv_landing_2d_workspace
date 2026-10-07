@@ -41,7 +41,17 @@ for attempt = 1:scenario.maxRejections
     p.parameterization = scenario.parameterization;
     p.seed = seedValue(seed);
     p.attempt = attempt;
-    p.feasibleSpeed = p.v3 <= scenario.sustainedDroneSpeed-scenario.speedMargin;
+    peakSpeed = p.v3;
+    if isfield(scenario,'lateralV1Range')
+        % 3D option: lateral CV-CA-CV sharing T1/T2. Drawn after every planar
+        % quantity so the planar draws keep their order within an attempt.
+        p.vy1 = pick(scenario.lateralV1Range,rs);
+        p.ay2 = pick(scenario.lateralA2Range,rs);
+        p.vy3 = p.vy1+p.ay2*p.T2;
+        p.y0 = scenario.y0;
+        peakSpeed = hypot(p.v3,p.vy3);
+    end
+    p.feasibleSpeed = peakSpeed <= scenario.sustainedDroneSpeed-scenario.speedMargin;
     if p.deadline <= 70 && p.feasibleSpeed
         p.rejectionReason = '';
         return;

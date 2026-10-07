@@ -14,7 +14,11 @@ assert(all(ismember(requested,allowed)),'landing2d:PaperFigureSet', ...
 
 figures = struct();
 if ismember('trajectories',requested)
-    figures.trajectories = trajectoryFigure(study,visibility,colors);
+    if landing2d.environment.isSpatial(study.config)
+        figures.trajectories = trajectoryFigure3d(study,visibility,colors);
+    else
+        figures.trajectories = trajectoryFigure(study,visibility,colors);
+    end
 end
 if ismember('stability',requested)
     figures.stability = stabilityFigure(study,visibility,colors);
@@ -94,6 +98,64 @@ for s = 1:numel(study.scenarios)
 end
 end
 
+function fig = trajectoryFigure3d(study,visibility,colors)
+% 3D option: pad-relative 3D flight path and signed x/y tracking errors.
+fig = figure('Name','Paper: representative 3D landing trajectories', ...
+    'Color','w','Visible',visibility,'Position',[50 40 1500 1050]);
+layout = tiledlayout(fig,numel(study.scenarios),2, ...
+    'TileSpacing','compact','Padding','compact');
+title(layout,['Final-policy comparison on fixed ontology-aligned 3D scenarios' newline ...
+    'Left: pad-relative 3D flight path; right: signed x (solid) / y (dashed) tracking error']);
+pad = [study.config.padHalfLength,study.config.experiment.spatial.padHalfWidth];
+for s = 1:numel(study.scenarios)
+    spec = study.scenarios(s);
+    feasibility = study.scenarioTable(s,:);
+    ax = nexttile(layout,2*s-1); hold(ax,'on'); grid(ax,'on'); box(ax,'on');
+    patch(ax,pad(1)*[-1 1 1 -1],pad(2)*[-1 -1 1 1],zeros(1,4), ...
+        [0.95 0.75 0.10],'FaceAlpha',0.5,'EdgeColor','k','HandleVisibility','off');
+    for m = 1:numel(study.modes)
+        r = study.results{s,m};
+        xRelative = r.xDrone-r.xPad;
+        yRelative = r.yDrone-r.yPad;
+        height = r.zDrone-spec.scenario.padHeight;
+        metric = metricRow(study,s,m);
+        label = sprintf('%s | %s',study.labels{m},char(metric.TerminalReason));
+        plot3(ax,xRelative,yRelative,height,'LineWidth',1.65, ...
+            'Color',colors(m,:),'DisplayName',label);
+        plot3(ax,xRelative(1),yRelative(1),height(1),'o','Color',colors(m,:), ...
+            'MarkerFaceColor','w','HandleVisibility','off');
+        plot3(ax,xRelative(end),yRelative(end),height(end),'v', ...
+            'Color',colors(m,:),'MarkerFaceColor',colors(m,:),'HandleVisibility','off');
+    end
+    view(ax,-35,22); zlim(ax,[0,max(8.5,ax.ZLim(2))]);
+    xlabel(ax,'x - x_{pad} [m]'); ylabel(ax,'y - y_{pad} [m]');
+    zlabel(ax,'Height above pad [m]');
+    title(ax,sprintf('%s | physical: %s | v margin %.2f m/s', ...
+        spec.name,char(feasibility.PhysicalCause),feasibility.SpeedMargin_mps));
+    if s==1, legend(ax,'Location','northeast','FontSize',8,'Interpreter','none'); end
+
+    ax = nexttile(layout,2*s); hold(ax,'on'); grid(ax,'on'); box(ax,'on');
+    xMax = 0; series = {};
+    for m = 1:numel(study.modes)
+        r = study.results{s,m};
+        plot(ax,r.time,r.xPad-r.xDrone,'-','LineWidth',1.45, ...
+            'Color',colors(m,:),'DisplayName',[study.labels{m} ' (x)']);
+        plot(ax,r.time,r.yPad-r.yDrone,'--','LineWidth',1.2, ...
+            'Color',colors(m,:),'DisplayName',[study.labels{m} ' (y)']);
+        series = [series,{r.xPad-r.xDrone,r.yPad-r.yDrone}]; %#ok<AGROW>
+        xMax=max(xMax,r.time(end));
+    end
+    yLimits = paddedLimits(series);
+    ylim(ax,yLimits); xlim(ax,[0,max(xMax,eps)]);
+    addPhaseBackground(ax,spec.scenario,yLimits,xMax);
+    yline(ax,0,'-','Color',[.25 .25 .25],'HandleVisibility','off');
+    xlabel(ax,'Time [s]'); ylabel(ax,'Pad - drone error [m]');
+    title(ax,sprintf('%s: %s | v_{y1}=%.2f, a_{y2}=%.2f',spec.id,spec.challenge, ...
+        spec.scenario.vy1,spec.scenario.ay2));
+    if s==1, legend(ax,'Location','northeast','FontSize',7,'NumColumns',2); end
+end
+end
+
 function fig = stabilityFigure(study,visibility,colors)
 fig = figure('Name','Paper: stability metrics','Color','w', ...
     'Visible',visibility,'Position',[80 60 1450 900]);
@@ -162,7 +224,8 @@ m=find(strcmp(study.modes,'context_rgat'),1);
 for s=1:numel(study.scenarios)
     ax=nexttile(layout); hold(ax,'on'); grid(ax,'on'); box(ax,'on');
     tr=study.trajectories{s,m}; r=study.results{s,m}; n=tr.count; t=r.time(1:n);
-    inhibit=tr.observation(25,:)>0.5;
+    inhibit=tr.observation(strcmp( ...
+        study.config.experiment.observationSchema.names,'landingInhibited'),:)>0.5;
     visible=double(r.visible(1:n));
     yyaxis(ax,'left');
     stairs(ax,t,tr.descentEligibility,'LineWidth',1.4,'Color',[.15 .55 .25], ...
@@ -175,7 +238,7 @@ for s=1:numel(study.scenarios)
         'Color',[.20 .20 .20],'DisplayName','Vertical gate active');
     ylim(ax,[-.05 1.05]); ylabel(ax,'Graph / gate signal');
     yyaxis(ax,'right');
-    plot(ax,t,tr.relationResidual(2,:),'LineWidth',1.4,'Color',color, ...
+    plot(ax,t,tr.relationResidual(end,:),'LineWidth',1.4,'Color',color, ...
         'DisplayName','R-GAT vertical residual');
     ylabel(ax,'Vertical action residual');
     events=study.scenarios(s).sensorEvents;

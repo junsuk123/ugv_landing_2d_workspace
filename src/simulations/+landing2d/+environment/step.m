@@ -1,17 +1,20 @@
 function [env,observation,reward,terminated,truncated,info] = step(env,aNorm)
 % STEP  Hold one two-axis policy action until next decision or earliest event.
+% The 3D option holds a three-axis action [a_x,a_y,a_z] with the same timing.
 assert(~env.episodeStatus.terminated && ~env.episodeStatus.truncated, ...
     'landing2d:StepAfterTerminal','Policy/environment work after terminal is forbidden.');
-validateattributes(aNorm,{'numeric'},{'real','finite','vector','numel',2});
 c = env.config; e = c.experiment;
+spatial = landing2d.environment.isSpatial(c);
+limits = landing2d.environment.actionLimits(c);
+validateattributes(aNorm,{'numeric'},{'real','finite','vector','numel',numel(limits)});
 aNorm = min(max(aNorm(:),-1),1);
-requested = [c.axMax*aNorm(1);c.azMax*aNorm(2)];
+requested = limits.*aNorm;
 startTime = env.time;
 decisionStartState = env.physicalState;
 decisionStartPad = env.pad;
 event = struct('occurred',false,'reason','','time',startTime+e.policyDt);
 supervisorIntervened = false; supervisorReasons = {};
-appliedIntegral = zeros(2,1);
+appliedIntegral = zeros(numel(limits),1);
 elapsed = 0; dynamicsInfo = struct('hardEnvelopeViolation',false);
 lastEstimatorInfo = struct();
 while elapsed < e.policyDt-1e-12 && ~event.occurred
@@ -28,13 +31,15 @@ while elapsed < e.policyDt-1e-12 && ~event.occurred
     if env.time >= env.sensorEvents.pitchStart && env.time < env.sensorEvents.pitchEnd
         pitchDisturbance = env.sensorEvents.pitchRate*dt;
     end
-    [current,dynamicsInfo] = landing2d.dynamics.stepPlanar( ...
-        previous,applied,dt,e.dynamics,pitchDisturbance);
+    if spatial
+        [current,dynamicsInfo] = landing2d.dynamics.stepSpatial( ...
+            previous,applied,dt,e.dynamics,pitchDisturbance);
+    else
+        [current,dynamicsInfo] = landing2d.dynamics.stepPlanar( ...
+            previous,applied,dt,e.dynamics,pitchDisturbance);
+    end
     nextTime = env.time+dt;
-    [padX,padVx,padAx,phase] = landing2d.scenario.evaluateTrajectory( ...
-        env.scenario,nextTime);
-    padCurrent = struct('x',padX,'z',env.scenario.padHeight, ...
-        'vx',padVx,'ax',padAx,'phase',phase);
+    padCurrent = landing2d.scenario.padState(env.scenario,nextTime);
     % Contact/hard-boundary events are resolved before creating a measurement
     % at the end of the physics step. This prevents post-impact information
     % from entering observation memory.
@@ -45,10 +50,7 @@ while elapsed < e.policyDt-1e-12 && ~event.occurred
     status = env.episodeStatus;
     if event.occurred && event.physicalContact && event.alpha < 1
         current = interpolatePhysical(previous,current,event.alpha);
-        [padX,padVx,padAx,phase] = landing2d.scenario.evaluateTrajectory( ...
-            env.scenario,event.time);
-        padCurrent = struct('x',padX,'z',env.scenario.padHeight, ...
-            'vx',padVx,'ax',padAx,'phase',phase);
+        padCurrent = landing2d.scenario.padState(env.scenario,event.time);
     elseif ~event.occurred
         sensorEvent = struct('dropout',nextTime>=env.sensorEvents.dropoutStart ...
             && nextTime<env.sensorEvents.dropoutEnd);
@@ -57,7 +59,7 @@ while elapsed < e.policyDt-1e-12 && ~event.occurred
         [track,lastEstimatorInfo] = landing2d.sensing.updatePadTrack( ...
             env.observationMemory,measurement,current,nextTime,e.sensor);
         status = landing2d.environment.updateDecisionContext( ...
-            env.episodeStatus,track,nextTime,c);
+            env.episodeStatus,track,nextTime,c,current);
         event = landing2d.environment.evaluateTermination(previous,current, ...
             padPrevious,padCurrent,status,env.time,dt,c,dynamicsInfo);
     end
@@ -87,6 +89,7 @@ if event.occurred
         env.episodeStatus.abortCompletionTime = event.time;
     end
 end
+previousNormalizedAction = env.episodeStatus.previousNormalizedAction;
 env.episodeStatus.previousNormalizedAction = aNorm;
 env.decisionContext = env.episodeStatus;
 env.stepCount = env.stepCount+1;
@@ -104,8 +107,12 @@ truth = struct('ex',env.pad.x-env.physicalState.x, ...
     'relativeVx',env.pad.vx-env.physicalState.vx, ...
     'vz',env.physicalState.vz,'theta',env.physicalState.theta, ...
     'pitchRate',env.physicalState.pitchRate);
+if spatial
+    previousTruth = addLateralTruth(previousTruth,decisionStartState,decisionStartPad);
+    truth = addLateralTruth(truth,env.physicalState,env.pad);
+end
 [reward,rewardComponents] = landing2d.rl.computeReward(previousTruth,truth, ...
-    env.measurement,aNorm,elapsed,event,c);
+    env.measurement,aNorm,elapsed,event,c,previousNormalizedAction);
 if event.occurred
     assert(~env.episodeStatus.terminalRewardPaid, ...
         'landing2d:DuplicateTerminalReward','Terminal reward paid twice.');
@@ -127,7 +134,16 @@ end
 function out=interpolatePhysical(a,b,q)
 out=a;
 names={'x','z','vx','vz','theta','pitchRate','collectiveThrust'};
+if isfield(a,'y'), names=[names,{'y','vy','roll','rollRate'}]; end
 for i=1:numel(names)
     name=names{i}; out.(name)=a.(name)+q*(b.(name)-a.(name));
 end
+end
+
+function truth=addLateralTruth(truth,state,pad)
+% Reward-only truth (never a policy input), 3D option.
+truth.ey=pad.y-state.y;
+truth.relativeVy=pad.vy-state.vy;
+truth.roll=state.roll;
+truth.rollRate=state.rollRate;
 end

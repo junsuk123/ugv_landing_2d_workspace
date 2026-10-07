@@ -2,9 +2,10 @@ function [agent,info] = ensureRelationalPath(agent,c,options)
 % ENSURERELATIONALPATH  Activate R-GAT residuals without degrading the
 % selected flat-equivalent checkpoint on the fixed validation split.
 if nargin < 3, options=struct(); end
+% trainer: 관계 전용 PPO를 돌릴 학습 함수. 비우면 landing2d.rl.ppoTrain입니다.
 defaults=struct('iterations',25,'episodesPerIteration',6,'ppoEpochs',4, ...
     'trainingValidationEpisodes',20,'seedOffset',8100000, ...
-    'guardOptions',struct());
+    'guardOptions',struct(),'trainer',[]);
 options=parseOptions(options,defaults);
 [alreadyActive,beforeAudit]=landing2d.rl.relationalPathActive(agent);
 required=beforeAudit.required;
@@ -47,7 +48,9 @@ if originalRl.verbose
     fprintf(['R-GAT 관계 경로 복구: raw 정책 고정, 관계 전용 PPO %d반복, ' ...
         '검증 성능 가드 적용\n'],options.iterations);
 end
-[~,history,candidate]=landing2d.rl.ppoTrain(repairAgent,repairCfg,rs);
+trainer=options.trainer;
+if isempty(trainer), trainer=@landing2d.rl.ppoTrain; end
+[~,history,candidate]=trainer(repairAgent,repairCfg,rs);
 candidate.rl=originalRl;
 assertRawPolicyPreserved(anchor,candidate);
 [selected,guard]=landing2d.rl.guardRelationalCandidate( ...
@@ -97,4 +100,6 @@ for name={'iterations','episodesPerIteration','ppoEpochs', ...
 end
 assert(isstruct(options.guardOptions) && isscalar(options.guardOptions), ...
     'landing2d:InvalidGuardOptions','guardOptions must be a scalar struct.');
+assert(isempty(options.trainer) || isa(options.trainer,'function_handle'), ...
+    'landing2d:InvalidTrainer','trainer must be a function handle.');
 end

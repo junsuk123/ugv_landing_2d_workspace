@@ -20,6 +20,17 @@ q.timeSinceLastDetection = unitScale(q.timeSinceLastDetection, ...
 q.predictedBearing = signedScale(q.predictedBearing,s.fov/2);
 q.predictedFovMargin = signedScale(q.predictedFovMargin,s.fov/2);
 q.remainingMissionTime = min(max(q.remainingMissionTime/e.maxMissionTime,0),1);
+if isfield(q,'eyEstimate')
+    % 3D lateral/roll fields use the scale of their planar counterpart.
+    q.vy = signedScale(q.vy,c.vxMax);
+    q.rollRate = signedScale(q.rollRate,e.dynamics.pitchRateLimit);
+    q.eyEstimate = signedScale(q.eyEstimate,3);
+    q.relativeVyEstimate = signedScale(q.relativeVyEstimate,3);
+    q.padVyEstimate = signedScale(q.padVyEstimate,10);
+    q.padAyEstimate = signedScale(q.padAyEstimate,2);
+    q.measuredBearingY = signedScale(q.measuredBearingY,s.fov/2);
+    q.predictedBearingY = signedScale(q.predictedBearingY,s.fov/2);
+end
 x = landing2d.sensing.packetVector(q,e.observationSchema);
 end
 

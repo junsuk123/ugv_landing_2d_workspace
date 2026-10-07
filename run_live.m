@@ -4,6 +4,7 @@ function output = run_live(target,options)
 %   run_live('S2')      % fixed paper scenario S1, S2, or S3
 %   run_live(3001)      % held-out test seed
 %   run_live('S1',struct('playbackSpeed',4,'videoFile','live_s1.mp4'))
+%   run_live('S3',struct('spatialDimension',3))   % 3D option, 3D axes
 if nargin < 1 || isempty(target), target='S3'; end
 if nargin < 2, options=struct(); end
 root=fileparts(mfilename('fullpath'));

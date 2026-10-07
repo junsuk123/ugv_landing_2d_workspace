@@ -2,9 +2,10 @@ function report = selfTest()
 % SELFTEST  Compact final-contract regression suite.
 checks={@checkContract,@checkCausalBoundary,@checkScenarioDynamics, ...
     @checkTermination,@checkContextGraph,@checkPpoSmoke, ...
-    @checkRelationGuard,@checkPaperScenarios};
+    @checkRelationGuard,@checkPaperScenarios,@checkSpatial3d};
 names={"contract","causal-boundary","scenario-dynamics","termination", ...
-    "context-graph","ppo-smoke","relation-guard","paper-scenarios"};
+    "context-graph","ppo-smoke","relation-guard","paper-scenarios", ...
+    "spatial-3d"};
 passed=false(numel(checks),1); messages=strings(numel(checks),1);
 for i=1:numel(checks)
     try
@@ -127,6 +128,107 @@ feasible=arrayfun(@(x)landing2d.paper.scenarioFeasibility(x,c).PhysicalFeasible,
     specs);
 assert(all(feasible));
 assert(strcmp(specs(3).sensorEvents.dropoutKind,'short'));
+end
+
+function checkSpatial3d()
+% 3D option: planar reduction, shared task contract, causal packet, graph,
+% three-axis policy, lateral contact footprint.
+c2=baseConfig(); c=landing2d.config.applySpatialDimension(c2,3);
+landing2d.config.validateConfig(c);
+assert(c.rl.actionDim==3 && c.rl.observationDim==37);
+d=c.experiment.dynamics;
+s2=struct('x',0,'z',5,'vx',1,'vz',-0.2,'theta',0.05,'pitchRate',0.1, ...
+    'collectiveThrust',d.mass*d.gravity);
+s3=s2; s3.y=0; s3.vy=0; s3.roll=0; s3.rollRate=0;
+for k=1:50
+    a=[1.5*sin(k/10);-0.6*cos(k/7)];
+    s2=landing2d.dynamics.stepPlanar(s2,a,0.01,d,0);
+    s3=landing2d.dynamics.stepSpatial(s3,[a(1);0;a(2)],0.01,d,0);
+end
+for name=fieldnames(s2)'
+    assert(isequal(s2.(name{1}),s3.(name{1})),'Planar reduction differs: %s',name{1});
+end
+assert(s3.y==0 && s3.roll==0);
+modes={'baseline','context_flat','context_rgat'}; fingerprints=strings(size(modes));
+for i=1:numel(modes)
+    arm=landing2d.graphstate.applyStateRepresentation(c,modes{i});
+    fingerprints(i)=string(landing2d.environment.taskFingerprint(arm));
+end
+assert(all(fingerprints==fingerprints(1)));
+assert(fingerprints(1)~=string(landing2d.environment.taskFingerprint(c2)));
+[env,observation,info]=landing2d.environment.reset(c,5);
+assert(numel(observation)==37 && info.packet.trackInitialized && isfield(env.pad,'y'));
+arm=landing2d.graphstate.applyStateRepresentation(c,'context_rgat');
+[state,detail]=landing2d.graphstate.contextGraph(info.packet,arm);
+assert(detail.schema.inDim==14 && numel(state)==14*detail.schema.nNodes);
+rs=RandStream('threefry','Seed',31);
+agent=landing2d.rl.agentInit(arm.rl,rs,arm.graphState);
+u=landing2d.rl.policyAction(agent,state,rs,true);
+assert(numel(u)==3);
+% 3D-only training settings: lateral exploration noise and a touchdown
+% attitude curriculum that returns exactly to the nominal envelope.
+assert(agent.policy.logStd(2)==c.rl.lateralInitialLogStd && ...
+    agent.policy.logStd(1)==c.rl.initialLogStd);
+assert(~isfield(c2.rl,'lateralInitialLogStd') && ...
+    ~isfield(c2.rl,'touchdownAttitudeCurriculumScale') && ...
+    ~isfield(c2.rl,'trackAuthorizationCurriculumScale'));
+easy=landing2d.rl.trainingEpisodeConfig(c,1,0);
+nominal=landing2d.rl.trainingEpisodeConfig(c,1,1);
+s0=c.experiment.safety;
+assert(abs(easy.experiment.safety.touchdownPitchRateTolerance- ...
+    c.rl.touchdownAttitudeCurriculumScale*s0.touchdownPitchRateTolerance)<1e-12);
+assert(nominal.experiment.safety.touchdownPitchTolerance==s0.touchdownPitchTolerance ...
+    && nominal.experiment.safety.touchdownPitchRateTolerance==s0.touchdownPitchRateTolerance);
+assert(abs(easy.experiment.safety.recentTrackGrace- ...
+    c.rl.trackAuthorizationCurriculumScale*s0.recentTrackGrace)<1e-12);
+assert(nominal.experiment.safety.recentTrackGrace==s0.recentTrackGrace ...
+    && nominal.experiment.safety.minimumTrackConfidence==s0.minimumTrackConfidence);
+% Final-descent phase: authorization survives losing the pad center inside
+% the low band, expires after its duration or above the exit height, and is
+% absent from the planar contract.
+sp=c.experiment.spatial; zPad=c.experiment.scenario.padHeight;
+track=landing2d.sensing.initialPadTrack(c.experiment.sensor,true);
+track.initialized=true; track.timeSinceLastDetection=0; track.lastConfidence=0.9;
+low=struct('z',zPad+0.5*sp.finalDescentHeight);
+st=landing2d.environment.updateDecisionContext(landing2d.environment.initialStatus(3), ...
+    track,10,c,low);
+assert(st.finalDescentActive && ~st.landingInhibited);
+blind=track; blind.timeSinceLastDetection=1.0; blind.lastConfidence=0;
+st=landing2d.environment.updateDecisionContext(st,blind,11,c,low);
+assert(st.finalDescentActive && ~st.landingInhibited);
+expired=landing2d.environment.updateDecisionContext(st,blind, ...
+    10+sp.finalDescentMaxDuration+0.1,c,low);
+assert(~expired.finalDescentActive && expired.landingInhibited);
+high=landing2d.environment.updateDecisionContext(st,blind,11.5,c, ...
+    struct('z',zPad+sp.finalDescentExitHeight+0.05));
+assert(~high.finalDescentActive && high.landingInhibited);
+planar=landing2d.environment.updateDecisionContext(landing2d.environment.initialStatus(), ...
+    track,10,c2,low);
+assert(~isfield(planar,'finalDescentActive'));
+assert(c.experiment.reward.actionChangeWeight>0 && ~isfield(c2.experiment.reward,'actionChangeWeight'));
+[env,~,~,~,~,stepInfo]=landing2d.environment.step(env,tanh(u));
+assert(numel(stepInfo.appliedAcceleration)==3 && isfield(env.physicalState,'roll'));
+p=landing2d.scenario.sampleParameters(c.experiment.scenario,123);
+for boundary=[p.T1,p.T1+p.T2]
+    left=landing2d.scenario.padState(p,boundary-1e-8);
+    right=landing2d.scenario.padState(p,boundary+1e-8);
+    assert(abs(left.y-right.y)<1e-6 && abs(left.vy-right.vy)<1e-6);
+end
+c.experiment.currentScenario=p;
+pad=struct('x',0,'y',0,'z',p.padHeight,'vx',0,'vy',0);
+above=struct('x',0,'y',0,'z',p.padHeight+c.experiment.safety.touchdownHeight+0.005, ...
+    'vx',0,'vy',0,'vz',-0.1,'theta',0,'pitchRate',0,'roll',0,'rollRate',0, ...
+    'collectiveThrust',d.mass*d.gravity);
+below=above; below.z=p.padHeight+c.experiment.safety.touchdownHeight-0.005;
+status=landing2d.environment.initialStatus(3); status.landingInhibited=false;
+di=struct('hardEnvelopeViolation',false);
+event=landing2d.environment.evaluateTermination(above,below,pad,pad,status,1,0.1,c,di);
+assert(strcmp(event.reason,'SUCCESS'));
+offset=above; offset.y=c.experiment.spatial.padHalfWidth+0.1;
+offsetBelow=offset; offsetBelow.z=below.z;
+missed=landing2d.environment.evaluateTermination(offset,offsetBelow,pad,pad, ...
+    status,1,0.1,c,di);
+assert(strcmp(missed.reason,'MISSED_PAD_CONTACT'));
 end
 
 function c=baseConfig()

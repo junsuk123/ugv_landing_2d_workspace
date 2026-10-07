@@ -484,6 +484,8 @@ run_live('S3')
 - `run`: 세 비교군 학습·검증 선택·시험 평가 전체 수행
 - `run_scenario('S3')`: 학습 정책의 단일 대표 시나리오 평가
 - `run_live('S3')`: 세 비교군 동일 조건 실시간 동시 재생
+- Simulink 실행: `run(struct('trainingBackend','simulink'))`, `run_scenario('S3',struct('backend','simulink'))`, 구성·검증은 [Simulink 실행·학습](docs/SIMULINK_KO.md)
+- 3차원 옵션: `run(struct('spatialDimension',3))`, `run_scenario('S3',struct('spatialDimension',3))`, `run_live('S3',struct('spatialDimension',3))`, 결과 `results/spatial3d`, 모델은 [3차원 확장 옵션](docs/SPATIAL_3D_KO.md)
 
 ## Main findings
 

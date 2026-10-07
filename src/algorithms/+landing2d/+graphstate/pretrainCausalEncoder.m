@@ -12,6 +12,10 @@ assert(isempty(intersect(seeds,c.experiment.manifest.validationSeeds)) ...
     && isempty(intersect(seeds,c.experiment.manifest.testSeeds)), ...
     'landing2d:PretrainSplitLeakage','Pretraining seeds overlap evaluation.');
 capacity = count*p.maxDecisions;
+% Dynamic node channels; the last three (remainingTime, bias, typeId) are
+% static context and never reconstructed. 9 planar, 11 with the 3D option.
+nDynamic = spec.inDim-3;
+actionCount = numel(landing2d.environment.actionLimits(c));
 states = zeros(spec.stateDim,capacity); n = 0;
 visitRs = RandStream('threefry','Seed',c.rl.seed+p.seedOffset);
 for i = 1:count
@@ -20,13 +24,13 @@ for i = 1:count
         if env.episodeStatus.terminated, break; end
         n = n+1;
         states(:,n) = landing2d.graphstate.contextGraph(env.packet,c);
-        action = tanh(0.5*randn(visitRs,2,1));
+        action = tanh(0.5*randn(visitRs,actionCount,1));
         [env,~,~,~,~,~] = landing2d.environment.step(env,action);
     end
 end
 states = states(:,1:n);
-decoder.W = 0.1*randn(rs,9,spec.hiddenDim);
-decoder.b = zeros(9,1);
+decoder.W = 0.1*randn(rs,nDynamic,spec.hiddenDim);
+decoder.b = zeros(nDynamic,1);
 encoderState = landing2d.util.adamInit(params);
 decoderState = landing2d.util.adamInit(decoder);
 lossHistory = nan(1,p.epochs);
@@ -37,23 +41,23 @@ for epoch = 1:p.epochs
         idx = order(first:min(first+p.batchSize-1,n));
         B = numel(idx);
         target = reshape(states(:,idx),spec.inDim,spec.nNodes,B);
-        mask = rand(rs,9,spec.nNodes,B)<p.maskProbability;
+        mask = rand(rs,nDynamic,spec.nNodes,B)<p.maskProbability;
         for b = 1:B
             if ~any(mask(:,:,b),'all'), mask(1,1,b)=true; end
         end
         input = target;
-        dynamic = input(1:9,:,:);
+        dynamic = input(1:nDynamic,:,:);
         dynamic(mask) = 0;
-        input(1:9,:,:) = dynamic;
+        input(1:nDynamic,:,:) = dynamic;
         [~,cache] = landing2d.graphstate.encoderForward(params,spec, ...
             reshape(input,spec.stateDim,B),'policy');
         H = cache.H;
         Hflat = reshape(H,spec.hiddenDim,spec.nNodes*B);
-        prediction = reshape(decoder.W*Hflat+decoder.b,9,spec.nNodes,B);
-        residual = (prediction-target(1:9,:,:)).*mask;
+        prediction = reshape(decoder.W*Hflat+decoder.b,nDynamic,spec.nNodes,B);
+        residual = (prediction-target(1:nDynamic,:,:)).*mask;
         denominator = max(nnz(mask),1);
         dPrediction = 2*residual/denominator;
-        dFlat = reshape(dPrediction,9,spec.nNodes*B);
+        dFlat = reshape(dPrediction,nDynamic,spec.nNodes*B);
         decoderGrad.W = dFlat*Hflat';
         decoderGrad.b = sum(dFlat,2);
         dH = reshape(decoder.W'*dFlat,spec.hiddenDim,spec.nNodes,B);

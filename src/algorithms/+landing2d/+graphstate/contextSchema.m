@@ -1,6 +1,11 @@
-function [schema,T] = contextSchema(mode)
+function [schema,T] = contextSchema(mode,dimension)
 % CONTEXTSCHEMA  Compact typed ontology used by planar_visibility_v2.
+% dimension=3 (3D option) keeps the nodes and relations and appends two
+% lateral feature channels before the three static channels.
 if nargin < 1, mode = 'context_rgat'; end
+if nargin < 2 || isempty(dimension), dimension = 2; end
+assert(ismember(dimension,[2,3]),'landing2d:SpatialDimension', ...
+    'contextSchema supports dimension 2 or 3.');
 semantic = {'PadVisibility','PadMotion','DroneTranslation','DroneAttitude', ...
     'RelativeTracking','TrackingCorrection','ViewRecovery', ...
     'DescentEligibility','LandingInhibit'};
@@ -52,6 +57,10 @@ schema.src = src; schema.dst = dst; schema.rel = rel;
 schema.featureNames = {'primary','signedPrimary','secondary', ...
     'signedSecondary','validity','confidence','uncertainty','trend', ...
     'urgency','remainingTime','bias','typeId'};
+if dimension == 3
+    schema.featureNames = [schema.featureNames(1:9), ...
+        {'lateralPrimary','lateralSecondary'},schema.featureNames(10:12)];
+end
 schema.inDim = numel(schema.featureNames);
 schema.neutralValue = zeros(1,schema.nNodes);
 schema.riskNodes = [7,9];
@@ -64,6 +73,10 @@ for g = 1:numel(schema.readoutGroups)
     schema.groupMatrix(g,nodes) = 1/numel(nodes);
 end
 schema.variant = 'compact_context_graph_v3_grouped';
+if dimension == 3
+    schema.variant = 'compact_context_graph_v3_grouped_spatial';
+    schema.spatialDimension = 3;
+end
 schema.edgeTable = edges;
 schema.provenance = featureProvenance();
 if nargout > 1, T = landing2d.rgat.topology(schema); end

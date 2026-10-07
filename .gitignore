@@ -4,3 +4,5 @@ results/*
 *.m~
 .DS_Store
 Thumbs.db
+*.slxc
+slprj/

@@ -3,7 +3,10 @@ function metric = trajectoryMetrics(result,traj,spec,c,modelLabel,mode)
 % Truth is used only after rollout for evaluation; it is never fed to a
 % policy.  Cause shares partition time for which the policy packet carried
 % landingInhibited=true.
+% 3D option: tracking/speed errors are horizontal norms, the attitude RMS
+% combines pitch and roll, and the FOV audit uses the conical projection.
 n = traj.count;
+spatial = isfield(result,'yDrone');
 assert(n>0,'landing2d:PaperEmptyRollout','Paper rollout produced no decisions.');
 t = result.time(1:n);
 dt = traj.dt(:)';
@@ -11,7 +14,12 @@ ex = result.xPad(1:n)-result.xDrone(1:n);
 relativeVx = result.vxPad(1:n)-result.vxDrone(1:n);
 height = result.zDrone(1:n)-spec.scenario.padHeight;
 visible = logical(result.visible(1:n));
-inhibited = traj.observation(25,:)>0.5;
+inhibitIndex = strcmp(c.experiment.observationSchema.names,'landingInhibited');
+inhibited = traj.observation(inhibitIndex,:)>0.5;
+if spatial
+    ey = result.yPad(1:n)-result.yDrone(1:n);
+    relativeVy = result.vyPad(1:n)-result.vyDrone(1:n);
+end
 
 geometricVisible = false(1,n);
 fovMargin = zeros(1,n);
@@ -19,6 +27,10 @@ for k = 1:n
     state = struct('x',result.xDrone(k),'z',result.zDrone(k), ...
         'theta',result.theta(k));
     pad = struct('x',result.xPad(k),'z',spec.scenario.padHeight);
+    if spatial
+        state.y = result.yDrone(k); state.roll = result.roll(k);
+        pad.y = result.yPad(k);
+    end
     projection = landing2d.sensing.projectPad(state,pad,c.experiment.sensor);
     geometricVisible(k) = projection.visible;
     fovMargin(k) = projection.fovMargin;
@@ -27,7 +39,9 @@ end
 events = spec.sensorEvents;
 dropout = isfinite(events.dropoutStart) & t>=events.dropoutStart & ...
     t<events.dropoutEnd;
-speedRisk = abs(relativeVx)>c.experiment.safety.touchdownSpeedX;
+horizontalSpeed = abs(relativeVx);
+if spatial, horizontalSpeed = hypot(relativeVx,relativeVy); end
+speedRisk = horizontalSpeed>c.experiment.safety.touchdownSpeedX;
 trajectoryRisk = ~geometricVisible;
 assignedDropout = inhibited & dropout;
 assignedTrajectory = inhibited & ~assignedDropout & trajectoryRisk;
@@ -49,6 +63,11 @@ duration = max(sum(dt),eps);
 xRmse = sqrt(sum(dt.*ex.^2)/duration);
 vRmse = sqrt(sum(dt.*relativeVx.^2)/duration);
 pitchRms = sqrt(sum(dt.*result.theta(1:n).^2)/duration);
+if spatial
+    xRmse = sqrt(sum(dt.*(ex.^2+ey.^2))/duration);
+    vRmse = sqrt(sum(dt.*(relativeVx.^2+relativeVy.^2))/duration);
+    pitchRms = sqrt(sum(dt.*(result.theta(1:n).^2+result.roll(1:n).^2))/duration);
+end
 fovLossFraction = weighted(~visible,dt)/duration;
 geometricLossFraction = weighted(~geometricVisible,dt)/duration;
 supervisorFraction = weighted(traj.safetyIntervened,dt)/duration;
@@ -67,6 +86,9 @@ visibilityScore = 1-fovLossFraction;
 supervisorScore = 1-supervisorFraction;
 attitudeScore = exp(-(pitchRms/max(safety.touchdownPitchTolerance,eps))^2);
 jerkReference = hypot(c.axMax,c.azMax)/c.experiment.policyDt;
+if spatial
+    jerkReference = norm(landing2d.environment.actionLimits(c))/c.experiment.policyDt;
+end
 smoothnessScore = 1/(1+jerkRms/max(jerkReference,eps));
 stabilityIndex = 100*mean([positionScore,speedScore,visibilityScore, ...
     supervisorScore,attitudeScore,smoothnessScore]);
@@ -105,8 +127,11 @@ metric = struct('Scenario',string(spec.id),'ScenarioName',string(spec.name), ...
     'MeanDescentEligibility',mean(traj.descentEligibility), ...
     'VerticalGate_pct',100*mean(traj.verticalGateActive), ...
     'MeanAbsRelationResidualX',mean(abs(traj.relationResidual(1,:))), ...
-    'MeanAbsRelationResidualZ',mean(abs(traj.relationResidual(2,:))), ...
+    'MeanAbsRelationResidualZ',mean(abs(traj.relationResidual(end,:))), ...
     'RelationResidualActive',any(abs(traj.relationResidual(:))>1e-10));
+if spatial
+    metric.MeanAbsRelationResidualY = mean(abs(traj.relationResidual(2,:)));
+end
 end
 
 function value = weighted(mask,dt)
