@@ -18,7 +18,11 @@ for i=2:numel(runs)
         'All methods must use the same paired evaluation seeds.');
 end
 visible='on'; if ~c.figureVisible, visible='off'; end
-fig=figure('Name','Planar visibility PPO v2 - paired comparison', ...
+figureName='Planar visibility PPO v2 - paired comparison';
+if landing2d.environment.isSpatial(c)
+    figureName='3D visibility PPO - paired comparison (x-z side view + 3D tab)';
+end
+fig=figure('Name',figureName, ...
     'Tag','landing2dFinalTest','NumberTitle','off','Color','w', ...
     'Position',[35,45,1580,860],'Visible',visible);
 group=uitabgroup(fig,'Units','normalized','Position',[0,0,1,1]);

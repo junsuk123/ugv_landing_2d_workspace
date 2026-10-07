@@ -14,11 +14,11 @@
   <rect x="515" y="225" width="210" height="120" class="box" fill="#e0e7ff" stroke="#4f46e5"/>
   <text x="620" y="264" text-anchor="middle" class="t">26-field packet</text><text x="620" y="296" text-anchor="middle" class="s">current + memory</text><text x="620" y="324" text-anchor="middle" class="s">no hidden pad truth</text>
   <rect x="785" y="80" width="245" height="100" class="box" fill="#f1f5f9" stroke="#64748b"/>
-  <text x="908" y="120" text-anchor="middle" class="t">Baseline PPO</text><text x="908" y="151" text-anchor="middle" class="s">packet vector → MLP</text>
+  <text x="908" y="120" text-anchor="middle" class="t">Baseline PPO</text><text x="908" y="151" text-anchor="middle" class="s">packet vector → actor·critic</text>
   <rect x="785" y="235" width="245" height="100" class="box" fill="#ffedd5" stroke="#ea580c"/>
-  <text x="908" y="275" text-anchor="middle" class="t">Semantic-flat PPO</text><text x="908" y="306" text-anchor="middle" class="s">12×9 graph tensor → MLP</text>
+  <text x="908" y="275" text-anchor="middle" class="t">Semantic-flat PPO</text><text x="908" y="306" text-anchor="middle" class="s">12×9 graph tensor → actor·critic</text>
   <rect x="785" y="390" width="245" height="120" class="box" fill="#ede9fe" stroke="#7c3aed"/>
-  <text x="908" y="430" text-anchor="middle" class="t">Proposed PPO</text><text x="908" y="461" text-anchor="middle" class="s">108-D raw → MLP</text><text x="908" y="489" text-anchor="middle" class="s">+ R-GAT 4-D residual</text>
+  <text x="908" y="430" text-anchor="middle" class="t">Proposed PPO</text><text x="908" y="461" text-anchor="middle" class="s">108-D raw → actor·critic</text><text x="908" y="489" text-anchor="middle" class="s">+ R-GAT 4-D residual</text>
   <rect x="1090" y="225" width="130" height="120" class="box" fill="#dcfce7" stroke="#16a34a"/>
   <text x="1155" y="264" text-anchor="middle" class="t">Action</text><text x="1155" y="296" text-anchor="middle" class="s">tanh</text><text x="1155" y="324" text-anchor="middle" class="s">[aₓ, a_z]</text>
   <rect x="1260" y="225" width="110" height="120" class="box" fill="#fee2e2" stroke="#dc2626"/>

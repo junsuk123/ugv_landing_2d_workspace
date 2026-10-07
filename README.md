@@ -51,8 +51,8 @@
 
 | 비교군 | Actor/Critic 입력 | 차원 | 그래프 관계 사용 |
 |---|---|---:|---|
-| Low-level MLP | 정규화 관측 패킷 $o_t$ | 26 | 제외 |
-| Semantic-flat MLP | $s_t=\mathrm{vec}(X_t)$ | 108 | 제외 |
+| Low-level PPO | 정규화 관측 패킷 $o_t$ | 26 | 제외 |
+| Semantic-flat PPO | $s_t=\mathrm{vec}(X_t)$ | 108 | 제외 |
 | Ontology R-GAT | $s_t$ + 관계 문맥 $c_t$ | 108+4 | 포함 |
 
 ![전체 파이프라인](docs/assets/pipeline.svg)
@@ -514,8 +514,8 @@ run_live('S3')
 
 | 모델 | 성공률 $p_s$ | 위험 접촉률 $p_u$ | 안전 중단률 $p_a$ | 시간 초과율 $p_\tau$ | 평균 return $\bar G$ | 파라미터 | 추론 시간 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Low-level MLP PPO | 74% | 2% | 23% | 1% | 19.139 | 7,445 | 0.105 ms |
-| Semantic-flat MLP PPO | 75% | 9% | 13% | 3% | 18.496 | 15,317 | 0.115 ms |
+| Low-level PPO | 74% | 2% | 23% | 1% | 19.139 | 7,445 | 0.105 ms |
+| Semantic-flat PPO | 75% | 9% | 13% | 3% | 18.496 | 15,317 | 0.115 ms |
 | Ontology R-GAT PPO | 72% | 9% | 14% | 5% | 17.930 | 17,001 | 0.179 ms |
 
 - 단일 학습 seed의 최종 정책 평가

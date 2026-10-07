@@ -4,7 +4,7 @@
 
 - 연구 문제: 가속 UGV 이동 패드에 대한 2차원 드론 착륙의 부분관측 강화학습
 - 비교 원리: 환경·센서·추정기·보상·안전 감독기 $\Pi_s$ 동일, Actor/Critic 상태 표현만 변경
-- 비교군: 저수준 관측 $o_t$ MLP, semantic-flat $s_t$ MLP, ontology R-GAT($s_t$ + $c_t$) PPO
+- 비교군: 저수준 관측 $o_t$ PPO, semantic-flat $s_t$ PPO, ontology R-GAT($s_t$ + $c_t$) PPO
 - 관계 경로: Actor·Critic 양쪽 그룹 readout $W_c$ 비영 활성
 - 관계 readout 축소 배율: $\nu_{rel}=0.001$
 - 시험 결과: 성공률 72–75%의 유사 수준, R-GAT 우월성 미확인
@@ -56,8 +56,8 @@
 
 | 모델 | 성공 $p_s$ | 위험 $p_u$ | 안전 중단 $p_a$ | 시간 초과 $p_\tau$ | 평균 return $\bar G$ |
 |---|---:|---:|---:|---:|---:|
-| Low-level MLP | 74% | 2% | 23% | 1% | 19.139 |
-| Semantic-flat MLP | 75% | 9% | 13% | 3% | 18.496 |
+| Low-level PPO | 74% | 2% | 23% | 1% | 19.139 |
+| Semantic-flat PPO | 75% | 9% | 13% | 3% | 18.496 |
 | Ontology R-GAT | 72% | 9% | 14% | 5% | 17.930 |
 
 - 단일 학습 seed 결과

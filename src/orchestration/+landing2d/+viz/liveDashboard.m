@@ -59,15 +59,22 @@ item.lines=gobjects(1,numel(p.results)+1);
 for j=1:numel(p.results)
     r=p.results(j); u=(r.time-r.time(1))/max(r.time(end)-r.time(1),eps);
     [u,keep]=unique(u,'stable');
-    X(:,j)=interp1(u,r.xDrone(keep),q,'linear','extrap');
-    Z(:,j)=interp1(u,r.zDrone(keep),q,'linear','extrap');
-    item.lines(j)=plot(st.axEval,r.xDrone,r.zDrone,':','Color',color, ...
+    if st.spatial
+        % 3D option: pad-relative horizontal distance vs height above pad.
+        horizontal=hypot(r.xDrone-r.xPad,r.yDrone-r.yPad);
+        vertical=r.zDrone-r.scenario.padHeight;
+    else
+        horizontal=r.xDrone; vertical=r.zDrone;
+    end
+    X(:,j)=interp1(u,horizontal(keep),q,'linear','extrap');
+    Z(:,j)=interp1(u,vertical(keep),q,'linear','extrap');
+    item.lines(j)=plot(st.axEval,horizontal,vertical,':','Color',color, ...
         'LineWidth',0.6,'HandleVisibility','off');
 end
 item.lines(end)=plot(st.axEval,mean(X,2,'omitnan'),mean(Z,2,'omitnan'), ...
     'Color',color,'LineWidth',2,'DisplayName',[p.label,' mean']);
 st.mcSeries.(key)=item;
-legend(st.axEval,'Location','best','Interpreter','none','Box','off');
+legend(st.axEval,'Location','northeast','Interpreter','none','Box','off','FontSize',7);
 if isfield(p.info,'graphSchema') && isstruct(p.info.graphSchema) ...
         && isfield(p.info.graphSchema,'nNodes') && ~isempty(p.info.nodeMean)
     landing2d.viz.plotRgatField(st.axOntology,p.info.graphSchema,p.info.nodeMean, ...
@@ -85,32 +92,50 @@ if isfield(c,'figureVisible') && ~c.figureVisible, visible = 'off'; end
 st.fig = figure('Name','UGV landing - live learning dashboard', ...
     'NumberTitle','off','Color','w','Visible',visible, ...
     'Position',[40,60,1500,860],'Tag','landing2dLiveDashboard');
-st.layout = tiledlayout(st.fig,2,2,'TileSpacing','compact','Padding','compact');
-title(st.layout,'실시간 학습 · 온톨로지 · 평가 대시보드');
+st.spatial = landing2d.environment.isSpatial(c);
+% The status line lives below the tiles so it never overlaps panel titles.
+panel = uipanel(st.fig,'Units','normalized','Position',[0,0.045,1,0.955], ...
+    'BorderType','none','BackgroundColor','w');
+st.layout = tiledlayout(panel,2,2,'TileSpacing','normal','Padding','compact');
+dimensionText = '2D';
+if st.spatial, dimensionText = '3D'; end
+title(st.layout,sprintf('실시간 학습 대시보드 (%s)',dimensionText),'FontSize',12);
 
 st.axScore = nexttile(st.layout,1);
 hold(st.axScore,'on'); grid(st.axScore,'on'); box(st.axScore,'on');
-xlabel(st.axScore,'PPO iteration'); ylabel(st.axScore,'Return / score');
-title(st.axScore,'정책 학습 곡선');
+xlabel(st.axScore,'PPO iteration'); ylabel(st.axScore,'Return');
+title(st.axScore,'학습 곡선');
 
 st.axRate = nexttile(st.layout,2);
 hold(st.axRate,'on'); grid(st.axRate,'on'); box(st.axRate,'on');
 xlabel(st.axRate,'PPO iteration'); ylabel(st.axRate,'Rate [%]');
-ylim(st.axRate,[0,100]); title(st.axRate,'평가 성공률');
+ylim(st.axRate,[0,100]); title(st.axRate,'착륙·중단·포착 비율');
 
 st.axOntology = nexttile(st.layout,3);
-schema = landing2d.graphstate.schemaFor('ontology_rgat');
+% Placeholder uses the compact context graph of the current contract.
+schema = landing2d.graphstate.contextSchema('context_rgat', ...
+    landing2d.graphstate.graphDimension(c.graphState));
 landing2d.viz.plotRgatField(st.axOntology,schema,zeros(schema.nNodes,1), ...
-    zeros(schema.nNodes,1),[],'attention','Waiting for R-GAT evaluation');
+    zeros(schema.nNodes,1),[],'attention','R-GAT 평가 대기');
 st.schema = schema;
 
 st.axEval = nexttile(st.layout,4);
 hold(st.axEval,'on'); grid(st.axEval,'on'); box(st.axEval,'on');
-xlabel(st.axEval,'Forward position x [m]'); ylabel(st.axEval,'Altitude z [m]');
-title(st.axEval,'몬테카를로 평균 궤적 + 1σ 공분산');
-yline(st.axEval,c.padHeight,':','Pad height','HandleVisibility','off');
+if st.spatial
+    xlabel(st.axEval,'패드까지 수평 거리 [m]'); ylabel(st.axEval,'패드 상대 고도 [m]');
+    title(st.axEval,'검증 궤적 (패드 기준, 점선: 개별 / 실선: 평균)');
+    yline(st.axEval,c.experiment.safety.touchdownHeight,':','touchdown', ...
+        'HandleVisibility','off');
+else
+    xlabel(st.axEval,'Forward position x [m]'); ylabel(st.axEval,'Altitude z [m]');
+    title(st.axEval,'검증 궤적 (점선: 개별 / 실선: 평균)');
+    yline(st.axEval,c.padHeight,':','Pad height','HandleVisibility','off');
+end
 
-st.status = subtitle(st.layout,'대시보드 준비 완료');
+st.status = uicontrol(st.fig,'Style','text','Units','normalized', ...
+    'Position',[0.01,0.005,0.98,0.035],'BackgroundColor','w', ...
+    'HorizontalAlignment','left','FontSize',10,'String','대시보드 준비 완료');
+st.legendDummies = gobjects(0);
 st.series = struct();
 st.mcSeries = struct();
 st.lastDraw = tic;
@@ -141,9 +166,10 @@ if ~isfield(st.series,key)
         'Marker','x','LineWidth',1.2,'DisplayName',[p.label,' eval unsafe']);
     item.capture = animatedline(st.axRate,'Color',color,'LineStyle','--', ...
         'LineWidth',1.2,'DisplayName',[p.label,' capture']);
+    item.color = color;
+    item.label = p.label;
     st.series.(key) = item;
-    legend(st.axScore,'Location','best','Interpreter','none');
-    legend(st.axRate,'Location','best','Interpreter','none');
+    st = refreshLegends(st);
 end
 item = st.series.(key);
 addpoints(item.score,p.iteration,p.score);
@@ -249,6 +275,41 @@ else
 end
 st.status.String = sprintf('%s MC 완료 · S%d · landing %.0f%% · %s', ...
     p.label,p.scenario,100*p.landingRate,landingText);
+end
+
+function st = refreshLegends(st)
+% Compact legends: line style = metric (gray), color = method.
+delete(st.legendDummies(isgraphics(st.legendDummies)));
+keys = fieldnames(st.series);
+gray = [0.35,0.35,0.35];
+scoreStyles = {'-','','검증 return'; ':','','학습 return'};
+rateStyles = {'-','','검증 착륙'; ':','','학습 착륙'; '-','o','공칭 학습 착륙'; ...
+    '-.','','학습 중단'; 'none','x','검증 위험 접촉'; '--','','패드 포착'};
+scoreHandles = gobjects(0); rateHandles = gobjects(0);
+for i = 1:size(scoreStyles,1)
+    scoreHandles(end+1) = dummyLine(st.axScore,scoreStyles(i,:),gray); %#ok<AGROW>
+end
+for i = 1:size(rateStyles,1)
+    rateHandles(end+1) = dummyLine(st.axRate,rateStyles(i,:),gray); %#ok<AGROW>
+end
+for i = 1:numel(keys)
+    item = st.series.(keys{i});
+    scoreHandles(end+1) = plot(st.axScore,nan,nan,'-','Color',item.color, ...
+        'LineWidth',3,'DisplayName',item.label); %#ok<AGROW>
+    rateHandles(end+1) = plot(st.axRate,nan,nan,'-','Color',item.color, ...
+        'LineWidth',3,'DisplayName',item.label); %#ok<AGROW>
+end
+legend(st.axScore,scoreHandles,'Location','southeast','Interpreter','none', ...
+    'FontSize',7,'Box','off');
+legend(st.axRate,rateHandles,'Location','eastoutside','Interpreter','none', ...
+    'FontSize',7,'Box','off');
+st.legendDummies = [scoreHandles,rateHandles];
+end
+
+function h = dummyLine(ax,style,color)
+h = plot(ax,nan,nan,'LineStyle',style{1},'Color',color,'LineWidth',1.4, ...
+    'DisplayName',style{3});
+if ~isempty(style{2}), h.Marker = style{2}; end
 end
 
 function color = agentColor(~,label)

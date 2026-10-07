@@ -26,7 +26,7 @@ cfg.outputDir=char(options.checkpointDir);
 [seed,resetOptions,targetLabel]=resolveTarget(target,cfg);
 
 modes={'baseline','context_flat','context_rgat'};
-labels={'Low-level MLP PPO','Semantic-flat MLP PPO','Ontology R-GAT PPO'};
+labels={'Low-level PPO','Semantic-flat PPO','Ontology R-GAT PPO'};
 colors=[0.10 0.32 0.62; 0.85 0.33 0.10; 0.35 0.16 0.60];
 nArm=numel(modes);
 arms=cell(1,nArm); agents=cell(1,nArm); envs=cell(1,nArm);

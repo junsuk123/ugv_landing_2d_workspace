@@ -58,8 +58,8 @@
 
 | 모델 | 정책 입력 | 파라미터 수 | 비교 목적 |
 |---|---|---:|---|
-| Low-level MLP PPO | 정규화 $o_t$ | 7,445 | 저수준 기준 |
-| Semantic-flat MLP PPO | $s_t=\mathrm{vec}(X_t)\in\mathbb R^{108}$ | 15,317 | 의미 정보 효과 |
+| Low-level PPO | 정규화 $o_t$ | 7,445 | 저수준 기준 |
+| Semantic-flat PPO | $s_t=\mathrm{vec}(X_t)\in\mathbb R^{108}$ | 15,317 | 의미 정보 효과 |
 | Ontology R-GAT PPO | $s_t$ + 관계 문맥 $c_t\in\mathbb R^4$ | 17,001 | 관계 구조 효과 |
 
 ![온톨로지 상황 그래프](../assets/ontology_graph.svg)

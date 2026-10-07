@@ -17,7 +17,7 @@ options = parseOptions(options,defaults);
 cfg.outputDir = char(options.checkpointDir);
 
 modes = {'baseline','context_flat','context_rgat'};
-labels = {'Low-level MLP PPO','Semantic-flat MLP PPO','Ontology R-GAT PPO'};
+labels = {'Low-level PPO','Semantic-flat PPO','Ontology R-GAT PPO'};
 agents = cell(1,numel(modes));
 armConfigs = cell(1,numel(modes));
 checkpointFiles = strings(numel(modes),1);

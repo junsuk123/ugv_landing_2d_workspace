@@ -175,8 +175,8 @@ end
 
 function label=labelForMode(mode)
 switch mode
-    case 'baseline', label='Low-level MLP PPO';
-    case 'context_flat', label='Semantic-flat MLP PPO';
+    case 'baseline', label='Low-level PPO';
+    case 'context_flat', label='Semantic-flat PPO';
     case 'context_node_pool', label='Ontology node-pool PPO';
     case 'context_gat', label='Single-relation GAT PPO';
     case 'context_rgat', label='Ontology R-GAT PPO';
