@@ -1,6 +1,6 @@
 function profile = profileAgent(agent,c,seed,repetitions)
 % PROFILEAGENT  Small deterministic inference profile (not a hard realtime proof).
-% Observation time: normalizing the policy observation (planar: the 24-D common
+% Observation time: vectorizing the policy observation (planar: the 12-D common
 % observation vector, 3D: the causal packet). Graph time: building the context
 % graph from the same causal observation.
 if nargin<3, seed=1; end
@@ -10,7 +10,17 @@ mode=agent.encoderSpec.mode;
 if strcmp(mode,'baseline')
     state=observation;
 else
-    state=landing2d.graphstate.environmentGraph(env,c);
+    state=landing2d.graphstate.environmentGraph(env,c,observation);
+end
+% Exclude one-time MATLAB dispatch/JIT setup from the steady-state profile.
+warmRs=RandStream('threefry','Seed',1);
+for i=1:min(20,repetitions)
+    policyObservation(env,c);
+    if ~strcmp(mode,'baseline')
+        landing2d.graphstate.environmentGraph(env,c,observation);
+    end
+    landing2d.rl.policyAction(agent,state,warmRs,true);
+    landing2d.rl.valueForward(agent,state);
 end
 tic;
 for i=1:repetitions
@@ -21,7 +31,7 @@ graphMs=0;
 if ~strcmp(mode,'baseline')
     tic;
     for i=1:repetitions
-        state=landing2d.graphstate.environmentGraph(env,c);
+        state=landing2d.graphstate.environmentGraph(env,c,observation);
     end
     graphMs=1000*toc/repetitions;
 end
@@ -36,9 +46,10 @@ for i=1:repetitions
     landing2d.rl.valueForward(agent,state);
 end
 criticMs=1000*toc/repetitions;
+deployedMs=observationMs+graphMs+actorMs;
 profile=struct('observationMs',observationMs,'graphMs',graphMs, ...
     'actorMs',actorMs,'criticMs',criticMs, ...
-    'policyInferenceMs',actorMs+runtimeStateMs(mode,observationMs,graphMs), ...
+    'deployedInferenceMs',deployedMs,'policyInferenceMs',deployedMs, ...
     'totalInferenceMs',observationMs+graphMs+actorMs+criticMs, ...
     'parameterCount',countNumeric(agent.policy)+countNumeric(agent.value));
 end
@@ -49,10 +60,6 @@ if isfield(env,'commonObservation') && ~isempty(env.commonObservation)
 else
     x=landing2d.sensing.normalizePacket(env.packet,c);
 end
-end
-
-function ms=runtimeStateMs(mode,observationMs,graphMs)
-if strcmp(mode,'baseline'), ms=observationMs; else, ms=graphMs; end
 end
 
 function n=countNumeric(x)

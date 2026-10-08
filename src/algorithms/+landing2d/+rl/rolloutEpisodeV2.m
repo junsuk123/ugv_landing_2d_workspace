@@ -274,12 +274,12 @@ d=struct('meanAbsRelationResidual',mean(abs(traj.relationResidual),2), ...
 end
 
 function state = policyState(observation,env,c,mode)
-% Baseline: the environment observation (planar: 24-D common observation).
+% Baseline: the environment observation (planar: registered 12-D vector).
 % Graph arms: the context graph of the same causal observation.
 if strcmp(mode,'baseline')
     state = observation;
 elseif ismember(mode,{'context_flat','context_node_pool','context_gat','context_rgat'})
-    state = landing2d.graphstate.environmentGraph(env,c);
+    state = landing2d.graphstate.environmentGraph(env,c,observation);
 else
     error('landing2d:V2StateMode','V2 rollout does not accept legacy graph mode %s.',mode);
 end

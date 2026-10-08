@@ -115,7 +115,7 @@ for i=1:nMethods
     testSeeds=arm.experiment.manifest.testSeeds(1:testCount);
     [testResults{i},~,testInfos{i}]=landing2d.rl.evaluateV2( ...
         agents{i},arm,testSeeds);
-    profiles{i}=landing2d.rl.profileAgent(agents{i},arm,1,25);
+    profiles{i}=landing2d.rl.profileAgent(agents{i},arm,1,500);
     if dashboardOn
         landing2d.viz.liveDashboard('v2evaluation',struct( ...
             'label',labels{i},'results',results{i},'info',infos{i}));

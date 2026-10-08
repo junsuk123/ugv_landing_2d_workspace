@@ -210,13 +210,27 @@ end
 function plotMonteCarloMean(ax,runs,c)
 hold(ax,'on'); grid(ax,'on'); box(ax,'on');
 q=linspace(0,1,100); theta=linspace(0,2*pi,40);
+commonSuccess=true(1,numel(runs(1).results));
 for i=1:numel(runs)
-    X=nan(numel(q),numel(runs(i).results)); Z=X;
-    for j=1:numel(runs(i).results)
+    commonSuccess=commonSuccess & strcmp({runs(i).results.terminalReason},'SUCCESS');
+end
+selected=find(commonSuccess);
+if numel(selected)<2
+    text(ax,0.5,0.5,sprintf('Only %d paired common-success episode(s)',numel(selected)), ...
+        'Units','normalized','HorizontalAlignment','center');
+    xlabel(ax,'Drone - pad horizontal position [m]');
+    ylabel(ax,'Height above pad [m]');
+    title(ax,'Common-success pad-relative trajectories');
+    return;
+end
+for i=1:numel(runs)
+    X=nan(numel(q),numel(selected)); Z=X;
+    for column=1:numel(selected)
+        j=selected(column);
         r=runs(i).results(j); u=(r.time-r.time(1))/max(r.time(end)-r.time(1),eps);
         [u,keep]=unique(u,'stable');
-        X(:,j)=interp1(u,r.xDrone(keep),q,'linear','extrap');
-        Z(:,j)=interp1(u,r.zDrone(keep),q,'linear','extrap');
+        X(:,column)=interp1(u,r.xDrone(keep)-r.xPad(keep),q,'linear','extrap');
+        Z(:,column)=interp1(u,r.zDrone(keep)-r.scenario.padHeight,q,'linear','extrap');
     end
     mx=mean(X,2,'omitnan'); mz=mean(Z,2,'omitnan');
     plot(ax,mx,mz,runs(i).lineStyle,'Color',runs(i).color, ...
@@ -230,9 +244,12 @@ for i=1:numel(runs)
             'LineWidth',0.6,'HandleVisibility','off');
     end
 end
-yline(ax,c.padHeight,':','Pad height','HandleVisibility','off');
-xlabel(ax,'World horizontal position x [m]'); ylabel(ax,'Altitude z [m]');
-title(ax,'Monte Carlo trajectory mean and 1\sigma covariance');
+yline(ax,0,':','HandleVisibility','off');
+xline(ax,0,':','HandleVisibility','off');
+xlabel(ax,'Drone - pad horizontal position [m]'); ylabel(ax,'Height above pad [m]');
+title(ax,sprintf(['Common-success pad-relative mean and 1\\sigma covariance ' ...
+    '(%d/%d paired seeds; normalized episode progress)'], ...
+    numel(selected),numel(commonSuccess)));
 legend(ax,'Location','best','Interpreter','none','Box','off');
 end
 
@@ -294,14 +311,15 @@ function plotProfiles(ax,runs)
 ms=zeros(1,numel(runs)); params=zeros(1,numel(runs));
 for i=1:numel(runs)
     p=getField(runs(i),'profile',struct());
-    ms(i)=fieldOr(p,'totalInferenceMs',NaN); params(i)=fieldOr(p,'parameterCount',NaN);
+    ms(i)=fieldOr(p,'deployedInferenceMs',fieldOr(p,'policyInferenceMs',NaN));
+    params(i)=fieldOr(p,'parameterCount',NaN);
 end
 bar(ax,ms,'FaceColor','flat'); grid(ax,'on');
 set(ax,'XTick',1:numel(runs),'XTickLabel',{runs.label},'XTickLabelRotation',18);
-ylabel(ax,'Inference time [ms]'); title(ax,'Real-time inference cost');
+ylabel(ax,'Inference time [ms]'); title(ax,'Deployed policy cost (state + Actor; Critic excluded)');
 for i=1:numel(runs)
-    if isfinite(params(i)), text(ax,i,ms(i),sprintf('  %.0f params',params(i)), ...
-            'Rotation',90,'VerticalAlignment','bottom','FontSize',8); end
+    if isfinite(params(i)), text(ax,i,ms(i),sprintf('%.0f params',params(i)), ...
+            'HorizontalAlignment','center','VerticalAlignment','bottom','FontSize',8); end
 end
 end
 

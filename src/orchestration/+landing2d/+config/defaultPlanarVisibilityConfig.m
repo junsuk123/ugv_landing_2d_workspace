@@ -90,7 +90,7 @@ v2.manifest = struct('trainSeeds',1:2000,'validationSeeds',2001:2200, ...
 % training signature. trainEvaluate reduces these only in smoke mode.
 v2.validationEpisodeCount = 100;
 v2.testEpisodeCount = 100;
-% Policy observation: the 24-D common observation o_t = [G;D;H] for every
+% Policy observation: the registered 12-D common observation for every
 % compared method. The context graph is built from the same o_t; the 26-D
 % causal packet remains an environment-internal record (and the 3D policy input).
 v2.observationSchema = landing2d.observation.vectorSchema(co);
