@@ -22,13 +22,12 @@ cfg.rl = landing2d.rl.applyScratchSettings(cfg.rl);
 % Direct PPO is the only policy-training aid: no teacher, scripted prefix,
 % curriculum replay or relation-only repair stage.
 cfg.rl.trainingRegime = 'direct_ppo_v1';
-% Verified planar budget: 500 updates x 6 episodes = 3,000 episodes. Landing
-% first generalized at update 225; continuing with a fixed learning rate
-% later destabilized the current policy, while validation checkpointing kept
-% the 73.3% validation / 68.0% held-out landing policy. Thus the historical
-% 2,500-episode budget is modestly exceeded, but 2,500 PPO updates (15,000
-% episodes) are neither necessary nor supported by the measured curve.
-cfg.rl.ppoIterations = 500;
+% Planar budget: 750 updates x 6 episodes = 4,500 episodes. The earlier
+% 500-update paired run was sufficient for R-GAT (the selected checkpoint was
+% update 225), but plain PPO never landed and diverged horizontally. The extra
+% 50%% budget is paired with reward_v5's non-vanishing far-field running-cost
+% gradient and is applied identically to both comparison arms.
+cfg.rl.ppoIterations = 750;
 cfg.rl.evaluateEvery = 25;
 cfg.rl.policyLearnRate = 2e-4;
 cfg.rl.valueLearnRate = 5e-4;
@@ -108,10 +107,12 @@ cfg.rl.curriculumBridgeReplayFraction = 1/6;
 % a nominal episode was SUCCESS in replay and UNSAFE_CONTACT at nominal.
 % The 3D option removes this field (episode-level contract).
 cfg.rl.curriculumReplayContract = 'current';
-% Running standardization is used by the 12-D baseline MLP. The direct graph
-% arm already has a bounded tanh embedding and does not standardize or bypass
-% its encoder output. The 3D option removes this field.
-cfg.rl.inputNormalization = struct('enabled',true,'clip',5,'epsilon',1e-2, ...
+% The registered 12-D planar observation is already bounded. Freezing the
+% policy coordinates avoids the non-stationarity introduced by running
+% standardization in the plain MLP. The graph arm also remains unstandardized.
+% Keep the disabled setting in the signature so old checkpoints are rejected;
+% the 3D option removes the planar-only field.
+cfg.rl.inputNormalization = struct('enabled',false,'clip',5,'epsilon',1e-2, ...
     'initialCount',1e-4);
 cfg.rl.touchdownSpeedCurriculumScale = 2.0;
 % Even easy touchdown episodes must experience the UGV acceleration event;

@@ -375,3 +375,23 @@ The remaining planar landing-authorization timer was also removed. It expired af
 Measured with the direct node-preserving R-GAT, 500 updates x 6 episodes, train seed 1: the validation-selected update 225 achieved 73.3% landing on 30 validation seeds and 68.0% landing on 50 held-out test seeds. Held-out unsafe was 10.0%, timeout 22.0%, safe-abort 0%, capture 74.1%, and mean return 17.686. Artifact: `results/tune_guardless_rgat_v3_500.mat`.
 
 The same reward, seed and 3,000-episode budget with the plain 12-D PPO selected update 25 and achieved 0% landing on both validation and held-out test; held-out unsafe was 0%, timeout 100%, capture 31.4%, and mean return -6.573. Artifact: `results/tune_guardless_ppo_500.mat`. This paired result separates the common reward change from the ontology/R-GAT representation gain.
+
+## 14. reward_v5: 일반 PPO 원거리 복귀 신호와 고정 입력 좌표계
+
+reward_v4의 동일 조건 일반 PPO 체크포인트를 추가 진단했다. 500회 전체에서 학습 착륙은 0회였고, 선택 정책의 20개 validation rollout은 종단 고도 중앙값 9.144 m, 수평 오차 절댓값 중앙값 153.904 m로 발산한 뒤 모두 시간 초과했다. 따라서 단순히 기존 목적함수의 학습 횟수만 늘리는 것은 근거가 부족했다.
+
+원인은 두 가지로 분리했다. 첫째, 이미 `[-1,1]` 범위로 설계된 12차원 관측에 학습 중 변하는 running 평균·분산을 다시 적용하여 일반 MLP의 입력 좌표계가 비정상적으로 이동했다. 평면 비교군은 모두 입력 표준화를 끄며, 원 관측 정의는 바꾸지 않는다. 둘째, 기존 running goal cost
+
+$$
+q^2/(1+q^2)
+$$
+
+는 큰 오차에서 미분이 0으로 수렴한다. reward_v5는 잠재함수에는 이 유계 비용을 그대로 유지하고, 매 스텝 goal cost에만 다음 pseudo-Huber 함수를 공통 적용한다.
+
+$$
+\rho_\delta(q)=2\delta^2\left(\sqrt{1+(q/\delta)^2}-1\right),\qquad \delta=1.
+$$
+
+계수 2는 원점 부근에서 $\rho(q)\simeq q^2$가 되도록 하여 기존 국소 곡률을 보존한다. 큰 오차에서는 비용이 선형으로 증가하여 복귀 방향의 기울기가 사라지지 않는다. 수평·고도 정규화와 혼합 비율은 기존과 동일하며, 종료 보상·readiness·관측·행동·종료 조건은 바꾸지 않는다. 3차원 옵션은 계속 reward_v2를 사용한다.
+
+재학습 예산은 두 비교군 모두 750 update × 6 episode = 4,500 episode로 늘린다. 이는 기존 3,000 episode 대비 50% 증가이며 validation checkpoint 선택은 25 update 주기로 유지한다. 이 절의 변경 후 성능 수치는 새 학습과 held-out test가 끝난 뒤에만 기록한다.

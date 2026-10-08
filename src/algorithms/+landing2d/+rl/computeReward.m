@@ -4,7 +4,7 @@ function [reward,components] = computeReward(previousTruth,truth,measurement,aNo
 % the off-axis bearing, and roll/roll-rate alongside pitch/pitch-rate.
 % Optional reward.actionChangeWeight (3D option only) adds a running cost on
 % the change of the normalized action since the previous decision.
-% Planar contract (reward_v4) only:
+% Planar contract (reward_v5) only:
 %   reward.goalCameraAim          goal cost measures the horizontal error from
 %                                 the camera aim point ex* = h*tan(-cameraPitchOffset),
 %                                 where the pad lies on the level-attitude optical
@@ -14,8 +14,9 @@ function [reward,components] = computeReward(previousTruth,truth,measurement,aNo
 %                                 the motion that loses the pad.
 %   reward.velocityPotentialWeight  adds -w*q(relativeVx/velocityLength) to the
 %                                 shaping potential (UGV speed matching).
-% Both enter only the potential and the bounded running goal cost; potential
-% shaping with zero terminal potential leaves the optimal policy unchanged.
+% The potential remains bounded. The per-step goal term uses a pseudo-Huber
+% cost in reward_v5, retaining quadratic local behavior while preserving a
+% corrective gradient at large tracking error.
 r = c.experiment.reward;
 aimSlope = 0;
 if isfield(r,'goalCameraAim') && r.goalCameraAim
@@ -23,6 +24,7 @@ if isfield(r,'goalCameraAim') && r.goalCameraAim
 end
 cGoal = goalCost(truth,r,aimSlope);
 previousGoalCost = goalCost(previousTruth,r,aimSlope);
+cRunningGoal = runningGoalCost(truth,r,aimSlope,cGoal);
 cTrack = trackCost(truth,r,aimSlope);
 previousTrackCost = trackCost(previousTruth,r,aimSlope);
 cVertical = verticalApproachCost(truth,r);
@@ -36,7 +38,7 @@ else
     cView = 1;
 end
 cControl = 0.5*sum(aNorm(:).^2);
-runningCost = (dt/r.referenceTime)*(r.goalWeight*cGoal+ ...
+runningCost = (dt/r.referenceTime)*(r.goalWeight*cRunningGoal+ ...
     r.viewWeight*cView+r.controlWeight*cControl);
 cChange = 0;
 if isfield(r,'actionChangeWeight') && nargin >= 8 && ~isempty(previousNorm)
@@ -71,7 +73,8 @@ else
 end
 potentialShaping=discount*phiNext-phiPrevious;
 reward = terminalBonus-runningCost+readinessReward+potentialShaping;
-components = struct('goalCost',cGoal,'viewCost',cView, ...
+components = struct('goalCost',cGoal,'runningGoalCost',cRunningGoal, ...
+    'viewCost',cView, ...
     'controlCost',cControl,'scaledRunningCost',runningCost, ...
     'landingReadiness',readiness,'previousLandingReadiness',previousReadiness, ...
     'readinessReward',readinessReward, ...
@@ -80,6 +83,27 @@ components = struct('goalCost',cGoal,'viewCost',cView, ...
 if isfield(r,'actionChangeWeight'), components.actionChangeCost = cChange; end
 if isfield(r,'velocityPotentialWeight'), components.trackCost = cTrack; end
 if isfield(r,'verticalPotentialWeight'), components.verticalApproachCost = cVertical; end
+end
+
+function value=runningGoalCost(truth,r,aimSlope,boundedValue)
+% Pseudo-Huber is twice the conventional form so its local curvature matches
+% q^2, the small-error behavior of the bounded potential cost.
+if ~isfield(r,'goalRunningCost')
+    value=boundedValue;
+    return;
+end
+assert(strcmp(r.goalRunningCost,'pseudo_huber_v1'), ...
+    'landing2d:RewardGoalCost','Unknown goal running-cost definition.');
+if isfield(truth,'ey')
+    qx=hypot(truth.ex,truth.ey)/r.goalLengthX;
+else
+    qx=(truth.ex-aimSlope*max(truth.h,0))/r.goalLengthX;
+end
+qh=truth.h/r.goalLengthH;
+delta=r.goalHuberDelta;
+rho=@(q)2*delta^2*(sqrt(1+(q/delta).^2)-1);
+value=r.goalHorizontalShare*rho(qx)+ ...
+    (1-r.goalHorizontalShare)*rho(qh);
 end
 
 function value=goalCost(truth,r,aimSlope)
@@ -95,7 +119,8 @@ value=r.goalHorizontalShare*xCost+(1-r.goalHorizontalShare)*hCost;
 end
 
 function value=trackCost(truth,r,aimSlope)
-% Bounded approach-manifold velocity cost (planar reward_v4).
+% Bounded approach-manifold velocity cost (introduced in reward_v4 and kept
+% unchanged in planar reward_v5).
 %
 % The camera-consistent position target is ex = aimSlope*h. Its derivative
 % is relativeVx = aimSlope*vz, not relativeVx = 0 while descending. Add a
