@@ -395,3 +395,7 @@ $$
 계수 2는 원점 부근에서 $\rho(q)\simeq q^2$가 되도록 하여 기존 국소 곡률을 보존한다. 큰 오차에서는 비용이 선형으로 증가하여 복귀 방향의 기울기가 사라지지 않는다. 수평·고도 정규화와 혼합 비율은 기존과 동일하며, 종료 보상·readiness·관측·행동·종료 조건은 바꾸지 않는다. 3차원 옵션은 계속 reward_v2를 사용한다.
 
 재학습 예산은 두 비교군 모두 750 update × 6 episode = 4,500 episode로 늘린다. 이는 기존 3,000 episode 대비 50% 증가이며 validation checkpoint 선택은 25 update 주기로 유지한다. 이 절의 변경 후 성능 수치는 새 학습과 held-out test가 끝난 뒤에만 기록한다.
+
+실측 결과(train seed 1, validation/test 각 100 seed)는 다음과 같다. 일반 PPO는 225회에 이미 validation 착륙 83%를 발견했고, 선택된 750회 체크포인트는 validation 착륙 98%, unsafe 0%, 평균 반환 33.34였다. held-out test는 착륙 95%, unsafe 0%, timeout 5%, 평균 반환 31.819였다. R-GAT는 더 늦은 300회부터 수렴했으며, 선택된 575회 체크포인트는 validation 착륙 98%, unsafe 0%, 평균 반환 31.59였다. held-out test는 착륙 95%, unsafe 0%, timeout 5%, 평균 반환 30.406이었다. S1 고정 시나리오에서는 두 정책 모두 SUCCESS였다. 산출물은 `results/checkpoints/ppo_s01.mat`, `results/checkpoints/onto_rgat_ppo_s01.mat`, `results/planar_visibility_full.mat`이다.
+
+따라서 일반 PPO의 0% 착륙 실패는 해소됐다. 다만 성능 발견이 225회에 이미 발생했으므로, 개선의 주원인을 학습량 증가만으로 해석할 수는 없다. 비표준화 입력과 비포화 원거리 running cost가 탐색을 정상 궤도로 돌렸고, 750회 예산은 이후 validation 착륙을 83%에서 98%로 정련하고 안전한 체크포인트를 얻는 데 기여한 것으로 해석한다. 단일 train seed의 held-out 성공률은 두 표현이 95%로 동률이므로, R-GAT 우월성 주장은 다중 학습 seed 검증 전에는 하지 않는다.
