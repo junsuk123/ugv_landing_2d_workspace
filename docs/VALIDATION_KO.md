@@ -2,6 +2,7 @@
 
 ## 요약
 
+- 현행성: 2026-10-06 산출, 하향 카메라·reward_v2·3비교군 계약 시점 결과. 전방 아래 마커 카메라·공통 관측·reward_v3(2026-10-08) 계약의 현행 결과는 [보상 설계](refactor/REWARD_RATIONALE.md) 11절
 - 평가 설계: 선택용 $\mathcal S_{val}$과 서로소인 $\mathcal S_{te}$ 100 seed의 paired 결정론 평가
 - 시험 결과: 성공률 Low-level 74%, Semantic-flat 75%, R-GAT 72%, 위험 접촉률 Low-level 2% 최저
 - 통계 해석: Wilson 95% 구간 반폭 약 ±9 pp, 세 모델 결과율 차이 전부 구간 중첩, 유의한 우열 부재

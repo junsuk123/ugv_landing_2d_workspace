@@ -1,9 +1,19 @@
-function [episodeConfig,scenarioHeightRange,progress] = trainingEpisodeConfig(c,iteration,curriculumLevel)
+function [episodeConfig,scenarioHeightRange,progress] = trainingEpisodeConfig(c,iteration,curriculumLevel,contractLevel)
 % TRAININGEPISODECONFIG  Pure-RL training curriculum for one PPO iteration.
 %
 % Only episode generation is modified. Validation and final evaluation keep
 % the nominal configuration in C, so reported performance is never measured
 % on an easier curriculum distribution.
+% CURRICULUMLEVEL is the episode's difficulty (easy/bridge replay or current).
+% CONTRACTLEVEL (optional) is the current curriculum level of the run. With
+% rl.curriculumReplayContract = 'current' (planar contract), the safety and
+% terminal contract of every training episode -- touchdown speed limits,
+% failure rewards and the prolonged-loss threshold -- follows CONTRACTLEVEL,
+% while the start height and UGV motion follow CURRICULUMLEVEL. Replay
+% episodes then keep their easy starts without teaching a relaxed touchdown
+% contract: a low-altitude replay state cannot be told apart from the final
+% descent of a nominal episode, so a contact that is SUCCESS in replay and
+% UNSAFE_CONTACT at nominal gave conflicting outcomes for the same state.
 rl = c.rl;
 validateattributes(iteration,{'numeric'},{'scalar','integer','positive'});
 episodeConfig = c;
@@ -11,6 +21,11 @@ episodeConfig = c;
 if nargin >= 3 && isfinite(curriculumLevel)
     level = min(max(curriculumLevel,0),1);
     progress = struct('height',level,'abort',level,'motion',level);
+    if nargin >= 4 && isfinite(contractLevel) && isfield(rl,'curriculumReplayContract') ...
+            && strcmp(rl.curriculumReplayContract,'current')
+        progress.abort = min(max(contractLevel,0),1);
+        progress.contract = progress.abort;
+    end
     startScale = [rl.initialHeightRange(1),rl.curriculumStartHeight];
     heightScale = startScale+(1-startScale)*level;
 else
@@ -29,10 +44,15 @@ startLoss = max(nominalLoss,rl.abortCurriculumStart);
 episodeConfig.experiment.safety.prolongedLoss = ...
     startLoss+(nominalLoss-startLoss)*progress.abort;
 
+% Touchdown/terminal contract progress: the episode level, or the current
+% level of the run when rl.curriculumReplayContract = 'current'.
+contract = progress.height;
+if isfield(progress,'contract'), contract = progress.contract; end
+
 % Discover safe-contact structure under a relaxed speed limit first, then
 % tighten continuously to the unchanged nominal touchdown contract.
 speedScale = rl.touchdownSpeedCurriculumScale+ ...
-    (1-rl.touchdownSpeedCurriculumScale)*progress.height;
+    (1-rl.touchdownSpeedCurriculumScale)*contract;
 episodeConfig.experiment.safety.touchdownSpeedX = ...
     c.experiment.safety.touchdownSpeedX*speedScale;
 episodeConfig.experiment.safety.touchdownSpeedZ = ...
@@ -87,7 +107,7 @@ for i=1:numel(failureNames)
     nominal=c.experiment.reward.(name);
     start=max(nominal,rl.unsafePenaltyCurriculumStart);
     episodeConfig.experiment.reward.(name)= ...
-        start+(nominal-start)*progress.height;
+        start+(nominal-start)*contract;
 end
 end
 

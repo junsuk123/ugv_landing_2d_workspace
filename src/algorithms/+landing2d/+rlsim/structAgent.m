@@ -23,6 +23,10 @@ if isfield(agent.policy,'relation')
         critic('relation_head/Weights'));
     agent.policy.encoder = readEncoder(actor,agent.policy.encoder);
     agent.value.encoder = readEncoder(critic,agent.value.encoder);
+elseif ismember(agent.encoderSpec.mode,{'context_gat','context_rgat'}) ...
+        && strcmp(agent.encoderSpec.readout,'grouped')
+    agent.policy.encoder = readEncoder(actor,agent.policy.encoder);
+    agent.value.encoder = readEncoder(critic,agent.value.encoder);
 end
 end
 

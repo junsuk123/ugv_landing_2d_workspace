@@ -1,5 +1,9 @@
 function [env,observation,info] = reset(c,seed,options)
 % RESET  Create independent scenario/sensor streams and a causal first packet.
+% Planar contract: sensor noise comes from a time-indexed table drawn here
+% (landing2d.sensing.exogenousNoise), so its value at a given time is the same
+% for every policy. options.sensorNoiseScale (default 1, planar only) scales
+% every sensor-noise standard deviation (evaluation of observation errors).
 if nargin < 2 || isempty(seed), seed = 1; end
 if nargin < 3, options = struct(); end
 assert(isfield(c,'experiment') && c.experiment.enabled, ...
@@ -31,7 +35,12 @@ pad = landing2d.scenario.padState(scenario,0);
 % made some low-altitude cases lose a body-fixed camera target before any
 % causal controller could respond; the experiment is about the later CA
 % maneuver, not an artificial initial velocity discontinuity.
-state = struct('x',scenario.x0,'z',scenario.padHeight+scenario.height, ...
+% The drone starts where the pad center lies on the camera optical axis at
+% level attitude: x = x_pad + h*tan(cameraPitchOffset). The planar marker
+% camera looks 60 deg below forward, so the drone starts behind the pad; the
+% downward camera of the 3D option (offset 0) starts directly above it.
+startX = pad.x+scenario.height*tan(c.experiment.sensor.cameraPitchOffset);
+state = struct('x',startX,'z',scenario.padHeight+scenario.height, ...
     'vx',pad.vx,'vz',0,'theta',0,'pitchRate',0, ...
     'collectiveThrust',c.experiment.dynamics.mass* ...
         c.experiment.dynamics.gravity);
@@ -44,25 +53,85 @@ assert(spatial == isfield(state,'y'),'landing2d:SpatialState', ...
     'physicalState must match the configured spatial dimension.');
 status = landing2d.environment.initialStatus( ...
     numel(landing2d.environment.actionLimits(c)));
+perception = ~spatial && isfield(c.experiment,'commonObservation');
+noiseScale = 1;
+if isfield(options,'sensorNoiseScale') && ~isempty(options.sensorNoiseScale)
+    noiseScale = options.sensorNoiseScale;
+    validateattributes(noiseScale,{'numeric'},{'scalar','real','finite','nonnegative'}, ...
+        mfilename,'sensorNoiseScale');
+    assert(perception || noiseScale == 1,'landing2d:NoiseScale', ...
+        'sensorNoiseScale requires the planar common observation (time-indexed noise).');
+end
+% Planar contract: tracker, marker and navigation noise all come from the
+% time-indexed table (column k+1 = decision k, k = 0 here). The 3D option
+% keeps its sequential sensor stream and its numbers.
+noise = []; trackerNoise = sensorStream;
+if perception
+    noise = landing2d.sensing.exogenousNoise(c,base,scenario.deadline,noiseScale);
+    trackerNoise = noise.tracker(:,1,1);
+end
 track = landing2d.sensing.initialPadTrack(c.experiment.sensor,spatial);
 measurement = landing2d.sensing.generateMeasurement(state,pad,0, ...
-    c.experiment.sensor,sensorStream,struct('dropout',false));
+    c.experiment.sensor,trackerNoise,struct('dropout',false));
 [track,estimatorInfo] = landing2d.sensing.updatePadTrack(track,measurement, ...
     state,0,c.experiment.sensor);
-status = landing2d.environment.updateDecisionContext(status,track,0,c,state);
+% Common observation o_t = [G;D;H] and its static context Gamma (planar only).
+% The simulated detector and navigation are the only consumers of truth;
+% capture receives their outputs. The same marker-camera UGV estimate drives
+% landing authorization and the safety supervisor; the 3D option and
+% configurations saved without the common observation keep the tracker-based
+% decision context.
+observationContext = [];
+commonMemory = []; commonObservation = []; perceptionError = [];
+if perception
+    co = c.experiment.commonObservation;
+    observationContext = landing2d.observation.staticContext(c);
+    detections = landing2d.sensing.detectMarkers(state,pad,0,c.experiment.sensor, ...
+        co,noise.marker(:,:,:,1),struct('dropout',false,'frameCaptured',true));
+    navigation = landing2d.sensing.navigationEstimate(state,0,co.navigation, ...
+        noise.navigation(:,1));
+    [commonObservation,commonMemory] = landing2d.observation.capture( ...
+        landing2d.observation.initialMemory(),detections,navigation,0,observationContext);
+    perceptionError = landing2d.metrics.perceptionError(commonObservation,pad,observationContext);
+    [~,perceptionTrack] = landing2d.environment.perceptionView(commonObservation, ...
+        state,status,0,scenario,c);
+    status = landing2d.environment.updateDecisionContext(status,perceptionTrack,0,c,state);
+else
+    status = landing2d.environment.updateDecisionContext(status,track,0,c,state);
+end
 packet = landing2d.sensing.buildPacket(state,track,measurement,status,scenario,0,c);
-observation = landing2d.sensing.normalizePacket(packet,c);
+% Policy observation: the normalized 24-D common observation in the planar
+% contract; the normalized causal packet otherwise (3D option, old configs).
+if isempty(commonObservation)
+    observation = landing2d.sensing.normalizePacket(packet,c);
+else
+    observation = landing2d.observation.toVector(commonObservation,observationContext);
+end
+provenance = struct('scenarioSeed',scenarioSeed,'sensorSeed',sensorSeed, ...
+    'policySeed',base+c.experiment.randomStreams.policyOffset,'seed',double(seed), ...
+    'noiseIndexing','sequential','noiseScale',noiseScale, ...
+    'trackerNoiseSeed',sensorSeed,'markerNoiseSeed',NaN,'navigationNoiseSeed',NaN);
+if perception
+    provenance.noiseIndexing = noise.indexing;
+    provenance.trackerNoiseSeed = noise.seeds.tracker;
+    provenance.markerNoiseSeed = noise.seeds.marker;
+    provenance.navigationNoiseSeed = noise.seeds.navigation;
+end
 env = struct('schemaVersion','environment_v2','config',c,'scenario',scenario, ...
     'physicalState',state,'observationMemory',track, ...
     'decisionContext',status,'episodeStatus',status,'time',0, ...
     'pad',pad,'measurement',measurement,'packet',packet, ...
-    'sensorStream',sensorStream,'sensorEvents',sensorEvents, ...
+    'sensorStream',sensorStream,'sensorEvents',sensorEvents,'noise',noise, ...
+    'observationContext',observationContext, ...
+    'commonMemory',commonMemory,'commonObservation',commonObservation, ...
+    'initialPhysicalState',state,'provenance',provenance, ...
     'stepCount',0,'rewardSum',0);
-info = struct('packet',packet,'measurement',measurement,'pad',pad, ...
+info = struct('packet',packet,'commonObservation',commonObservation, ...
+    'observationContext',observationContext,'perceptionError',perceptionError, ...
+    'measurement',measurement,'pad',pad, ...
     'scenario',scenario,'estimator',estimatorInfo, ...
     'evaluatorMetadata',struct('sensorEvents',sensorEvents), ...
-    'provenance',struct('scenarioSeed',scenarioSeed,'sensorSeed',sensorSeed, ...
-    'policySeed',base+c.experiment.randomStreams.policyOffset));
+    'provenance',provenance);
 end
 
 function scenario = withLateralMotion(scenario,scenarioConfig)

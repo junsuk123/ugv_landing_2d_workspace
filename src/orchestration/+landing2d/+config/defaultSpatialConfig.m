@@ -6,6 +6,12 @@ s.dimension = 3;
 s.schemaVersion = 'spatial_visibility_v1';
 % 패드는 x(진행) 방향 반길이 padHalfLength, y(측방) 방향 반폭 padHalfWidth의 직사각형.
 s.padHalfWidth = 0.5;                 % [m]
+% 카메라: 기체 고정 하향 원뿔 시야. 평면 계약은 마커 카메라(전방 아래 60도)
+% 기하를 쓰지만, 마커 기반 공통 관측이 없는 3차원 옵션은 이 카메라를 유지합니다.
+s.cameraFov = deg2rad(50);            % 원뿔 전체 시야각 [rad]
+s.cameraPitchOffset = 0;              % 수직 하향 [rad]
+% 정책 입력·그래프: 3차원 causal packet과 packet 기반 문맥 그래프를 유지합니다.
+s.contextSchemaVersion = 'compact_context_graph_v3_grouped';
 % 측방 가속도 행동 한계. 수평 axMax와 같은 기체 권한을 가정합니다.
 s.lateralAccelerationLimit = 2.5;     % [m/s^2]
 % UGV 측방 운동: 진행 방향과 같은 구간 시각(T1, T2)의 CV-CA-CV.
@@ -23,6 +29,10 @@ s.finalDescentMaxDuration = 3.0;  % 진입 후 최대 유지 시간 [s]
 % 보상: 결정 간 정규화 행동 변화량 비용 (세 비교군 공통, 3차원 전용).
 % 두 축 자세 각속도가 동시에 착지 허용치 안에 있어야 하므로 채터링을 억제합니다.
 s.actionChangeWeight = 10;
+% 평면 reward_v3의 카메라 정합 goal·속도 정합 potential은 전방 아래 마커 카메라
+% 전용입니다. 하향 원뿔 카메라의 3차원 옵션은 reward_v2 potential(goal 목표 e = 0,
+% 가중치 2.0)을 유지합니다(3차원 수치·학습 서명 불변).
+s.potentialWeight = 2.0;
 % 3차원 체크포인트는 2차원 체크포인트와 섞이지 않도록 하위 폴더에 저장합니다.
 s.outputSubdir = 'spatial3d';
 
@@ -36,4 +46,12 @@ s.initialLogStd = -1.6;                   % a_x·a_z 초기 탐색 잡음 (평�
 s.lateralInitialLogStd = -2.3;            % a_y 초기 탐색 잡음
 s.touchdownAttitudeCurriculumScale = 2.0; % 착지 자세·각속도 허용치 초기 배율 -> 1
 s.trackAuthorizationCurriculumScale = 2.0;% 최근 검출 허용 x2, 최소 신뢰도 /2 -> 1
+% 커리큘럼 시작 고도 배율 (공칭 4-8 m 대비). 하향 원뿔 카메라는 패드 바로 위
+% 저고도에서도 패드를 보므로 기존 0.1-0.4 m 시작을 유지합니다. 평면 계약은 전방
+% 아래 마커 카메라의 사각지대 때문에 0.45-0.6 m에서 시작합니다(primaryConfig).
+s.initialHeightRange = [0.025,1.00];
+s.curriculumStartHeight = 0.05;
+% 성능 커리큘럼 승급 기준 (현재 단계 착륙률). 3차원은 기존 10%·강등 없음을 유지하고,
+% 평면 계약은 30% 승급·10% 미만 강등을 씁니다(primaryConfig).
+s.curriculumLandingThreshold = 0.10;
 end

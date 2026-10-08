@@ -9,9 +9,15 @@ classdef SafetySupervisorBlock < landing2d.simulink.BlockBase
         end
         function [applied,intervened] = stepImpl(obj,aRequest,drone,packet)
             env = obj.currentEpisode().env;
-            [applied,info] = landing2d.control.safetySupervisor(aRequest(:), ...
-                obj.decode('drone',drone),obj.decode('packet',packet),env.config);
-            intervened = double(info.intervened);
+            if isfield(env.config.experiment,'actionApplication') ...
+                    && strcmp(env.config.experiment.actionApplication,'direct_policy_v1')
+                applied = aRequest(:);
+                intervened = 0;
+            else
+                [applied,info] = landing2d.control.safetySupervisor(aRequest(:), ...
+                    obj.decode('drone',drone),obj.decode('packet',packet),env.config);
+                intervened = double(info.intervened);
+            end
         end
     end
 end

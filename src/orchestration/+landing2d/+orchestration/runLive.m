@@ -1,5 +1,5 @@
 function output = runLive(target,options)
-% RUNLIVE  Real-time lockstep test of the three final checkpoints.
+% RUNLIVE  Real-time lockstep test of the final checkpoints of the compared methods.
 %
 % Every arm receives the same scenario, sensor events, and measurement noise
 % stream and is stepped through landing2d.environment.step at the policy
@@ -14,7 +14,7 @@ if nargin < 1 || isempty(target), target='S3'; end
 if nargin < 2, options=struct(); end
 defaults=struct('playbackSpeed',1,'checkpointDir','', ...
     'videoFile','','showFullTrajectoryAtEnd',true,'viewHalfWidth',15, ...
-    'spatialDimension',2);
+    'spatialDimension',2,'trainSeed',1,'graphSeed',1);
 options=parseOptions(options,defaults);
 
 projectRoot=landing2d.orchestration.projectRoot();
@@ -25,16 +25,17 @@ if isempty(options.checkpointDir), options.checkpointDir=cfg.outputDir; end
 cfg.outputDir=char(options.checkpointDir);
 [seed,resetOptions,targetLabel]=resolveTarget(target,cfg);
 
-modes={'baseline','context_flat','context_rgat'};
-labels={'Low-level PPO','Semantic-flat PPO','Ontology R-GAT PPO'};
-colors=[0.10 0.32 0.62; 0.85 0.33 0.10; 0.35 0.16 0.60];
-nArm=numel(modes);
+% Planar: the registered methods (one training/graph seed); 3D: previous arms.
+armList=landing2d.config.comparisonArms(cfg,struct( ...
+    'trainSeed',options.trainSeed,'graphSeed',options.graphSeed));
+modes={armList.representation};
+labels={armList.label};
+colors=vertcat(armList.color);
+nArm=numel(armList);
 arms=cell(1,nArm); agents=cell(1,nArm); envs=cell(1,nArm);
 observations=cell(1,nArm); fingerprints=strings(1,nArm);
 for m=1:nArm
-    arm=landing2d.graphstate.applyStateRepresentation(cfg,modes{m});
-    arm.graphState.stateRepresentation=modes{m};
-    arm.rl.policyFile=sprintf('ppo_%s_planar_visibility_v2.mat',modes{m});
+    arm=armList(m).config;
     agents{m}=landing2d.rl.loadCheckpoint(arm);
     fingerprints(m)=string(landing2d.environment.taskFingerprint(arm));
     [envs{m},observations{m}]=landing2d.environment.reset(arm,seed,resetOptions);
@@ -77,7 +78,7 @@ for k=1:maxSteps
     active=cellfun(@(e)~e.episodeStatus.terminated,envs);
     if ~any(active) || ~isgraphics(view.figure), break; end
     for m=find(active)
-        state=policyState(observations{m},envs{m}.packet,arms{m});
+        state=policyState(observations{m},envs{m},arms{m});
         u=landing2d.rl.policyAction(agents{m},state,rs,true);
         [envs{m},observations{m}]=landing2d.environment.step(envs{m},tanh(u));
         logs(m)=appendLog(logs(m),envs{m});
@@ -133,11 +134,11 @@ resetOptions=struct('scenario',spec.scenario,'sensorEvents',spec.sensorEvents);
 label=spec.name;
 end
 
-function state=policyState(observation,packet,arm)
+function state=policyState(observation,env,arm)
 if strcmp(arm.graphState.stateRepresentation,'baseline')
     state=observation;
 else
-    state=landing2d.graphstate.contextGraph(packet,arm);
+    state=landing2d.graphstate.environmentGraph(env,arm);
 end
 end
 
@@ -186,6 +187,7 @@ title(layout,sprintf('%s  |  v_1=%.2f m/s, a_2=%.2f m/s^2, T_{CA}=[%.2f, %.2f] s
     'FontWeight','bold');
 view.labels=labels; view.colors=colors; view.padH=padH;
 view.fov=cfg.experiment.sensor.fov; view.zTop=zTop;
+view.cameraPitchOffset=cfg.experiment.sensor.cameraPitchOffset;
 view.halfWidth=options.viewHalfWidth;
 for m=1:numel(labels)
     ax=nexttile(layout,[1 2]); hold(ax,'on'); box(ax,'on'); grid(ax,'on');
@@ -250,8 +252,8 @@ for m=1:numel(envs)
     body=[s.x-right(1),s.x+right(1);s.z-right(2),s.z+right(2)];
     set(h.droneBody,'XData',body(1,:),'YData',body(2,:));
     set(h.rotors,'XData',body(1,:),'YData',body(2,:)+0.06);
-    drawFov(h.fov,s,view.padH,view.fov,env.measurement.detected, ...
-        env.episodeStatus.terminated);
+    drawFov(h.fov,s,view.padH,view.fov,view.cameraPitchOffset, ...
+        env.measurement.detected,env.episodeStatus.terminated);
     xlim(h.ax,xPad+[-1 1]*view.halfWidth);
     title(h.ax,statusText(view.labels{m},env),'Color',statusColor(env), ...
         'FontSize',9,'Interpreter','tex');
@@ -273,12 +275,13 @@ set(h.wheels,'XData',x+[-0.55 0.55],'YData',[0.12 0.12]);
 set(h.pad,'XData',x+[-0.5 0.5],'YData',[padH padH]);
 end
 
-function drawFov(p,s,padH,fov,detected,terminated)
+function drawFov(p,s,padH,fov,pitchOffset,detected,terminated)
 h=s.z-padH;
 if terminated || h<=0.05
     set(p,'XData',nan,'YData',nan); return;
 end
-boresight=atan2(-cos(s.theta),-sin(s.theta)); % camera axis [-sin,-cos] in (x,z)
+theta=s.theta+pitchOffset;
+boresight=atan2(-cos(theta),-sin(theta)); % camera axis [-sin,-cos] in (x,z)
 xs=s.x; zs=s.z;
 for sgn=[-1 1]
     a=boresight+sgn*fov/2;

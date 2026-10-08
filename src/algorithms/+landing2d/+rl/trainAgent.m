@@ -25,6 +25,7 @@ agent = landing2d.rl.agentInit(rl,initRs,c.graphState);
 pretrainInfo = struct('enabled',false,'sampleCount',0,'finalLoss',NaN, ...
     'usesActions',false,'usesRewards',false,'usesOutcomes',false, ...
     'usesFuture',false,'seedSplit','train');
+pretrainStarted = tic;
 if ismember(agent.encoderSpec.mode,{'context_gat','context_rgat'}) ...
         && c.graphState.pretrain.enabled
     [agent.policy.encoder,pretrainInfo] = ...
@@ -34,6 +35,7 @@ if ismember(agent.encoderSpec.mode,{'context_gat','context_rgat'}) ...
     % the same pretrained point and adapt independently during PPO.
     agent.value.encoder = agent.policy.encoder;
 end
+pretrainingSeconds = toc(pretrainStarted);
 cloneInfo = struct('finalLoss',NaN);
 teacherSamples = 0;
 if rl.useBehaviorClone
@@ -57,7 +59,14 @@ if rl.verbose
     fprintf('PPO 학습 (%d 반복 x %d 에피소드)...\n', ...
         rl.ppoIterations,rl.episodesPerIteration);
 end
-[agent,history] = trainer(agent,c,ppoRs);
+ppoStarted = tic;
+snapshots = [];
+if strcmp(func2str(trainer),'landing2d.rl.ppoTrain')
+    [agent,history,~,snapshots] = trainer(agent,c,ppoRs);
+else
+    [agent,history] = trainer(agent,c,ppoRs);
+end
+ppoSeconds = toc(ppoStarted);
 staticFrozen = isequal(staticReference, ...
     staticBackbone(agent.policy.encoder,agent.encoderSpec.mode));
 if c.graphState.freezeStaticBackbone
@@ -68,7 +77,8 @@ info = struct('teacherSamples',teacherSamples, ...
     'useBehaviorClone',rl.useBehaviorClone, ...
     'cloneLoss',cloneInfo.finalLoss,'history',history, ...
     'pretraining',pretrainInfo,'staticBackboneFrozen',staticFrozen, ...
-    'trainingSeconds',toc(started),'trainer',func2str(trainer));
+    'trainingSeconds',toc(started),'pretrainingSeconds',pretrainingSeconds, ...
+    'ppoSeconds',ppoSeconds,'snapshots',snapshots,'trainer',func2str(trainer));
 if rl.verbose
     fprintf('학습 시간: %.1f s\n',info.trainingSeconds);
 end

@@ -47,7 +47,12 @@ if contact
     end
     mechanicalSafe = inFootprint && horizontalSpeedSafe ...
         && abs(relVz)<=s.touchdownSpeedZ && attitudeSafe;
-    authorized = ~status.landingInhibited && ~status.abortRequested;
+    directPlanar = ~spatial && isfield(c.experiment,'actionApplication') ...
+        && strcmp(c.experiment.actionApplication,'direct_policy_v1');
+    % The minimal planar task has no landing-authorization guard. A contact
+    % is classified solely by footprint, relative speeds and attitude. The
+    % established optional 3D contract retains its tracker authorization.
+    authorized = directPlanar || (~status.landingInhibited && ~status.abortRequested);
     if ~inFootprint
         reason = 'MISSED_PAD_CONTACT';
     elseif ~authorized
@@ -85,7 +90,9 @@ abortElapsed = 0;
 if status.abortRequested && isfinite(status.abortRequestTime)
     abortElapsed = t0+dt-status.abortRequestTime;
 end
-if status.abortRequested && abortElapsed >= s.backupDurationLimit ...
+directPlanar = ~spatial && isfield(c.experiment,'actionApplication') ...
+    && strcmp(c.experiment.actionApplication,'direct_policy_v1');
+if ~directPlanar && status.abortRequested && abortElapsed >= s.backupDurationLimit ...
         && current.z-padCurrent.z >= s.abortHoldHeight ...
         && abs(current.vz)<=s.abortVerticalSpeedTolerance
     event = makeSimple('SAFE_ABORT',t0+dt);

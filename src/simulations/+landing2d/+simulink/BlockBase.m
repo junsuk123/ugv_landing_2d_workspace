@@ -70,5 +70,22 @@ classdef (Abstract) BlockBase < matlab.System
         function n = width(kind)
             n = landing2d.simulink.signalCodec('size',kind);
         end
+        function p = perceptionOf(v)
+            % 인지 상태 복원: o_t의 schemaVersion은 부가 정보 Gamma의 version.
+            p = landing2d.simulink.signalCodec('perception',v);
+            if p.present
+                p.O.schemaVersion = landing2d.simulink.episodeServer('current') ...
+                    .env.observationContext.version;
+            end
+        end
+        function v = perceptionVector(O,memory)
+            % 공통 관측이 없는 설정(3차원·구 설정)은 present = 0인 영벡터.
+            if isempty(memory)
+                v = zeros(landing2d.simulink.signalCodec('size','perception'),1);
+            else
+                v = landing2d.simulink.signalCodec('perception', ...
+                    struct('present',true,'O',O,'memory',memory));
+            end
+        end
     end
 end

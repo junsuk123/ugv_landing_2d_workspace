@@ -164,6 +164,7 @@ blocks = { ...
     'Decision context','DecisionContextBlock',fast; ...
     'Termination check','TerminationBlock',fast; ...
     'Commit','CommitBlock',fast; ...
+    'Perception update','PerceptionUpdateBlock',fast; ...
     'Decision output','DecisionOutputBlock', ...
         struct('SampleTime',Td,'StateDim',num2str(stateDim))};
 for k = 1:size(blocks,1)
@@ -206,6 +207,10 @@ for name = {'status','clock','snapshot'}
     w('Episode state',name{1},'Decision latch',name{1});
     w('Episode state',name{1},'Decision output',name{1});
 end
+% 평면 공통 관측 o_t와 기억: 감독기 입력, 결정 구간 끝 갱신, 정책 관측
+for d = {'Packet builder','Perception update','Decision output'}
+    w('Episode state','perception',d{1},'perception');
+end
 w('Episode state','drone','Drone scope',1);
 w('Episode state','pad','UGV scope',1);
 w('Episode state','measurement','Camera scope',1);
@@ -218,10 +223,12 @@ w('Decision latch','status','Packet builder','status');
 w('Decision latch','status','Contact check','status');
 w('Decision latch','status','Decision context','status');
 w('Decision latch','clock','Packet builder','clock');
+w('Decision latch','clock','Camera sensor','clock');
 w('Decision latch','clock','Commit','clock');
 w('Decision latch','snapshot','Commit','snapshot');
 for d = {'Drone dynamics','UGV trajectory','Contact check','Camera sensor', ...
-        'Pad tracker','Decision context','Termination check','Commit'}
+        'Pad tracker','Decision context','Termination check','Commit', ...
+        'Perception update'}
     w('Decision latch','timing',d{1},'timing');
 end
 % 감독기 -> 동역학
@@ -250,14 +257,19 @@ w('Pad tracker','trackNext','Commit','trackNext');
 w('Decision context','statusNext','Termination check','status');
 w('Decision context','statusNext','Commit','statusNext');
 w('Termination check','event','Commit','terminalEvent');
-% 확정 -> 메모리
+% 확정 -> 결정 구간 끝 인지 갱신 -> 메모리
+for name = {'droneCommit','padCommit','clockCommit','statusCommit'}
+    w('Commit',name{1},'Perception update',name{1});
+end
 commitPorts = {'droneCommit','padCommit','measurementCommit','trackCommit', ...
-    'statusCommit','clockCommit','snapshotCommit'};
+    'clockCommit','snapshotCommit'};
 memoryPorts = {'droneNext','padNext','measurementNext','trackNext', ...
-    'statusNext','clockNext','snapshotNext'};
+    'clockNext','snapshotNext'};
 for k = 1:numel(commitPorts)
     w('Commit',commitPorts{k},'Episode state',memoryPorts{k});
 end
+w('Perception update','statusNext','Episode state','statusNext');
+w('Perception update','perceptionNext','Episode state','perceptionNext');
 % 결정 출력
 w('Decision output','observation','observation',1);
 w('Decision output','reward','reward',1);
@@ -268,8 +280,8 @@ w('Decision output','outcome','Episode outcome log',1);
 groupBlocks(path,'Vehicle (supervisor + dynamics)', ...
     {'Safety supervisor','Drone dynamics'});
 groupBlocks(path,'UGV pad',{'UGV trajectory'});
-groupBlocks(path,'Perception (camera noise + tracker)', ...
-    {'Camera sensor','Pad tracker'});
+groupBlocks(path,'Perception (camera noise + tracker + marker camera)', ...
+    {'Camera sensor','Pad tracker','Perception update'});
 groupBlocks(path,'Mission logic',{'Decision latch','Packet builder', ...
     'Contact check','No prior event','Decision context', ...
     'Termination check','Commit'});
@@ -363,7 +375,9 @@ mode = c.graphState.stateRepresentation;
 if strcmp(mode,'baseline')
     n = c.experiment.observationSchema.dimension;
 else
-    schema = landing2d.graphstate.contextSchema(mode);
+    schema = landing2d.graphstate.schemaFor(mode, ...
+        landing2d.graphstate.graphDimension(c.graphState), ...
+        landing2d.graphstate.graphSource(c.graphState));
     n = schema.inDim*schema.nNodes;
 end
 end

@@ -3,8 +3,10 @@
 ## 요약
 
 - 세 상태 표현 정책에 단일 보상 함수 공통 적용, 모델별 보상 변경 부재
+- 현행 판: reward_v3 (2026-10-08, 평면 계약), 변경 근거·측정 결과 11절
 - 결정 단위 보상: 종료 보상 $-$ 유계 running cost $+$ readiness 진척 $+$ potential shaping의 4항 분해
-- potential 항: 종료 potential 0의 semi-MDP potential-based shaping, 최적 정책 불변
+- goal 비용 기준점: 패드 직상방 대신 카메라 광축 정렬점 $e_x^{*}(h)=h\tan30^\circ$ (전방 아래 60° 마커 카메라의 가시 조건)
+- potential 항: goal 비용 $+$ UGV 속도 정합 비용, 종료 potential 0의 semi-MDP potential-based shaping, 최적 정책 불변
 - readiness 항: 할인 가중 평균 readiness 차이로 환원되는 유계 dense 신호, hover 누적 보상 부재
 - running cost: 항별 $[0,1]$ 유계, 임무 전체 할인 합 최대 약 2.05
 - 종료 보상 순서: SUCCESS $>$ TASK_TIMEOUT $>$ SAFE_ABORT $>$ 실패 4종, 공칭 조건에서 할인 후에도 순서 유지
@@ -25,7 +27,12 @@
 | $\tau_\gamma$ | 할인 시정수 | 70 s |
 | $w_g,\;w_v,\;w_u$ | running cost 가중치 | 2.0, 1.0, 0.25 |
 | $w_r$ | readiness 진척 가중치 | 8.0 |
-| $w_p$ | potential 가중치 | 2.0 |
+| $w_p$ | goal potential 가중치 | 4.0 (reward_v2: 2.0) |
+| $w_s$ | UGV 속도 정합 potential 가중치 | 4.0 |
+| $L_s$ | 속도 정합 비용 척도 | 1.0 m/s |
+| $c_{spd,t}$ | 속도 정합 비용 | $[0,1)$ |
+| $\phi_c$ | 수평 자세 광축의 수직 하향 대비 전방 기울기 ($=-$`cameraPitchOffset`) | 30° |
+| $e_x^{*}(h)=h^{+}\tan\phi_c$ | 카메라 광축 정렬점 (패드 중심이 수평 자세 광축 위) | — |
 | $\Phi_t$ | shaping potential | — |
 | $L_x,\;L_h$ | goal 비용 수평·고도 길이 척도 | 3 m, 4 m |
 | $\varpi$ | goal 비용 수평 비중 | 0.65 |
@@ -67,14 +74,19 @@ $$
 $$
 c_{goal,t}=\varpi\,\frac{n_x}{1+n_x}+(1-\varpi)\,\frac{n_h}{1+n_h},
 \qquad
-n_x=\left(\frac{e_x}{L_x}\right)^2,\quad
-n_h=\left(\frac{h}{L_h}\right)^2
+n_x=\left(\frac{e_x-e_x^{*}(h)}{L_x}\right)^2,\quad
+n_h=\left(\frac{h}{L_h}\right)^2,\quad
+e_x^{*}(h)=h^{+}\tan\phi_c
 $$
 
 - $n_x,n_h$: 정규화 제곱 오차 (본 절 한정 신규 기호)
+- 기준점 $e_x^{*}(h)$: 패드 중심이 수평 자세 광축 위에 놓이는 수평 오차, reset 시작 위치($x_D=x_P+h\tan(\texttt{cameraPitchOffset})$)와 같은 정의, $h\to0$에서 $e_x^{*}\to0$ (접지 목표 불변)
+- 가시 띠 (수평 자세, 세로 FOV 63.95°): $e_x\in[-0.035h,\;1.879h]$, 패드가 기체 앞쪽에 있어야 마커 검출 가능
+- reward_v2 결함: 기준점 $e_x=0$(패드 직상방)이 고고도에서 가시 띠 경계, potential이 패드 위로의 비행을 보상 — 정렬점에서 직상방까지의 potential 이득 $w_p\varpi\,q(e_x^{*}/L_x)$ = 0.48 ($h=4$ m), 0.74 ($h=6$ m), 0.91 ($h=8$ m) vs 패드 상실 시야 비용 초당 $w_v/T_{ref}=0.014$, $q(u)=u^2/(1+u^2)$
 - 유계 변환 $u/(1+u)$: 원거리 오차의 비용 포화, 초기 오차 크기에 따른 gradient 폭주 억제
 - 수평·고도 분리 가중: 고도 감소만으로 수평 이탈 상쇄 방지
 - $\varpi=0.65$: 수평 추종 우선, 수평 정렬 이전 하강 억제
+- 3차원 옵션(하향 원뿔 카메라): $e_x^{*}=0$ 유지 (reward_v2)
 
 ### 2.2 View cost
 
@@ -85,7 +97,7 @@ c_{view,t}=\begin{cases}
 \end{cases}
 $$
 
-- $\varphi=50^\circ$, $\tilde\beta_t$: 결정 종료 시점 측정 bearing
+- $\varphi$: 평면 계약 63.95° (마커 카메라 세로 FOV, `planarCameraGeometry`), 3차원 옵션 50°, $\tilde\beta_t$: 결정 종료 시점 측정 bearing (광축 기준)
 - 종료 사건 결정: 사건 직전 마지막 측정 사용, 접촉 이후 측정 생성 제외
 - 광축 중심 유지 유도, FOV 경계 접근의 연속 비용, 비가시 상태 최대 비용
 
@@ -125,15 +137,21 @@ $$
 - 결론: 종료 potential 0의 semi-MDP potential-based shaping, 최적 정책 불변
 
 $$
-\Phi_t=\begin{cases}-w_p\,c_{goal,t}, & \text{결정 } t\ \text{비종료},\\ 0, & \text{결정 } t\ \text{종료}\end{cases}
+\Phi_t=\begin{cases}-w_p\,c_{goal,t}-w_s\,c_{spd,t}, & \text{결정 } t\ \text{비종료},\\ 0, & \text{결정 } t\ \text{종료}\end{cases}
+\qquad
+c_{spd,t}=\frac{(\Delta v_x/L_s)^2}{1+(\Delta v_x/L_s)^2},
 \qquad
 F_t=\gamma_{\Delta t}\Phi_t-\Phi_{t-1}
 $$
 
+- $\Delta v_x$: UGV 대비 수평 상대속도 (참값, 보상 전용)
 - 할인 합의 telescoping: $\sum_{t=1}^{N}\Gamma_{t-1}F_t=\Gamma_N\Phi_N-\Phi_0=-\Phi_0$
 - $-\Phi_0$: 초기 상태만의 함수, 정책 무관 상수
-- 결과: 가변 결정 시간 포함 최적 정책 불변 (Ng·Harada·Russell 1999의 potential-based shaping 조건)
+- 결과: 가변 결정 시간 포함 최적 정책 불변 (Ng·Harada·Russell 1999의 potential-based shaping 조건), 부분 관측 정책 집합에서도 궤적별 telescoping으로 정책 간 기대 return 순서 불변
 - 역할: 접근 진척 신호의 시간 재분배, 희소 종료 보상의 credit assignment 보조
+- 속도 정합 항의 역할: UGV 가속 구간($a_2$ 최대 1.5 m/s², 최대 4 s)의 즉시 신호 — reward_v2의 추종 관련 dense 신호는 running cost(초당 최대 0.046)와 potential 변화(접근 전체 최대 2)뿐, 종료 보상 분산($\pm25\sim40$)에 묻혀 일반 PPO의 상대속도 추종 미학습
+- 규모: $|\Phi_t|\le w_p+w_s=8$, 종료 보상 차(SUCCESS−TASK_TIMEOUT 37)보다 작음, 할인 artifact $-(1-\gamma_{\Delta t})\Phi_t\le0.011$/결정은 종료 시 $-\Phi_{N-1}$로 정확히 상쇄
+- 3차원 옵션: $w_p=2$, $w_s=0$ (reward_v2)
 
 ### 4.2 Landing readiness
 
@@ -265,10 +283,11 @@ $$
 | 장기 손실 판정 시간 $T_{loss}$ | $12-9\ell$ s | 12 s | 3 s |
 | $v_1,a_2$ 범위 배율 | $0.15+0.85\ell$ | 0.15 | 1.0 |
 | $T_1$ 범위 | $[0.10,0.30]+([0.5,4]-[0.10,0.30])\ell$ s | 0.10–0.30 s | 0.5–4 s |
-| 초기 고도 배율 | $[0.025,0.05]+([1,1]-[0.025,0.05])\ell$ | 0.025–0.05 | 1.0 |
+| 초기 고도 배율 (평면) | $[0.1125,0.075]+([1,1]-[0.1125,0.075])\ell$ | 0.075–0.1125 | 1.0 |
 
 - $B_{fail}(\ell)$: $\max(B_{fail}^{nom},-20)+(B_{fail}^{nom}-\max(B_{fail}^{nom},-20))\ell$, $B_{fail}^{nom}=-40$
-- 초기 고도: 공칭 $h_0\in[4,8]$ m에 배율 적용, $\ell=0$에서 0.1–0.4 m
+- 초기 고도: 공칭 $h_0\in[4,8]$ m에 배율 적용, 평면 $\ell=0$에서 0.45–0.6 m (전방 아래 카메라 사각지대 0.35 m 이하 회피), 3차원 옵션 배율 0.025–0.05 (0.1–0.4 m)
+- 평면 학습 episode의 기준 구동기 인계 (descent prefix): 확률 $\max(1-\ell_e,0.3)$, 인계 고도 0.1–0.3 m 또는 무작위 2–15 s 시각, 구동기 구간 학습 전이 제외
 - SUCCESS·SAFE_ABORT·TASK_TIMEOUT: 완화 부재
 - 실패 보상 하한 −20: SAFE_ABORT −15 미만 유지, 완화 단계에서도 위험 접촉의 중단 대비 우대 부재
 - 무작위 초기 정책의 단일 충돌이 다수 근접 접촉 전이의 신호를 상쇄하는 현상 완화
@@ -277,11 +296,13 @@ $$
 
 난이도 진행:
 
-- 승급: 평가 창(25 iteration) 현재 난이도 학습 착륙률 $\ge0.10$의 3창 연속 시 $\ell\leftarrow\min(1,\ell+0.10)$
+- 승급 (평면): 평가 창(25 iteration) 현재 난이도 학습 착륙률 $\ge0.30$의 3창 연속 시 $\ell\leftarrow\min(1,\ell+0.10)$, $<0.10$의 2창 연속 시 $\ell\leftarrow\max(0,\ell-0.10)$ (3차원 옵션: $\ge0.10$ 승급, 강등 없음)
 - 예정 하한: iteration $i\le750$에서 0, 이후 $(i-750)/1250$ 선형 증가, iteration 2000에서 1.0
 - 갱신: $\ell\leftarrow\max(\ell,\ \text{예정 하한})$
-- batch 6 episode 구성: easy 1 ($\ell=0$), bridge 1 ($\ell/2$), current 4 ($\ell$)
-- easy replay: 학습 종료까지 $B_{fail}=-20$ 유지, 접지 사례 망각 방지
+- batch 6 episode 구성: easy 1 ($\ell_e=0$), bridge 1 ($\ell_e=\ell/2$), current 4 ($\ell_e=\ell$), $\ell_e$: episode 재생 수준 (본 절 한정 신규 기호)
+- 재생 계약 (평면, `rl.curriculumReplayContract='current'`): 초기 고도·UGV 운동($v_1,a_2,T_1$)은 $\ell_e$, 접지 속도 한계·실패 보상·$T_{loss}$는 현재 $\ell$ 적용
+- 재생 계약 근거: 저고도 easy 재생 상태와 공칭 episode의 최종 하강 상태는 관측상 구별 불가, 이전 규칙(전 항목 $\ell_e$)은 같은 상태의 접지를 재생에서 SUCCESS(접지 한계 2배, $B_{fail}=-20$)·공칭에서 UNSAFE_CONTACT($-40$)로 판정, 학습 종료까지 상충 결과 신호 유지
+- easy replay 역할: 저고도 시작의 접지 사례 노출, 망각 방지 (3차원 옵션: 전 항목 $\ell_e$, 학습 종료까지 $B_{fail}=-20$)
 
 한계:
 
@@ -313,7 +334,8 @@ $$
 | $c_{goal},c_{view},c_{ctrl}$ | 동일 |
 | readiness 진척·potential shaping | 동일 |
 | 종료 보상·종료 판정 순서 | 동일 |
-| 커리큘럼 완화 일정 | 동일 |
+| 커리큘럼 완화 일정·재생 계약 | 동일 |
+| PPO MLP 입력 running 표준화 | 동일 (일반 PPO: 24차원 $o_t$, 그래프 비교군: raw semantic bypass 입력) |
 | 할인율 $\gamma_{\Delta t}$ | 동일 |
 | 안전 감독기 $\Pi_s$ | 동일 |
 | 선택 점수 $J$ | 동일 (R-GAT 관계 적응 구간 선택 여유 5.0만 추가) |
@@ -331,3 +353,25 @@ $$
 | 커리큘럼 정체 | 예정 난이도 하한의 공칭 과제 강제 노출 |
 | 고난이도 전환 후 접지 망각 | easy·bridge replay |
 | 완화 실패 보상의 고속 하강 지름길 | 완화 시작값 −20 제한 (SAFE_ABORT 미만 유지) |
+| 전방 아래 카메라 전환 후 goal 기준점 $e_x=0$이 고고도 시야 밖, potential이 패드 위 비행(패드 상실) 보상 (reward_v2) | 광축 정렬점 $e_x^{*}=h\tan30^\circ$ 기준 goal 비용 (reward_v3) |
+| UGV 가속 구간 추종의 즉시 신호 부재, 일반 PPO의 상대속도 추종 미학습·검증 착륙 0% (reward_v2, 2500회) | UGV 속도 정합 potential $w_s=4$, goal potential $w_p$ 2→4 (reward_v3) |
+| 24차원 $o_t$의 상대 운동이 절대 속도 연성 척도($v/(|v|+10)$)의 미세 차이로만 표현, 일반 MLP 학습 지연 | PPO 공통 MLP 입력 running 표준화 (정책 입력 불변, 11절) |
+| easy·bridge 재생의 완화 접지 계약이 학습 종료까지 공칭 접지와 상충 | 재생 계약: 시작 조건만 재생 수준, 접지·실패·장기 손실 계약은 현재 수준 (7절) |
+
+## 12. 중간 진단: direct-PPO vertical approach shaping
+
+- Measurement before the change: after removing the supervisor, scripted descent prefix, curriculum replay, raw bypass, residual gate, and staged graph adaptation, a 120-iteration R-GAT run produced 0% landing on both validation and held-out test; held-out outcomes were 0% unsafe, 15% safe abort, and 85% timeout (mean return -10.558).
+- Diagnosis: reward_v3 learned horizontal tracking but supplied too little gradient for entering a controlled descent from the full 4--8 m initial-height distribution. The policy converged toward hovering rather than discovering contact.
+- Common change: add a bounded vertical-approach cost to the potential only. The accepted conservative candidate uses `vz* = -min(0.4, 0.5*h)` m/s, `verticalPotentialWeight = 2`, and `verticalSpeedLength = 0.5` m/s. The target tapers continuously to zero at contact. The rejected aggressive candidate (weight 6, target 0.6 m/s) reached 45% held-out unsafe contacts at 120 iterations.
+- Invariants: terminal rewards, running costs, readiness, sensors, observation, action limits, and termination are unchanged. The term is applied identically to every planar comparison arm. Because it is a discounted potential difference, hovering cannot accumulate a per-step bonus.
+- Direct-PPO tuning: Actor learning rate 2e-4, Critic 5e-4, R-GAT encoder 1e-4, entropy weight 0.004, initial log standard deviation -1.0. A 500-iteration R-GAT diagnostic improved capture to 80% but still produced 0% held-out landing (8% unsafe, 92% timeout at the accidentally returned final policy). The run exposed and fixed a checkpoint-eligibility bug: direct full-difficulty evaluations were incorrectly rejected because their curriculum level is NaN; direct-PPO checkpoints are now always eligible for validation selection.
+
+## 13. 현행 reward_v4: approach-manifold consistency and guard removal
+
+The forward-down camera target is the manifold `ex = tan(30 deg)*h`. Its kinematic derivative requires `relativeVx = tan(30 deg)*vz`; the previous zero-relative-speed potential contradicted this during descent. reward_v4 instead targets `relativeVx* = tan(30 deg)*vz - 0.35*(ex-tan(30 deg)*h)`, clipped to 1 m/s. The vertical target is `vz*=-min(0.4,0.8h)` with weight 4.
+
+The remaining planar landing-authorization timer was also removed. It expired after 3 s, shorter than the approximately 3.16 s ideal travel time from its 0.5 m entry height to the 0.04 m contact plane under the safe `0.8h` target. Planar contact now uses only footprint, relative-speed and attitude limits; the optional 3D authorization contract is unchanged.
+
+Measured with the direct node-preserving R-GAT, 500 updates x 6 episodes, train seed 1: the validation-selected update 225 achieved 73.3% landing on 30 validation seeds and 68.0% landing on 50 held-out test seeds. Held-out unsafe was 10.0%, timeout 22.0%, safe-abort 0%, capture 74.1%, and mean return 17.686. Artifact: `results/tune_guardless_rgat_v3_500.mat`.
+
+The same reward, seed and 3,000-episode budget with the plain 12-D PPO selected update 25 and achieved 0% landing on both validation and held-out test; held-out unsafe was 0%, timeout 100%, capture 31.4%, and mean return -6.573. Artifact: `results/tune_guardless_ppo_500.mat`. This paired result separates the common reward change from the ontology/R-GAT representation gain.

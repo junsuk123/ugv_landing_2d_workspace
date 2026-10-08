@@ -35,7 +35,7 @@ classdef TrainingEpisodeSource < handle
         function obj = TrainingEpisodeSource(c)
             obj.Config = c;
             obj.Rl = c.rl;
-            if strcmp(c.rl.curriculumMode,'performance')
+            if ~isDirect(c.rl) && strcmp(c.rl.curriculumMode,'performance')
                 obj.CurriculumLevel = 0;
             end
         end
@@ -67,8 +67,15 @@ classdef TrainingEpisodeSource < handle
             end
             k = obj.BatchIndex;
             level = obj.BatchLevels(k);
-            [episodeConfig,heightRange] = landing2d.rl.trainingEpisodeConfig( ...
-                obj.Config,obj.BatchIteration,level);
+            % Replay episodes keep their easy start; the touchdown/terminal
+            % contract follows the current level (rl.curriculumReplayContract).
+            if isDirect(obj.Rl)
+                episodeConfig = obj.Config;
+                heightRange = obj.Config.experiment.scenario.heightRange;
+            else
+                [episodeConfig,heightRange] = landing2d.rl.trainingEpisodeConfig( ...
+                    obj.Config,obj.BatchIteration,level,obj.BatchLevel);
+            end
             spec = struct('config',episodeConfig,'seed',obj.BatchSeeds(k), ...
                 'resetOptions',struct('scenarioHeightRange',heightRange), ...
                 'actions',[],'iteration',obj.BatchIteration, ...
@@ -134,9 +141,17 @@ classdef TrainingEpisodeSource < handle
             end
             count = obj.Rl.episodesPerIteration;
             obj.BatchSeeds = randi(obj.Stream,intmax('int32'),count,1);
-            obj.BatchLevels = landing2d.rl.curriculumBatchLevels(obj.Rl, ...
-                obj.BatchLevel,count);
+            if isDirect(obj.Rl)
+                obj.BatchLevels = ones(count,1);
+            else
+                obj.BatchLevels = landing2d.rl.curriculumBatchLevels(obj.Rl, ...
+                    obj.BatchLevel,count);
+            end
             obj.BatchIndex = 1;
         end
     end
+end
+
+function tf=isDirect(rl)
+tf=isfield(rl,'trainingRegime') && strcmp(rl.trainingRegime,'direct_ppo_v1');
 end

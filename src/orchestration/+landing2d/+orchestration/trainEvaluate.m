@@ -6,12 +6,16 @@ if nargin < 1, options=struct(); end
 projectRoot=landing2d.orchestration.projectRoot();
 cfg=landing2d.config.primaryConfig(projectRoot);
 executionMode='full';
-requestedModes={};
+armOptions=struct();
 if isfield(options,'executionMode')
     executionMode=char(options.executionMode); options=rmfield(options,'executionMode');
 end
-if isfield(options,'modes')
-    requestedModes=cellstr(options.modes); options=rmfield(options,'modes');
+% Planar default: the registered methods (landing2d.config.methodRegistry) for
+% one training seed and one graph seed; 'modes' keeps the legacy ablation arms.
+for name={'modes','methods','trainSeed','graphSeed'}
+    if isfield(options,name{1})
+        armOptions.(name{1})=options.(name{1}); options=rmfield(options,name{1});
+    end
 end
 if isfield(options,'rlRetrain')
     cfg.rl.retrain=logical(options.rlRetrain); options=rmfield(options,'rlRetrain');
@@ -80,31 +84,31 @@ end
 landing2d.config.validateConfig(cfg);
 dashboardOn=cfg.showLiveDashboard && cfg.figureVisible;
 if dashboardOn, landing2d.viz.liveDashboard('init',cfg); end
-modes={'baseline','context_flat','context_rgat'};
-if ~isempty(requestedModes), modes=requestedModes; end
+armList=landing2d.config.comparisonArms(cfg,armOptions);
 validModes={'baseline','context_flat','context_node_pool','context_gat','context_rgat'};
-assert(all(ismember(modes,validModes)),'landing2d:AblationMode', ...
+assert(all(ismember({armList.representation},validModes)),'landing2d:AblationMode', ...
     'Unsupported V2 comparison mode requested.');
-labels=cellfun(@labelForMode,modes,'UniformOutput',false);
-nMethods=numel(modes);
+modes={armList.representation};
+labels={armList.label};
+nMethods=numel(armList);
 agents=cell(1,nMethods); histories=cell(1,nMethods);
 results=cell(1,nMethods); infos=cell(1,nMethods);
 testResults=cell(1,nMethods); testInfos=cell(1,nMethods);
 profiles=cell(1,nMethods); fingerprints=cell(1,nMethods);
+runs=cell(1,nMethods);
 for i=1:nMethods
-    arm=landing2d.graphstate.applyStateRepresentation(cfg,modes{i});
-    arm.graphState.stateRepresentation=modes{i};
-    arm.rl.policyFile=sprintf('ppo_%s_planar_visibility_v2.mat',modes{i});
-    arm.dashboardAgentLabel=labels{i};
+    arm=armList(i).config;
     fingerprints{i}=landing2d.environment.taskFingerprint(arm);
-    fprintf('[%d/%d] %s (%s)\n',i,nMethods,labels{i},modes{i});
+    fprintf('[%d/%d] %s (%s)\n',i,nMethods,labels{i},armList(i).id);
+    checkpointFile='';
     if strcmp(executionMode,'full')
-        [agents{i},histories{i}]=landing2d.rl.loadOrTrainAgent(arm,trainer);
+        [agents{i},histories{i},checkpointFile]=landing2d.rl.loadOrTrainAgent(arm,trainer);
     else
         [agents{i},trainInfo]=landing2d.rl.trainAgent(arm,trainer);
         histories{i}=trainInfo;
         histories{i}.smokeOnly=true;
     end
+    runs{i}=landing2d.rl.runIdentity(agents{i},arm,checkpointFile);
     [results{i},~,infos{i}]=landing2d.rl.evaluateV2(agents{i},arm,[]);
     testCount=min(arm.experiment.testEpisodeCount, ...
         numel(arm.experiment.manifest.testSeeds));
@@ -133,10 +137,17 @@ summaryTable=table(labels',modes',meanReturn,successRate,unsafeRate,safeAbortRat
     'VariableNames',{'Method','StateRepresentation','MeanReturn', ...
     'SuccessRate','UnsafeRate','SafeAbortRate','TimeoutRate', ...
     'ParameterCount','InferenceMs'});
+if isfield(armList(1).config,'comparisonRun')
+    % Registered planar methods: identify each run (method, seeds, graph).
+    runTable=struct2table([runs{:}]);
+    summaryTable=[runTable(:,{'MethodId'}),summaryTable(:,1:2), ...
+        runTable(:,{'TrainSeed','GraphSeed','GraphHash','RelationalPathActive'}), ...
+        summaryTable(:,3:end)];
+end
 disp(summaryTable);
 comparison=struct('schemaVersion','planar_visibility_comparison_v2', ...
     'executionMode',executionMode,'trainingBackend',trainingBackend, ...
-    'agents',{agents},'training',{histories}, ...
+    'runs',{runs},'agents',{agents},'training',{histories}, ...
     'results',{results},'info',{infos},'validationResults',{results}, ...
     'validationInfo',{infos},'testResults',{testResults}, ...
     'testInfo',{testInfos},'selectionSplit','validation', ...
@@ -170,16 +181,5 @@ end
 if dashboardOn
     landing2d.viz.liveDashboard('done',struct('message', ...
         sprintf('planar_visibility_v2 %s complete',executionMode)));
-end
-end
-
-function label=labelForMode(mode)
-switch mode
-    case 'baseline', label='Low-level PPO';
-    case 'context_flat', label='Semantic-flat PPO';
-    case 'context_node_pool', label='Ontology node-pool PPO';
-    case 'context_gat', label='Single-relation GAT PPO';
-    case 'context_rgat', label='Ontology R-GAT PPO';
-    otherwise, label=mode;
 end
 end

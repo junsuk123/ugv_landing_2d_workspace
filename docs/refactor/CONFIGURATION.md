@@ -122,9 +122,13 @@
 ## 6. 보상
 
 - 핵심: 실제 상태 기반 공통 보상, 진행량 shaping과 1회 종료 보너스 분리
+- 판: reward_v3 (평면), 3차원 옵션은 reward_v2 ($w_p=2.0$, 광축 정렬점·속도 정합 항 없음)
 
 | 기호 | 의미 | 값 | 단위 |
 |---|---|---:|---|
+| $\phi_c$ | goal 비용 광축 정렬점 각도, $e_x^{*}=h\tan\phi_c$ (`goalCameraAim`) | 30 | ° |
+| $w_s$ | UGV 속도 정합 potential 가중치 (`velocityPotentialWeight`) | 4.0 | — |
+| $L_s$ | 속도 정합 비용 척도 (`velocityLength`) | 1.0 | m/s |
 | $T_{ref}$ | running cost 기준 시간 | 70 | s |
 | $\tau_\gamma$ | 할인 시정수 | 70 | s |
 | $L_x$ | 목표 비용 수평 기준 길이 | 3 | m |
@@ -135,7 +139,7 @@
 | $w_u$ | 제어 비용 가중치 | 0.25 | — |
 | $w_r$ | 착륙 준비도 진행량 가중치 | 8.0 | — |
 | $h_r$ | 착륙 준비도 기준 고도 | 1.0 | m |
-| $w_p$ | potential 가중치 | 2.0 | — |
+| $w_p$ | goal potential 가중치 | 4.0 | — |
 | — | SUCCESS 종료 보너스 | +25 | — |
 | — | SAFE_ABORT 종료 보너스 | −15 | — |
 | — | TASK_TIMEOUT 종료 보너스 | −12 | — |
@@ -163,6 +167,9 @@
 | $G_{\max}$ | gradient norm 상한 | 1.0 | — |
 | — | Critic 단독 학습 초기 반복 | 2 | 회 |
 | — | MLP 은닉층 | 48×2 | 노드 |
+| — | MLP 입력 running 표준화 (`inputNormalization`, Actor·Critic 공유 통계) | 사용 | — |
+| $\varepsilon_n$ | 표준화 분산 하한 ($\sigma_{eff}=\sqrt{\sigma^2+\varepsilon_n}$) | 0.01 | — |
+| — | 표준화 출력 자르기 | ±5 | — |
 | — | 검증 평가 주기 | 25 | 회 |
 | — | 모방학습 | 제외 | — |
 | — | 관계 경로 학습 시작 | 전체 반복의 90% 이후 | — |

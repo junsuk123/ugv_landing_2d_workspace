@@ -1,9 +1,29 @@
-function [agent,history,lastAgent] = ppoTrain(agent,c,rs)
+function [agent,history,lastAgent,snapshots] = ppoTrain(agent,c,rs)
 % PPOTRAIN  클리핑 목적함수 PPO. 초기 정책은 모방 학습 결과를 그대로 사용합니다.
 % 평가 점수가 가장 좋은 정책을 보관해 마지막에 돌려줍니다.
+% history에는 평가 시점까지의 누적 학습 전이 수(environmentSteps, 결정 단위),
+% 에피소드 수, 경과 시간을 기록합니다. snapshots는 학습 진행에 따른 정책
+% 일관성 평가용 중간 정책(평가 전용, c.consistency.trainingSnapshots개 내외)입니다.
 rl = agent.rl;
+directTraining = isfield(rl,'trainingRegime') ...
+    && strcmp(rl.trainingRegime,'direct_ppo_v1');
+snapshotCount = 0;
+if isfield(c,'consistency') && isfield(c.consistency,'trainingSnapshots')
+    snapshotCount = c.consistency.trainingSnapshots;
+end
+snapshots = struct('iteration',{},'environmentSteps',{},'episodes',{}, ...
+    'wallSeconds',{},'agent',{});
+environmentSteps = 0; episodes = 0; wall = tic;
 gs = c.graphState;
 nCases = size(c.scenarioSpeeds,1);
+% Per-episode training draws (environment seed, case) use their own stream when
+% rl.episodeStreamSeedOffset is set (planar contract), so every method with the
+% same training seed trains on the same episode sequence; minibatch shuffles,
+% whose length depends on each policy's episode lengths, keep using RS.
+episodeRs = rs;
+if isfield(rl,'episodeStreamSeedOffset')
+    episodeRs = RandStream('threefry','Seed',rl.seed+rl.episodeStreamSeedOffset);
+end
 % 망 본체와 그래프 부호기는 Adam 상태를 따로 둡니다. 학습률이 다르기 때문입니다.
 % 기준 모델에서는 부호기가 비어 있어 아래 두 줄이 아무 일도 하지 않고,
 % 본체 쪽 갱신은 부호기를 넣기 전과 완전히 같습니다.
@@ -29,7 +49,7 @@ windowNominalEpisodeCount = 0;
 windowCurrentSuccessCount = 0;
 windowCurrentEpisodeCount = 0;
 curriculumLevel = NaN;
-if strcmp(rl.curriculumMode,'performance')
+if ~directTraining && strcmp(rl.curriculumMode,'performance')
     curriculumLevel = 0;
 end
 curriculumSuccessStreak = 0;
@@ -58,7 +78,12 @@ history = struct('iteration',0,'score',bestScore, ...
     'nodeMean',bestInfo.nodeMean, ...
     'nodeVariance',bestInfo.nodeVariance, ...
     'edgeAttentionMean',bestInfo.edgeAttentionMean, ...
-    'graphSchema',bestInfo.graphSchema);
+    'graphSchema',bestInfo.graphSchema, ...
+    'environmentSteps',0,'episodes',0,'wallSeconds',0);
+if snapshotCount > 0
+    snapshots(end+1) = struct('iteration',0,'environmentSteps',0,'episodes',0, ...
+        'wallSeconds',0,'agent',agent);
+end
 notifyDashboard(c,history(end),rl.ppoIterations);
 if rl.verbose
     fprintf(['  [BC] return %8.2f | select %8.2f | landing %3.0f%%' ...
@@ -80,23 +105,29 @@ for iteration = 1:rl.ppoIterations
     episodeAbort = false(rl.episodesPerIteration,1);
     % 에피소드별 난수 흐름을 미리 뽑습니다. 직렬/병렬 어느 쪽으로 돌려도 같은
     % 흐름을 쓰므로 rl.parallelEpisodes는 결과를 바꾸지 않고 속도만 바꿉니다.
-    episodeSeed = randi(rs,intmax('int32'),rl.episodesPerIteration,1);
-    episodeCase = randi(rs,nCases,rl.episodesPerIteration,1);
-    episodeCurriculum = landing2d.rl.curriculumBatchLevels(rl, ...
-        curriculumLevel,rl.episodesPerIteration);
+    episodeSeed = randi(episodeRs,intmax('int32'),rl.episodesPerIteration,1);
+    episodeCase = randi(episodeRs,nCases,rl.episodesPerIteration,1);
+    if directTraining
+        episodeCurriculum = ones(rl.episodesPerIteration,1);
+    else
+        episodeCurriculum = landing2d.rl.curriculumBatchLevels(rl, ...
+            curriculumLevel,rl.episodesPerIteration);
+    end
     if rl.parallelEpisodes
         parfor e = 1:rl.episodesPerIteration
             [state{e},command{e},logProbability{e},advantage{e}, ...
                 target{e},episodeReturn(e),episodeSuccess(e),episodeAbort(e)] = ...
                 collectEpisode(agent,c,rl, ...
-                episodeCase(e),episodeSeed(e),iteration,episodeCurriculum(e));
+                episodeCase(e),episodeSeed(e),iteration,episodeCurriculum(e), ...
+                curriculumLevel);
         end
     else
         for e = 1:rl.episodesPerIteration
             [state{e},command{e},logProbability{e},advantage{e}, ...
                 target{e},episodeReturn(e),episodeSuccess(e),episodeAbort(e)] = ...
                 collectEpisode(agent,c,rl, ...
-                episodeCase(e),episodeSeed(e),iteration,episodeCurriculum(e));
+                episodeCase(e),episodeSeed(e),iteration,episodeCurriculum(e), ...
+                curriculumLevel);
         end
     end
     windowReturnSum = windowReturnSum+sum(episodeReturn);
@@ -118,9 +149,11 @@ for iteration = 1:rl.ppoIterations
     R = [target{:}];
     A = (A-mean(A))/(std(A)+1e-8);
     n = size(X,2);
+    environmentSteps = environmentSteps+n;
+    episodes = episodes+rl.episodesPerIteration;
     updatePolicy = iteration > rl.valueWarmup;
     gsUpdate = gs;
-    gsUpdate.enableGraphAdaptation = iteration > ceil( ...
+    gsUpdate.enableGraphAdaptation = directTraining || iteration > ceil( ...
         gs.graphAdaptationWarmupFraction*rl.ppoIterations);
     for epoch = 1:rl.ppoEpochs
         order = randperm(rs,n);
@@ -134,6 +167,13 @@ for iteration = 1:rl.ppoIterations
             [agent,valueState,valueEncoderState] = valueStep(agent,valueState, ...
                 valueEncoderState,X(:,index),R(index),rl,gsUpdate);
         end
+    end
+    % Running input statistics follow the collected policy states. They are
+    % updated after this iteration's update, so collection and update share
+    % the same normalization, and frozen while the raw path is preserved.
+    if isfield(agent,'inputNorm') && ~shouldPreserveRaw(gsUpdate,agent.encoderSpec)
+        agent.inputNorm = landing2d.rl.updateInputNorm(agent.inputNorm, ...
+            X(1:agent.encoderSpec.stateDim,:));
     end
     isLast = iteration == rl.ppoIterations;
     if mod(iteration,rl.evaluateEvery) == 0 || isLast
@@ -166,7 +206,15 @@ for iteration = 1:rl.ppoIterations
             'nodeMean',info.nodeMean, ...
             'nodeVariance',info.nodeVariance, ...
             'edgeAttentionMean',info.edgeAttentionMean, ...
-            'graphSchema',info.graphSchema); %#ok<AGROW>
+            'graphSchema',info.graphSchema, ...
+            'environmentSteps',environmentSteps,'episodes',episodes, ...
+            'wallSeconds',toc(wall)); %#ok<AGROW>
+        if snapshotCount > 0 && (isLast || floor(iteration*snapshotCount/rl.ppoIterations) ...
+                > floor(snapshots(end).iteration*snapshotCount/rl.ppoIterations))
+            snapshots(end+1) = struct('iteration',iteration, ...
+                'environmentSteps',environmentSteps,'episodes',episodes, ...
+                'wallSeconds',toc(wall),'agent',agent); %#ok<AGROW>
+        end
         notifyDashboard(c,history(end),rl.ppoIterations);
         eligible = history(end).checkpointEligible;
         requiredImprovement = 0;
@@ -284,13 +332,15 @@ hasRelation = isfield(agent.policy,'relation');
 if hasRelation
     raw = g(1:agent.encoderSpec.stateDim,:);
     context = g(agent.encoderSpec.stateDim+1:end,:);
-    [mu,cache] = landing2d.rl.mlpForward(agent.policy.mean,raw);
+    [mu,cache] = landing2d.rl.mlpForward(agent.policy.mean, ...
+        landing2d.rl.mlpInput(agent,raw));
     [relationResidual,relationSlope] = ...
         landing2d.rl.relationPolicyResidual(agent.policy.relation.W, ...
         agent.encoderSpec,raw,context);
     mu = mu+relationResidual;
 else
-    [mu,cache] = landing2d.rl.mlpForward(agent.policy.mean,g);
+    [mu,cache] = landing2d.rl.mlpForward(agent.policy.mean, ...
+        landing2d.rl.mlpInput(agent,g));
 end
 sigma = exp(agent.policy.logStd);
 z = (U-mu)./sigma;
@@ -340,10 +390,12 @@ hasRelation = isfield(agent.value,'relation');
 if hasRelation
     raw = g(1:agent.encoderSpec.stateDim,:);
     context = g(agent.encoderSpec.stateDim+1:end,:);
-    [prediction,cache] = landing2d.rl.mlpForward(agent.value.net,raw);
+    [prediction,cache] = landing2d.rl.mlpForward(agent.value.net, ...
+        landing2d.rl.mlpInput(agent,raw));
     prediction = prediction+agent.value.relation.W*context;
 else
-    [prediction,cache] = landing2d.rl.mlpForward(agent.value.net,g);
+    [prediction,cache] = landing2d.rl.mlpForward(agent.value.net, ...
+        landing2d.rl.mlpInput(agent,g));
 end
 dValue = 2*(prediction-R)/numel(R);
 [netGrads,dBase] = landing2d.rl.mlpBackward(agent.value.net,cache,dValue);
@@ -415,14 +467,36 @@ end
 % ------------------------------------------------- 에피소드 하나 수집 (병렬 단위)
 function [state,command,logProbability,advantage,target,episodeReturn, ...
     episodeSuccess,episodeAbort] = ...
-    collectEpisode(agent,c,rl,index,seed,iteration,curriculumLevel)
+    collectEpisode(agent,c,rl,index,seed,iteration,curriculumLevel,contractLevel)
+% CONTRACTLEVEL: current curriculum level of the run; replay episodes take
+% their touchdown/terminal contract from it (rl.curriculumReplayContract).
+if nargin < 8, contractLevel = NaN; end
 localRs = RandStream('threefry','Seed',seed);
 if isfield(c,'experiment') && isfield(c.experiment,'enabled') && c.experiment.enabled
-    [episodeConfig,scenarioHeightRange] = ...
-        landing2d.rl.trainingEpisodeConfig(c,iteration,curriculumLevel);
+    directTraining = isfield(rl,'trainingRegime') ...
+        && strcmp(rl.trainingRegime,'direct_ppo_v1');
+    if directTraining
+        episodeConfig = c;
+        scenarioHeightRange = c.experiment.scenario.heightRange;
+    else
+        [episodeConfig,scenarioHeightRange] = landing2d.rl.trainingEpisodeConfig( ...
+            c,iteration,curriculumLevel,contractLevel);
+    end
     options = struct('deterministic',false,'collect',true,'rs',localRs, ...
         'scenarioHeightRange',scenarioHeightRange);
+    if directTraining
+        options.descentPrefix = [];
+    else
+        options.descentPrefix = descentPrefix(rl,curriculumLevel,seed);
+    end
     [result,traj] = landing2d.rl.rolloutEpisodeV2(agent,episodeConfig,seed,options);
+    if traj.count == 0
+        % The episode ended during the reference-driver prefix: no policy data.
+        state = zeros(agent.encoderSpec.stateDim,0); command = zeros(rl.actionDim,0);
+        logProbability = zeros(1,0); advantage = zeros(1,0); target = zeros(1,0);
+        episodeReturn = 0; episodeSuccess = false; episodeAbort = false;
+        return;
+    end
     [advantage,target] = landing2d.rl.computeAdvantage(traj,rl);
     state = traj.state;
     command = traj.command;
@@ -443,6 +517,34 @@ logProbability = traj.logProbability;
 episodeReturn = traj.return;
 episodeSuccess=isfinite(r.landingTime);
 episodeAbort=false;
+end
+
+function prefix = descentPrefix(rl,level,seed)
+% Planar descent-prefix curriculum (training only): with probability
+% p*(1-level), at least rl.descentPrefixMinProbability when set, a
+% reference-driver prefix that hands over at a height in
+% rl.descentPrefixHandoverRange or at a time drawn from
+% rl.descentPrefixMaxTimeRange (10 s without it), whichever comes first. Time
+% handovers start the policy from tracked, speed-matched states at altitude
+% after the UGV acceleration; height handovers start it near touchdown. Its own
+% stream leaves the policy-sampling stream untouched.
+prefix = [];
+if ~isfield(rl,'descentPrefixProbability') || ~isfinite(level), return; end
+rs = RandStream('threefry','Seed',double(seed)+7919);
+probability = rl.descentPrefixProbability*(1-min(max(level,0),1));
+if isfield(rl,'descentPrefixMinProbability')
+    probability = max(probability,rl.descentPrefixMinProbability);
+end
+if rand(rs) < probability
+    range = rl.descentPrefixHandoverRange;
+    handoverHeight = range(1)+(range(2)-range(1))*rand(rs);
+    maxTime = 10;
+    if isfield(rl,'descentPrefixMaxTimeRange')
+        times = rl.descentPrefixMaxTimeRange;
+        maxTime = times(1)+(times(2)-times(1))*rand(rs);
+    end
+    prefix = struct('handoverHeight',handoverHeight,'maxTime',maxTime);
+end
 end
 
 function value = finiteOrOne(value)

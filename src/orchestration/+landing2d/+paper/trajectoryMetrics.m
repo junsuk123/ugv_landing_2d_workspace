@@ -1,8 +1,9 @@
 function metric = trajectoryMetrics(result,traj,spec,c,modelLabel,mode)
 % TRAJECTORYMETRICS  Causal rollout stability and landing-inhibit audit.
 % Truth is used only after rollout for evaluation; it is never fed to a
-% policy.  Cause shares partition time for which the policy packet carried
-% landingInhibited=true.
+% policy.  Cause shares partition time for which landing was inhibited during
+% the decision (rollout record traj.landingInhibited; the planar 24-D policy
+% observation carries no decision-context flag).
 % 3D option: tracking/speed errors are horizontal norms, the attitude RMS
 % combines pitch and roll, and the FOV audit uses the conical projection.
 n = traj.count;
@@ -14,8 +15,7 @@ ex = result.xPad(1:n)-result.xDrone(1:n);
 relativeVx = result.vxPad(1:n)-result.vxDrone(1:n);
 height = result.zDrone(1:n)-spec.scenario.padHeight;
 visible = logical(result.visible(1:n));
-inhibitIndex = strcmp(c.experiment.observationSchema.names,'landingInhibited');
-inhibited = traj.observation(inhibitIndex,:)>0.5;
+inhibited = landing2d.paper.inhibitedRecord(traj,c);
 if spatial
     ey = result.yPad(1:n)-result.yDrone(1:n);
     relativeVy = result.vyPad(1:n)-result.vyDrone(1:n);
@@ -74,7 +74,7 @@ supervisorFraction = weighted(traj.safetyIntervened,dt)/duration;
 unsafeDescent = inhibited & result.vzDrone(1:n)<0 & ...
     height<=c.experiment.reward.readinessHeight;
 unsafeDescentExposure = weighted(unsafeDescent,dt);
-jerkRms = controlJerk(traj.appliedAcceleration,dt);
+jerkRms = controlJerk(traj.appliedAccelerationIntervalMean,dt);
 recoveryLatency = reacquisitionLatency(result,events);
 
 % A transparent, bounded stability index.  It does not contain return or

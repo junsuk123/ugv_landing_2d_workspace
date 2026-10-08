@@ -418,10 +418,14 @@ function tableOut = makeParameterTable(agent)
 rows = cell(0,5);
 rows = appendEncoder(rows,'Actor',agent.policy.encoder);
 rows = appendEncoder(rows,'Critic',agent.value.encoder);
-rows(end+1,:) = parameterRow('Actor','relation.W',agent.policy.relation.W, ...
-    'context-to-action residual');
-rows(end+1,:) = parameterRow('Critic','relation.W',agent.value.relation.W, ...
-    'context-to-value residual');
+if isfield(agent.policy,'relation')
+    rows(end+1,:) = parameterRow('Actor','relation.W',agent.policy.relation.W, ...
+        'legacy context-to-action residual');
+end
+if isfield(agent.value,'relation')
+    rows(end+1,:) = parameterRow('Critic','relation.W',agent.value.relation.W, ...
+        'legacy context-to-value residual');
+end
 tableOut = cell2table(rows,'VariableNames', ...
     {'Head','Tensor','Size','FrobeniusNorm','Role'});
 end

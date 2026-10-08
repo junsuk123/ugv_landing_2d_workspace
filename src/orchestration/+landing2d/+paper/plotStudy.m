@@ -52,11 +52,13 @@ for s = 1:numel(study.scenarios)
     feasibility = study.scenarioTable(s,:);
     ax = nexttile(layout,2*s-1); hold(ax,'on'); grid(ax,'on'); box(ax,'on');
     hReference = linspace(0,globalH(2),100);
-    fovReference = hReference*tan(study.config.experiment.sensor.fov/2);
-    plot(ax,fovReference,hReference,':','Color',[.55 .55 .55], ...
-        'HandleVisibility','off');
-    plot(ax,-fovReference,hReference,':','Color',[.55 .55 .55], ...
-        'HandleVisibility','off');
+    % Level-attitude FOV edges in pad-relative coordinates, including the
+    % camera's optical-axis tilt (x_drone - x_pad = h*tan(offset -/+ fov/2)).
+    sensor = study.config.experiment.sensor;
+    for edge = [-1,1]
+        plot(ax,hReference*tan(sensor.cameraPitchOffset+edge*sensor.fov/2), ...
+            hReference,':','Color',[.55 .55 .55],'HandleVisibility','off');
+    end
     for m = 1:numel(study.modes)
         r = study.results{s,m};
         xRelative = r.xDrone-r.xPad;
@@ -224,8 +226,7 @@ m=find(strcmp(study.modes,'context_rgat'),1);
 for s=1:numel(study.scenarios)
     ax=nexttile(layout); hold(ax,'on'); grid(ax,'on'); box(ax,'on');
     tr=study.trajectories{s,m}; r=study.results{s,m}; n=tr.count; t=r.time(1:n);
-    inhibit=tr.observation(strcmp( ...
-        study.config.experiment.observationSchema.names,'landingInhibited'),:)>0.5;
+    inhibit=landing2d.paper.inhibitedRecord(tr,study.config);
     visible=double(r.visible(1:n));
     yyaxis(ax,'left');
     stairs(ax,t,tr.descentEligibility,'LineWidth',1.4,'Color',[.15 .55 .25], ...

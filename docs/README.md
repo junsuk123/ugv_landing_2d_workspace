@@ -6,6 +6,7 @@
 - 공통 기호: [기호 정의](NOTATION_KO.md) 단일 기준
 - 결과 기준: 시험 seed 집합 $\mathcal S_{te}=\{3001,\dots,3100\}$ 100개 평가
 - 수록 범위: 최종 알고리즘·최종 평가 결과 한정
+- 리팩토링 상태: 평면 계약의 카메라(전방 아래 60° 마커 카메라)·시작 위치·안전 감독기 변경, 내용은 [공통 관측](COMMON_OBSERVATION_KO.md) 기준, 다른 문서의 2차원 계약 설명·결과 수치는 변경 전 기준
 
 ## 진입 문서
 
@@ -32,6 +33,8 @@
 | [관계 해석 지표](ONTOLOGY_VIEW_KO.md) | attention·관계 residual·그림 해석 |
 | [Simulink 실행·학습](SIMULINK_KO.md) | 블록 구조·RL Agent 학습·등가성 검증·실행 시간 |
 | [3차원 확장 옵션](SPATIAL_3D_KO.md) | 측방 $y$축·roll 축·원뿔 시야·37차원 packet·실행 방법 |
+| [공통 관측](COMMON_OBSERVATION_KO.md) | UGV 추정 상태·드론 융합 측위·직전 운동 기록 24차원, 평면 PnP·칼만 필터, 부가 정보 $\Gamma$ |
+| [최소 핵심 파이프라인](refactor/MINIMAL_CORE_PIPELINE_KO.md) | 12차원 공통 관측, 관측 전용 온톨로지, direct R-GAT PPO, 보조 장치 제거 및 실측 결과 |
 | [연구 결과 보고](refactor/FINAL_REPORT.md) | 방법·결과·제한·최종 판정 |
 
 ## 그림

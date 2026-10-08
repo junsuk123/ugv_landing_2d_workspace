@@ -13,9 +13,11 @@ function [value,cache]=relationValue(agent,g)
 if isfield(agent.value,'relation')
     raw=g(1:agent.encoderSpec.stateDim,:);
     context=g(agent.encoderSpec.stateDim+1:end,:);
-    [value,cache]=landing2d.rl.mlpForward(agent.value.net,raw);
+    [value,cache]=landing2d.rl.mlpForward(agent.value.net, ...
+        landing2d.rl.mlpInput(agent,raw));
     value=value+agent.value.relation.W*context;
 else
-    [value,cache]=landing2d.rl.mlpForward(agent.value.net,g);
+    [value,cache]=landing2d.rl.mlpForward(agent.value.net, ...
+        landing2d.rl.mlpInput(agent,g));
 end
 end

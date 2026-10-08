@@ -31,7 +31,10 @@ if isfield(q,'eyEstimate')
     q.measuredBearingY = signedScale(q.measuredBearingY,s.fov/2);
     q.predictedBearingY = signedScale(q.predictedBearingY,s.fov/2);
 end
-x = landing2d.sensing.packetVector(q,e.observationSchema);
+% The packet's own schema: the planar policy observation is the common
+% observation (experiment.observationSchema); the 3D option uses this packet.
+x = landing2d.sensing.packetVector(q, ...
+    landing2d.sensing.observationSchema(2+isfield(q,'eyEstimate')));
 end
 
 function y = signedScale(x,scale)

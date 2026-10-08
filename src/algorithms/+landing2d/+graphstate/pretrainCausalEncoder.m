@@ -12,8 +12,8 @@ assert(isempty(intersect(seeds,c.experiment.manifest.validationSeeds)) ...
     && isempty(intersect(seeds,c.experiment.manifest.testSeeds)), ...
     'landing2d:PretrainSplitLeakage','Pretraining seeds overlap evaluation.');
 capacity = count*p.maxDecisions;
-% Dynamic node channels; the last three (remainingTime, bias, typeId) are
-% static context and never reconstructed. 9 planar, 11 with the 3D option.
+% Dynamic node channels; the last three (remainingTime or visionAge, bias,
+% typeId) are static context and never reconstructed. 9 planar, 11 in 3D.
 nDynamic = spec.inDim-3;
 actionCount = numel(landing2d.environment.actionLimits(c));
 states = zeros(spec.stateDim,capacity); n = 0;
@@ -23,7 +23,7 @@ for i = 1:count
     for k = 1:p.maxDecisions
         if env.episodeStatus.terminated, break; end
         n = n+1;
-        states(:,n) = landing2d.graphstate.contextGraph(env.packet,c);
+        states(:,n) = landing2d.graphstate.environmentGraph(env,c);
         action = tanh(0.5*randn(visitRs,actionCount,1));
         [env,~,~,~,~,~] = landing2d.environment.step(env,action);
     end

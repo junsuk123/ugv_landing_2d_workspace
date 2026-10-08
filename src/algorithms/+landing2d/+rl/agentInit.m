@@ -58,5 +58,27 @@ end
 agent.policy.encoder = policyEncoder;
 agent.value.encoder = valueEncoder;
 agent.encoderSpec = spec;
+% Planar PPO: running standardization of the MLP input (landing2d.rl.mlpInput).
+% Only where the MLP reads the policy state itself (the 24-D o_t, or the raw
+% semantic bypass of the graph arms); Actor and Critic share the statistics.
+if isfield(rl,'inputNormalization') && rl.inputNormalization.enabled ...
+        && standardizesState(gs,spec)
+    assert(ismember(spec.mode,{'baseline','semantic_flat','context_flat'}) ...
+        || strcmp(spec.readout,'raw_plus_groups'),'landing2d:InputNormalization', ...
+        'Input normalization needs an MLP that reads the policy state directly.');
+    d = spec.stateDim;
+    agent.inputNorm = struct('mean',zeros(d,1),'var',ones(d,1), ...
+        'count',rl.inputNormalization.initialCount, ...
+        'clip',rl.inputNormalization.clip,'epsilon',rl.inputNormalization.epsilon);
+end
 agent.rl = rl;
+end
+
+function tf = standardizesState(gs,spec)
+% The plain PPO MLP always standardizes its 24-D o_t. A graph representation
+% with graphState.standardizeRawBypass = false keeps its fixed bounded feature
+% scale (forward_camera_v2 soft scale, fixed Gamma scales); without the field
+% the raw semantic bypass is standardized as before.
+tf = strcmp(spec.mode,'baseline') || ismember(spec.mode, ...
+    {'semantic_flat','context_flat'});
 end

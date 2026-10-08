@@ -10,10 +10,15 @@ function cfg = applySpatialDimension(cfg,dimension)
 %    experiment.reward.actionChangeWeight  결정 간 행동 변화량 비용
 %    experiment.scenario.lateral*  UGV 측방 CV-CA-CV 범위
 %    experiment.observationSchema  37차원 causal packet
+%    experiment.sensor.fov / cameraPitchOffset, cameraFovDeg
+%                                  하향 원뿔 카메라 (평면 계약의 마커 카메라 기하 대신)
+%    experiment.commonObservation, graphState.observationSource/observationFeatures/
+%    standardizeRawBypass          제거: 정책 입력·그래프는 37차원 causal packet 기반
 %    rl.actionDim / observationDim 행동 [a_x,a_y,a_z], 관측 차원
 %    rl.initialLogStd / lateralInitialLogStd   a_x·a_z / a_y 초기 탐색 잡음
 %    rl.touchdownAttitudeCurriculumScale       학습 에피소드 착지 자세 허용치 커리큘럼
 %    rl.trackAuthorizationCurriculumScale      학습 에피소드 추적 승인 조건 커리큘럼
+%    rl.initialHeightRange / curriculumStartHeight  하향 카메라 커리큘럼 시작 고도
 %    graphState.spatialDimension   그래프 노드 특징에 측방 채널 2개 추가
 %    outputDir                     <outputDir>/spatial3d (2차원 체크포인트와 분리)
 % 이미 3차원으로 변환된 설정에 다시 적용해도 결과가 같습니다.
@@ -44,18 +49,56 @@ e.spatial = struct('dimension',s.dimension,'schemaVersion',s.schemaVersion, ...
     'finalDescentExitHeight',s.finalDescentExitHeight, ...
     'finalDescentMaxDuration',s.finalDescentMaxDuration);
 e.reward.actionChangeWeight = s.actionChangeWeight;
+% Planar reward_v4 shaping (forward-down marker camera) is not part of the 3D
+% contract: restore the reward_v2 potential.
+e.reward.potentialWeight = s.potentialWeight;
+e.reward = rmfield(e.reward,intersect(fieldnames(e.reward), ...
+    {'goalCameraAim','velocityPotentialWeight','velocityLength', ...
+    'approachPositionRate','targetRelativeSpeed', ...
+    'verticalPotentialWeight','verticalSpeedLength','targetDescentSpeed', ...
+    'verticalPositionRate'}));
 e.scenario.lateralV1Range = s.lateralV1Range;
 e.scenario.lateralA2Range = s.lateralA2Range;
 e.scenario.y0 = s.y0;
 e.observationSchema = landing2d.sensing.observationSchema(3);
+% 공통 관측(마커 카메라·UGV 상태추정·인지 기반 감독기)은 평면 전용이므로, 3차원
+% 옵션은 이를 제거하고 tracker의 하향 원뿔 카메라와 tracker 기반 감독기를 유지합니다.
+if isfield(e,'commonObservation'), e = rmfield(e,'commonObservation'); end
+e.contextSchemaVersion = s.contextSchemaVersion;
+% Preserve the established optional 3-D supervisor/training contract.
+if isfield(e,'actionApplication'), e = rmfield(e,'actionApplication'); end
+if isfield(cfg.rl,'trainingRegime'), cfg.rl = rmfield(cfg.rl,'trainingRegime'); end
+for name = {'observationSource','observationFeatures','standardizeRawBypass'}
+    if isfield(cfg.graphState,name{1})
+        cfg.graphState = rmfield(cfg.graphState,name{1});
+    end
+end
+e.sensor.fov = s.cameraFov;
+e.sensor.cameraPitchOffset = s.cameraPitchOffset;
+cfg.cameraFovDeg = rad2deg(s.cameraFov);
 cfg.experiment = e;
 cfg.rl.observationDim = e.observationSchema.dimension;
 cfg.rl.actionDim = 3;
+% Preserve the established 3D scratch-training budget; the 500-update
+% setting in primaryConfig is planar-only.
+cfg.rl.ppoIterations = cfg.rl.scratch.ppoIterations;
 % 3D-only training settings (the planar rl config/signature is untouched).
 cfg.rl.initialLogStd = s.initialLogStd;
 cfg.rl.lateralInitialLogStd = s.lateralInitialLogStd;
 cfg.rl.touchdownAttitudeCurriculumScale = s.touchdownAttitudeCurriculumScale;
 cfg.rl.trackAuthorizationCurriculumScale = s.trackAuthorizationCurriculumScale;
+% The planar curriculum start height follows the forward-down marker camera;
+% the 3D option keeps its downward-camera start.
+cfg.rl.initialHeightRange = s.initialHeightRange;
+cfg.rl.curriculumStartHeight = s.curriculumStartHeight;
+% The 3D option keeps its promotion-only performance curriculum.
+cfg.rl.curriculumLandingThreshold = s.curriculumLandingThreshold;
+planarFields = intersect(fieldnames(cfg.rl), ...
+    {'descentPrefixProbability','descentPrefixHandoverRange','descentPrefixMinProbability', ...
+    'descentPrefixMaxTimeRange','episodeStreamSeedOffset', ...
+    'curriculumDemotionThreshold','curriculumDemotionWindows', ...
+    'inputNormalization','curriculumReplayContract'});
+cfg.rl = rmfield(cfg.rl,planarFields);
 cfg.graphState.spatialDimension = 3;
 cfg.outputDir = fullfile(cfg.outputDir,s.outputSubdir);
 end

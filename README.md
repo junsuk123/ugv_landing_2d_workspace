@@ -331,12 +331,13 @@ r_t=B_t-\frac{\Delta t}{T_{ref}}\left(w_g c_{goal,t}+w_v c_{view,t}+w_u c_{ctrl,
 $$
 
 - $B_t$: 종료 보상 (위 종료 판정 표), 비종료 결정에서 0
-- $c_{goal}$: $e_x$·$h$의 정규화 bounded 오차 비용
+- 판: reward_v3 (평면 계약, 2026-10-08), 3차원 옵션은 reward_v2
+- $c_{goal}$: 카메라 광축 정렬점 기준 수평 오차 $e_x-h\tan30^\circ$·고도 $h$의 정규화 bounded 비용 (전방 아래 60° 카메라는 패드가 기체 앞쪽에 있어야 검출, $h\to0$에서 정렬점 $\to0$)
 - $c_{view}$: $\min(1,(\beta/(\varphi/2))^2)$, 미검출 시 1
 - $c_{ctrl}=\tfrac12\lVert\bar a_t\rVert^2$
 - $\psi_t\in(0,1]$: 착륙 준비도 (착륙 한계 대비 상대 상태 위험의 지수 변환)
-- $\Phi_t=-w_p c_{goal,t}$, 종료 시 0: 시간 할인 일치 potential shaping
-- 가중치: $T_{ref}=70$ s, $w_g=2.0$, $w_v=1.0$, $w_u=0.25$, $w_r=8.0$, $w_p=2.0$
+- $\Phi_t=-w_p c_{goal,t}-w_s c_{spd,t}$, 종료 시 0: 시간 할인 일치 potential shaping, $c_{spd}$: UGV 대비 상대 수평속도의 bounded 비용 (최적 정책 불변)
+- 가중치: $T_{ref}=70$ s, $w_g=2.0$, $w_v=1.0$, $w_u=0.25$, $w_r=8.0$, $w_p=4.0$, $w_s=4.0$, $L_s=1.0$ m/s
 - 상세 근거: [보상 설계](docs/refactor/REWARD_RATIONALE.md)
 
 ### 폐루프 실행 알고리즘
@@ -415,14 +416,15 @@ $$
 
 | 항목 | 설정 |
 |---|---|
-| 승급 | 25 iteration 평가창의 착륙률 ≥ 10%가 3창 연속 시 $\ell\leftarrow\ell+0.1$ |
+| 승급·강등 (평면) | 25 iteration 평가창의 현재 단계 착륙률 ≥ 30%가 3창 연속 시 $\ell\leftarrow\ell+0.1$, < 10%가 2창 연속 시 $\ell\leftarrow\ell-0.1$ (3차원 옵션: 10% 승급, 강등 없음) |
 | 일정 하한 | 학습 30%(750 iteration) 이후 선형 상승, 80%(2,000 iteration)에서 $\ell=1$ |
-| 초기 고도 | 공칭 $h_0$의 0.025–0.05배(0.1–0.4 m)에서 공칭 범위로 확장 |
+| 초기 고도 | 평면: 0.45–0.6 m(전방 아래 카메라 사각지대 회피), 3차원 옵션: 0.1–0.4 m에서 공칭 범위로 확장 |
 | UGV 운동 | $v_1,a_2$ 범위 0.15배에서 시작, 학습 65% 지점까지 공칭 복귀 |
 | 장기 시야 상실 한계 | 12 s에서 시작, 학습 55% 지점까지 공칭 3 s 복귀 |
 | 착륙 속도 한계 | 공칭의 2배에서 공칭으로 수렴 |
 | 실패 종료 보상 | $-20+(-40+20)\ell$, $\ell=1$에서 공칭 −40 |
-| 망각 방지 replay | 6개 배치 중 쉬운($\ell=0$) 1개·중간($\ell/2$) 1개 |
+| 망각 방지 replay | 6개 배치 중 쉬운($\ell=0$) 1개·중간($\ell/2$) 1개, 평면: 재생은 시작 고도·UGV 운동만 완화, 접지 한계·실패 보상·장기 손실 한계는 현재 $\ell$ (`rl.curriculumReplayContract`) |
+| MLP 입력 표준화 (평면, 공통) | Actor·Critic MLP 입력 running 평균·분산 표준화, 분산 하한 0.01, ±5 자르기 (`rl.inputNormalization`) |
 
 #### 그래프 사전학습 (R-GAT 한정)
 

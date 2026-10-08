@@ -16,7 +16,8 @@ for epoch = 1:rl.bcEpochs
         Y = data.command(:,index);
         [g,encoderCache] = landing2d.graphstate.encoderForward( ...
             agent.policy.encoder,agent.encoderSpec,X);
-        [prediction,cache] = landing2d.rl.mlpForward(agent.policy.mean,g);
+        [prediction,cache] = landing2d.rl.mlpForward(agent.policy.mean, ...
+            landing2d.rl.mlpInput(agent,g));
         residual = prediction-Y;
         total = total+mean(sum(residual.^2,1));
         batches = batches+1;

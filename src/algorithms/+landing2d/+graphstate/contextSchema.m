@@ -1,11 +1,26 @@
-function [schema,T] = contextSchema(mode,dimension)
+function [schema,T] = contextSchema(mode,dimension,source)
 % CONTEXTSCHEMA  Compact typed ontology used by planar_visibility_v2.
 % dimension=3 (3D option) keeps the nodes and relations and appends two
 % lateral feature channels before the three static channels.
+% source (optional): 'packet' (default; 3D option and old configurations) or
+% 'commonObservation' (planar contract). Nodes, relations, edges, groups and
+% the 12-channel layout are shared; the common-observation graph derives the
+% node features from o_t = [G;D;H] (landing2d.graphstate.observationGraph) and
+% its first static channel is the vision age instead of the remaining mission
+% time, which is not part of o_t.
 if nargin < 1, mode = 'context_rgat'; end
 if nargin < 2 || isempty(dimension), dimension = 2; end
+if nargin < 3 || isempty(source), source = 'packet'; end
 assert(ismember(dimension,[2,3]),'landing2d:SpatialDimension', ...
     'contextSchema supports dimension 2 or 3.');
+assert(ismember(source,{'packet','commonObservation'}) ...
+    && ~(dimension == 3 && strcmp(source,'commonObservation')), ...
+    'landing2d:GraphObservationSource', ...
+    'The common-observation graph is planar; use the packet graph in 3D.');
+if strcmp(source,'commonObservation')
+    [schema,T] = minimalObservationSchema(mode);
+    return;
+end
 semantic = {'PadVisibility','PadMotion','DroneTranslation','DroneAttitude', ...
     'RelativeTracking','TrackingCorrection','ViewRecovery', ...
     'DescentEligibility','LandingInhibit'};
@@ -42,6 +57,7 @@ for i = 1:size(edges,1)
     dst(i) = find(strcmp(schema.nodeNames,edges{i,2}));
     rel(i) = find(strcmp(schema.relationNames,edges{i,3}));
 end
+
 self = find(strcmp(schema.relationNames,'self'));
 src = [src,1:schema.nNodes];
 dst = [dst,1:schema.nNodes];
@@ -79,7 +95,26 @@ if dimension == 3
 end
 schema.edgeTable = edges;
 schema.provenance = featureProvenance();
+if strcmp(source,'commonObservation')
+    schema.featureNames{10} = 'visionAge';
+    schema.variant = 'compact_context_graph_v4_common_observation';
+    schema.observationSource = source;
+    schema.provenance = commonObservationProvenance();
+end
 if nargout > 1, T = landing2d.rgat.topology(schema); end
+end
+
+function p = commonObservationProvenance()
+p = struct( ...
+    'PadVisibility','vision update/age and estimate-based camera bearing and FOV margin', ...
+    'PadMotion','UGV velocity estimate and its previous-decision change', ...
+    'DroneTranslation','fused own height above the estimated pad, vx, vz', ...
+    'DroneAttitude','fused own sin/cos pitch and pitch rate', ...
+    'RelativeTracking','UGV-drone horizontal offset and relative velocity', ...
+    'TrackingCorrection','bounded signed correction context from relative estimates', ...
+    'ViewRecovery','estimate-based bearing/FOV margin and vision age', ...
+    'DescentEligibility','alignment/confidence/attitude evidence and vision recency', ...
+    'LandingInhibit','vision recency/loss against the public safety thresholds');
 end
 
 function p = featureProvenance()
@@ -93,4 +128,70 @@ p = struct( ...
     'ViewRecovery','predicted bearing/FOV margin and detection age', ...
     'DescentEligibility','bounded causal alignment/confidence/braking evidence', ...
     'LandingInhibit','public inhibit/abort flags and causal uncertainty');
+end
+
+function [schema,T] = minimalObservationSchema(mode)
+% Each node is anchored to fields in the registered 12-D vector. There are
+% no authorization, recovery, inhibit or hand-crafted decision nodes.
+assert(ismember(mode,{'context_rgat','context_gat','context_flat', ...
+    'context_node_pool'}),'landing2d:ContextMode', ...
+    'Unknown minimal observation graph mode %s.',mode);
+schema.nodeNames = {'RelativePosition','RelativeVelocity','PadVelocity', ...
+    'VerticalMotion','Attitude','VisionQuality','NavigationQuality'};
+schema.nNodes = numel(schema.nodeNames);
+schema.ontologyNodes = 1:schema.nNodes;
+schema.nodeClasses = {'RelativeState','RelativeState','MotionEstimate', ...
+    'OwnState','OwnState','SensorQuality','SensorQuality'};
+schema.relationNames = {'informs','conditions','couples','self'};
+edges = { ...
+    'PadVelocity','RelativeVelocity','informs'; ...
+    'VisionQuality','RelativePosition','conditions'; ...
+    'VisionQuality','RelativeVelocity','conditions'; ...
+    'NavigationQuality','VerticalMotion','conditions'; ...
+    'NavigationQuality','Attitude','conditions'; ...
+    'RelativePosition','VisionQuality','couples'; ...
+    'Attitude','VisionQuality','couples'; ...
+    'RelativeVelocity','RelativePosition','informs'; ...
+    'VerticalMotion','RelativePosition','couples'};
+src=zeros(1,size(edges,1)); dst=src; rel=src;
+for i=1:size(edges,1)
+    src(i)=find(strcmp(schema.nodeNames,edges{i,1}));
+    dst(i)=find(strcmp(schema.nodeNames,edges{i,2}));
+    rel(i)=find(strcmp(schema.relationNames,edges{i,3}));
+end
+self=find(strcmp(schema.relationNames,'self'));
+src=[src,1:schema.nNodes]; dst=[dst,1:schema.nNodes];
+rel=[rel,self*ones(1,schema.nNodes)];
+if strcmp(mode,'context_gat')
+    rel(:)=1; schema.relationNames={'adjacent'};
+end
+schema.nRelations=numel(schema.relationNames);
+schema.src=src; schema.dst=dst; schema.rel=rel;
+schema.featureNames={'primary','signed','secondary','validity','age','typeId'};
+schema.inDim=numel(schema.featureNames);
+schema.neutralValue=zeros(1,schema.nNodes);
+schema.riskNodes=[]; schema.goalNode=[];
+% Keep every ontology node identifiable at readout. Averaging the three
+% relative-motion nodes was non-injective: different position, closure and
+% pad-velocity states could produce the same pooled vector. This identity
+% grouping is still a pure R-GAT readout (no raw observation bypass).
+schema.groupNames=schema.nodeNames;
+schema.readoutGroups=num2cell(1:schema.nNodes);
+schema.groupMatrix=zeros(numel(schema.readoutGroups),schema.nNodes);
+for g=1:numel(schema.readoutGroups)
+    nodes=schema.readoutGroups{g};
+    schema.groupMatrix(g,nodes)=1/numel(nodes);
+end
+schema.variant='minimal_observation_rgat_v3';
+schema.observationSource='commonObservation';
+schema.edgeTable=edges;
+schema.provenance=struct( ...
+    'RelativePosition','camera-manifold cross-track from relative_x and relative_height', ...
+    'RelativeVelocity','manifold closure error from relative_vx and drone_vz', ...
+    'PadVelocity','ugv_vx', ...
+    'VerticalMotion','drone_vz', ...
+    'Attitude','drone_sinTheta, drone_cosTheta, drone_pitchRate', ...
+    'VisionQuality','ugv_visionUpdated, ugv_visionAge', ...
+    'NavigationQuality','drone_navigationValid, drone_navigationAge');
+if nargout>1, T=landing2d.rgat.topology(schema); end
 end

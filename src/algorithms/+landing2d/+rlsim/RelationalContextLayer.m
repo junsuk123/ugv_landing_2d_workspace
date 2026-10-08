@@ -7,8 +7,8 @@ classdef RelationalContextLayer < nnet.layer.Layer
     %   alpha = 도착 노드의 모든 수신 간선에 대한 공동 softmax (분모 + 1e-9)
     %   h_j = tanh(sum alpha W_r x_i + W_0 x_j + b_0)
     %   c_t = tanh(W_c [그룹 평균 h] + b_c)
-    % 입력은 펴 놓은 노드 특징 s_t(108 x B), 출력은 c_t(4 x B)입니다.
-    % raw semantic 경로는 이 층 밖의 MLP가 맡습니다.
+    % Input is the flattened registered graph state; output width is set by
+    % Wg (32 for the direct planar R-GAT). No raw semantic bypass is used.
     properties (Learnable)
         W1   % [dh x din x R] 관계별 사영 W_r
         a1   % [1 x (2dh+relDim) x R] attention 벡터 a_r

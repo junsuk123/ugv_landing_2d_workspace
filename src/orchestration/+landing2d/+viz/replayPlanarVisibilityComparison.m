@@ -1,5 +1,5 @@
 function [fig,tabs,layouts] = replayPlanarVisibilityComparison(runs,c,options)
-% REPLAYPLANARVISIBILITYCOMPARISON  V2 A/B/C trajectories and R-GAT state.
+% REPLAYPLANARVISIBILITYCOMPARISON  V2 paired trajectories of the compared methods and R-GAT state.
 % Supports unequal terminal times, body-fixed-camera FOV footprints, fixed
 % world bounds, a Monte Carlo mean/covariance summary, and optional replay.
 % 3D option: x-z panels show the side view, and an extra last tab shows the
@@ -9,8 +9,9 @@ if ~isfield(options,'animate'), options.animate=true; end
 if ~isfield(options,'playbackSpeed'), options.playbackSpeed=c.playbackSpeed; end
 if ~isfield(options,'includeEpisodes'), options.includeEpisodes=false; end
 runs=landing2d.viz.normalizeRuns(runs);
-assert(numel(runs)==3,'landing2d:V2ComparisonCount', ...
-    'The comparison view requires exactly three methods.');
+nRuns=numel(runs);
+assert(nRuns>=2,'landing2d:V2ComparisonCount', ...
+    'The comparison view requires at least two methods.');
 nCases=numel(runs(1).results);
 assert(nCases>0,'landing2d:V2ComparisonEmpty','No evaluation trajectories supplied.');
 for i=2:numel(runs)
@@ -52,8 +53,8 @@ for viewIndex=1:numel(caseIndices)
         'LineWidth',1.0,'DisplayName','Moving pad path');
     hPad=plot(ax,nan,nan,'-','Color',[0.08,0.08,0.08], ...
         'LineWidth',5,'HandleVisibility','off');
-    hTrail=gobjects(1,3); hDrone=gobjects(1,3); hFov=gobjects(1,3);
-    for i=1:3
+    hTrail=gobjects(1,nRuns); hDrone=gobjects(1,nRuns); hFov=gobjects(1,nRuns);
+    for i=1:nRuns
         hFov(i)=patch(ax,nan,nan,runs(i).color,'FaceAlpha',0.06, ...
             'EdgeColor',runs(i).color,'LineStyle',':','HandleVisibility','off');
         hTrail(i)=plot(ax,nan,nan,runs(i).lineStyle,'Color',runs(i).color, ...

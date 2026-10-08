@@ -1,6 +1,7 @@
-function [schema,T] = schemaFor(mode,dimension)
+function [schema,T] = schemaFor(mode,dimension,source)
 % SCHEMAFOR  상태 표현 방식에 맞는 온톨로지 스키마와 간선 색인표.
 % dimension(선택, 기본 2): 3이면 context 그래프 노드 특징에 측방 채널 2개 추가.
+% source(선택, 기본 'packet'): context 그래프 특징 원천 ('commonObservation'은 평면 계약).
 %
 % 의미 노드와 의미 간선은 기존 landing2d.ontology.nodeSchema의 'core'
 % 변형(9노드)에서 옵니다. R-GAT 정책 표현에는 센서값을 갖지 않는 PolicyNode와
@@ -12,8 +13,9 @@ function [schema,T] = schemaFor(mode,dimension)
 %                   인접 행렬에 들어가는 표준 GAT 구성입니다.
 %   'node_pool'     간선을 쓰지 않으므로 색인표는 구조 점검용으로만 돌려줍니다.
 if nargin < 2 || isempty(dimension), dimension = 2; end
+if nargin < 3 || isempty(source), source = 'packet'; end
 if ismember(mode,{'context_rgat','context_gat','context_flat','context_node_pool'})
-    [schema,T] = landing2d.graphstate.contextSchema(mode,dimension);
+    [schema,T] = landing2d.graphstate.contextSchema(mode,dimension,source);
     return;
 end
 assert(dimension == 2,'landing2d:SpatialDimension', ...

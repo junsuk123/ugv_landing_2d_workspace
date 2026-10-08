@@ -22,10 +22,16 @@ if strcmp(mode,'baseline')
     return;
 end
 [schema,T] = landing2d.graphstate.schemaFor(mode, ...
-    landing2d.graphstate.graphDimension(gs));
+    landing2d.graphstate.graphDimension(gs),landing2d.graphstate.graphSource(gs));
+% Relation-shuffle ablation: one fixed edge-relation permutation per graph
+% seed, applied here once so pretraining, PPO, evaluation and inference all
+% read the same typed topology from encoderSpec. graphHash identifies the
+% typed graph actually used (canonical or shuffled).
+[schema,T,graph] = landing2d.rgat.applyRelationPerturbation(schema,T,gs);
 dh = gs.hiddenDim;
 spec.schema = schema;
 spec.T = T;
+spec.graph = graph;
 spec.policyNode = [];
 spec.valueNode = [];
 if isfield(schema,'policyNode')
@@ -84,6 +90,16 @@ switch mode
         params.E1 = scale*randn(rs,relDim,R);
         params.W0 = scale*randn(rs,dh,schema.inDim);
         params.b0 = zeros(dh,1);
+        % For the minimal sensor ontology, start with an information-
+        % preserving local path inside the R-GAT layer. Relation messages
+        % remain trainable and the MLP still receives only the graph
+        % embedding; this is not a raw-observation bypass.
+        if isfield(schema,'variant') && startsWith(schema.variant, ...
+                'minimal_observation_rgat_')
+            params.W0(:) = 0;
+            d = min(dh,schema.inDim);
+            params.W0(1:d,1:d) = eye(d);
+        end
     otherwise
         error('landing2d:UnknownStateRepresentation', ...
             'encoderInit does not handle stateRepresentation %s.',mode);

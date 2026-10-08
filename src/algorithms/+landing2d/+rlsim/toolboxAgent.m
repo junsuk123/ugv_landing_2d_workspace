@@ -20,11 +20,13 @@ assert(ismember(stage,{'value','raw','relation'}),'landing2d:TrainingStage', ...
 rl = c.rl;
 spec = source.encoderSpec;
 relational = isfield(source.policy,'relation');
+directGraph = ismember(spec.mode,{'context_gat','context_rgat'}) ...
+    && strcmp(spec.readout,'grouped') && ~relational;
 [obsInfo,actInfo] = landing2d.rlsim.specs(c,spec.stateDim);
 
-actorNet = actorNetwork(source,spec,rl,relational);
-criticNet = criticNetwork(source,spec,relational);
-[actorNet,criticNet] = applyStage(actorNet,criticNet,stage,relational,c);
+actorNet = actorNetwork(source,spec,rl,relational,directGraph);
+criticNet = criticNetwork(source,spec,relational,directGraph);
+[actorNet,criticNet] = applyStage(actorNet,criticNet,stage,relational,directGraph,c);
 meanName = 'raw_fc3';
 if relational, meanName = 'mean'; end
 actor = rlContinuousGaussianActor(actorNet,obsInfo,actInfo, ...
@@ -56,12 +58,19 @@ agent = rlPPOAgent(actor,critic,options);
 end
 
 % ------------------------------------------------------------------ Actor
-function net = actorNetwork(source,spec,rl,relational)
+function net = actorNetwork(source,spec,rl,relational,directGraph)
 net = dlnetwork;
 net = addLayers(net,featureInputLayer(spec.stateDim,'Name','obs', ...
     'Normalization','none'));
 net = addMlp(net,source.policy.mean,'raw');
-net = connectLayers(net,'obs','raw_fc1');
+if directGraph
+    net = addLayers(net,landing2d.rlsim.RelationalContextLayer( ...
+        source.policy.encoder,spec,'relation_context'));
+    net = connectLayers(net,'obs','relation_context');
+    net = connectLayers(net,'relation_context','raw_fc1');
+else
+    net = connectMlpInput(net,source);
+end
 net = addLayers(net,landing2d.rlsim.StateIndependentStdLayer( ...
     source.policy.logStd,rl.minimumLogStd,'std'));
 net = connectLayers(net,'obs','std');
@@ -86,12 +95,19 @@ net = initialize(net);
 end
 
 % ----------------------------------------------------------------- Critic
-function net = criticNetwork(source,spec,relational)
+function net = criticNetwork(source,spec,relational,directGraph)
 net = dlnetwork;
 net = addLayers(net,featureInputLayer(spec.stateDim,'Name','obs', ...
     'Normalization','none'));
 net = addMlp(net,source.value.net,'raw');
-net = connectLayers(net,'obs','raw_fc1');
+if directGraph
+    net = addLayers(net,landing2d.rlsim.RelationalContextLayer( ...
+        source.value.encoder,spec,'relation_context'));
+    net = connectLayers(net,'obs','relation_context');
+    net = connectLayers(net,'relation_context','raw_fc1');
+else
+    net = connectMlpInput(net,source);
+end
 if relational
     net = addLayers(net,landing2d.rlsim.RelationalContextLayer( ...
         source.value.encoder,spec,'relation_context'));
@@ -104,6 +120,18 @@ if relational
     net = connectLayers(net,'relation_head','value/in2');
 end
 net = initialize(net);
+end
+
+function net = connectMlpInput(net,source)
+% landing2d.rl.mlpInput: the raw MLP reads the standardized state when the
+% policy has input statistics; the relation path and descent gate read obs.
+if isfield(source,'inputNorm') && ~isempty(source.inputNorm)
+    net = addLayers(net,landing2d.rlsim.InputNormLayer(source.inputNorm,'input_norm'));
+    net = connectLayers(net,'obs','input_norm');
+    net = connectLayers(net,'input_norm','raw_fc1');
+else
+    net = connectLayers(net,'obs','raw_fc1');
+end
 end
 
 function net = addMlp(net,mlp,prefix)
@@ -122,12 +150,20 @@ net = addLayers(net,layers);
 end
 
 % ------------------------------------------------------------ 단계 학습률
-function [actorNet,criticNet] = applyStage(actorNet,criticNet,stage,relational,c)
+function [actorNet,criticNet] = applyStage(actorNet,criticNet,stage,relational,directGraph,c)
 raw = double(strcmp(stage,'raw'));
 gs = c.graphState;
 actorNet = setMlpFactor(actorNet,raw);
 criticNet = setMlpFactor(criticNet,double(ismember(stage,{'value','raw'})));
 actorNet = setLearnRateFactor(actorNet,'std','LogStd',raw);
+if directGraph
+    actorEncoder = raw*gs.encoderLearnRate/c.rl.policyLearnRate;
+    criticActive = double(ismember(stage,{'value','raw'}));
+    criticEncoder = criticActive*gs.encoderLearnRate/c.rl.valueLearnRate;
+    actorNet = setEncoderFactor(actorNet,actorEncoder,false);
+    criticNet = setEncoderFactor(criticNet,criticEncoder,false);
+    return;
+end
 if ~relational, return; end
 relation = double(strcmp(stage,'relation'));
 % 인코더 학습률은 graphState.encoderLearnRate가 되도록 본체 학습률 대비 비율로 둡니다.

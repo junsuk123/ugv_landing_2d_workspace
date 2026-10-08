@@ -436,3 +436,8 @@ $$
 - gate 범위: $f_\pi(s_t)$의 하강 성분 미제약, 하강 안전성은 공통 안전 감독기 $\Pi_s$ 의존
 - 검증 seed 의존: guard 결과의 검증 집합 크기·구성 의존
 - 비교 범위: 결과율 유지 확인까지, 관계 경로의 통계적 우월성 검정 제외
+# 현재 계약 주의 (2026-10-08)
+
+현재 평면 R-GAT은 raw semantic bypass, additive residual, descent gate를 사용하지 않는다. 12차원 공통 관측에서만 정의한 7개 노드·4개 관계의 grouped embedding이 Actor/Critic의 유일 입력이다. 현재 계약은 [최소 핵심 파이프라인](refactor/MINIMAL_CORE_PIPELINE_KO.md)을 참조한다. 아래 residual 설계는 이력 참고용이다.
+
+<!-- current-contract-note-end -->

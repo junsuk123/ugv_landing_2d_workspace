@@ -1,8 +1,13 @@
 function specs = representativeScenarios(c)
 % REPRESENTATIVESCENARIOS  Fixed, ontology-aligned paper evaluation cases.
-% The cases are selected from the declared training support before any
-% policy is evaluated.  They are therefore reproducible and cannot be
-% changed by looking at which checkpoint wins a particular random seed.
+% The cases are fixed before any policy is evaluated (seeds 41001-41003,
+% outside every manifest split). They are therefore reproducible and cannot
+% be changed by looking at which checkpoint wins a particular random seed.
+% UGV motion parameters lie inside the declared scenario ranges. The S3
+% dropout (0.8 s) is deliberately longer than the sampled short range
+% (0.2-0.5 s) and shorter than the sustained range (3.5-5.0 s): it outlasts
+% the 0.5 s recent-vision grace, so LandingInhibit engages, but not the 3 s
+% prolonged-loss backup. A 0.5 s dropout would never inhibit landing.
 % The 3D option adds fixed lateral pad motion (vy1, ay2) inside the declared
 % lateral ranges; the planar parameters and sensor events are unchanged.
 

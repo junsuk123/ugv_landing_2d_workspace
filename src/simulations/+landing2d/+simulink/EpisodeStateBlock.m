@@ -5,6 +5,7 @@ classdef EpisodeStateBlock < landing2d.simulink.BlockBase
     % 매 에피소드 landing2d.environment.reset 결과에서 가져옵니다.
     %   clock = [환경 시각; 현재 결정 경과 시간; 결정 번호; 직전 결정 행동(2)]
     %   snapshot = [결정 시작 시점 드론(7); 결정 시작 시점 패드(5)]
+    %   perception = 결정 시점 공통 관측 o_t와 UGV 상태추정기·직전 기록 (평면)
     properties (Access = private)
         State
     end
@@ -12,13 +13,14 @@ classdef EpisodeStateBlock < landing2d.simulink.BlockBase
     methods (Access = protected)
         function names = inputPorts(~)
             names = {'droneNext','padNext','measurementNext','trackNext', ...
-                'statusNext','clockNext','snapshotNext'};
+                'statusNext','clockNext','snapshotNext','perceptionNext'};
         end
         function ports = outputPorts(obj)
             ports = {'drone',obj.width('drone');'pad',obj.width('pad'); ...
                 'measurement',obj.width('measurement'); ...
                 'track',obj.width('track');'status',obj.width('status'); ...
-                'clock',obj.width('clock');'snapshot',obj.width('snapshot')};
+                'clock',obj.width('clock');'snapshot',obj.width('snapshot'); ...
+                'perception',obj.width('perception')};
         end
         function resetImpl(obj)
             env = obj.currentEpisode().env;
@@ -28,7 +30,8 @@ classdef EpisodeStateBlock < landing2d.simulink.BlockBase
                 obj.encode('track',env.observationMemory), ...
                 obj.encode('status',env.episodeStatus), ...
                 [env.time;0;0;env.episodeStatus.previousNormalizedAction(:)], ...
-                [drone;pad]};
+                [drone;pad], ...
+                obj.perceptionVector(env.commonObservation,env.commonMemory)};
         end
         function varargout = outputImpl(obj,varargin)
             varargout = obj.State;

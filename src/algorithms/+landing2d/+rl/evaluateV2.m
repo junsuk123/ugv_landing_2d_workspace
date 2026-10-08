@@ -1,5 +1,20 @@
-function [results,score,info] = evaluateV2(agent,c,seeds)
+function [results,score,info] = evaluateV2(agent,c,seeds,options)
 % EVALUATEV2  Paired deterministic validation on a fixed manifest subset.
+% OPTIONS (evaluation logging; defaults keep the checkpoint-selection path):
+%   commandLog        true keeps each episode's command log in results(i).commandLog
+%   commandLogStates  also keep the policy states (graph arms: 108 x decisions)
+%   run               policy identity (landing2d.rl.runIdentity) copied into each log
+%   configHash        resolved-configuration hash copied into each log
+%   sensorNoiseScale  planar sensor-noise standard-deviation scale (default 1)
+if nargin < 4, options = struct(); end
+logOptions = struct('commandLog',false,'commandLogStates',false, ...
+    'run',struct(),'configHash','','sensorNoiseScale',[]);
+names = fieldnames(options);
+for i = 1:numel(names)
+    assert(isfield(logOptions,names{i}),'landing2d:EvaluateOption', ...
+        'Unknown evaluateV2 option %s.',names{i});
+    logOptions.(names{i}) = options.(names{i});
+end
 if nargin < 3 || isempty(seeds)
     count = 3;
     if isfield(c.experiment,'validationEpisodeCount')
@@ -17,17 +32,36 @@ relationResidualMean = zeros(c.rl.actionDim,numel(seeds));
 verticalGateFraction = zeros(size(returns));
 traceGraph=~strcmp(agent.encoderSpec.mode,'baseline');
 if traceGraph
-    graphSchema=landing2d.graphstate.schemaFor(agent.encoderSpec.mode, ...
-        landing2d.graphstate.graphDimension(c.graphState));
+    % The agent's own typed graph (canonical or relation-shuffled), not a
+    % schema rebuilt from the mode string.
+    graphSchema=agent.encoderSpec.schema;
     finalNodeValues=nan(graphSchema.nNodes,numel(seeds));
     hasAttention=ismember(agent.encoderSpec.mode,{'context_rgat','context_gat'});
     if hasAttention, edgeAttention=nan(numel(graphSchema.src),numel(seeds)); end
 end
+% Deterministic, seed-independent rollouts: with an open pool and parallel
+% episodes enabled the seeds run in parfor (same per-seed computation, only
+% faster); otherwise serially.
+opts = mergeOptions(struct('deterministic',true,'collect',true,'maxDecisions',Inf), ...
+    logOptions);
+episodeReturn = zeros(1,numel(seeds)); episodeCapture = zeros(1,numel(seeds));
+finalStates = cell(1,numel(seeds));
+if useParallel(c,numel(seeds))
+    parfor i = 1:numel(seeds)
+        [resultCells{i},traj] = landing2d.rl.rolloutEpisodeV2(agent,c,seeds(i),opts);
+        episodeReturn(i) = traj.return; episodeCapture(i) = traj.captureRate;
+        finalStates{i} = traj.state(:,max(traj.count,1):traj.count);
+    end
+else
+    for i = 1:numel(seeds)
+        [resultCells{i},traj] = landing2d.rl.rolloutEpisodeV2(agent,c,seeds(i),opts);
+        episodeReturn(i) = traj.return; episodeCapture(i) = traj.captureRate;
+        finalStates{i} = traj.state(:,max(traj.count,1):traj.count);
+    end
+end
 for i = 1:numel(seeds)
-    opts = struct('deterministic',true,'collect',true,'maxDecisions',Inf);
-    [resultCells{i},traj] = landing2d.rl.rolloutEpisodeV2(agent,c,seeds(i),opts);
-    returns(i) = traj.return;
-    capture(i) = traj.captureRate;
+    returns(i) = episodeReturn(i);
+    capture(i) = episodeCapture(i);
     success(i) = strcmp(resultCells{i}.terminalReason,'SUCCESS');
     unsafe(i) = ismember(resultCells{i}.terminalReason,{'UNSAFE_CONTACT', ...
         'UNAUTHORIZED_CONTACT','MISSED_PAD_CONTACT','SAFETY_ENVELOPE_VIOLATION'});
@@ -39,12 +73,12 @@ for i = 1:numel(seeds)
         verticalGateFraction(i) = ...
             resultCells{i}.policyDiagnostics.verticalGateFraction;
     end
-    if traceGraph && traj.count>0
-        X=reshape(traj.state(:,end),graphSchema.inDim,graphSchema.nNodes);
+    if traceGraph && ~isempty(finalStates{i})
+        X=reshape(finalStates{i},graphSchema.inDim,graphSchema.nNodes);
         finalNodeValues(:,i)=X(1,:)';
         if hasAttention
             [~,cache]=landing2d.graphstate.encoderForward(agent.policy.encoder, ...
-                agent.encoderSpec,traj.state(:,end),'policy');
+                agent.encoderSpec,finalStates{i},'policy');
             if isfield(cache,'cache2')
                 edgeAttention(:,i)=cache.cache2.alpha(:,1);
             else
@@ -72,4 +106,14 @@ if traceGraph
     info.graphSchema=graphSchema;
     if hasAttention, info.edgeAttentionMean=mean(edgeAttention,2,'omitnan'); end
 end
+end
+
+function opts = mergeOptions(opts,extra)
+names = fieldnames(extra);
+for i = 1:numel(names), opts.(names{i}) = extra.(names{i}); end
+end
+
+function tf = useParallel(c,count)
+tf = count > 1 && isfield(c.rl,'parallelEpisodes') && c.rl.parallelEpisodes ...
+    && ~isempty(ver('parallel')) && ~isempty(gcp('nocreate'));
 end

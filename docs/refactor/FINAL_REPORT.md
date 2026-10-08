@@ -2,6 +2,7 @@
 
 ## 요약
 
+- 현행성: 2026-10-06 산출, 하향 카메라·reward_v2·3비교군 계약 시점 결과. 전방 아래 마커 카메라·공통 관측·reward_v3(2026-10-08) 계약의 현행 결과는 [보상 설계](REWARD_RATIONALE.md) 11절
 - 연구 질문: 동일 POMDP에서 상태 표현 구조만 바꾼 PPO 정책의 착륙 성능·안정성·추론 비용 차이
 - 비교: Low-level 관측 벡터, Semantic-flat 온톨로지 특징, Ontology R-GAT 관계 문맥의 3개 상태 표현
 - 시험 결과 ($\mathcal S_{te}$ 100 seed, 단일 학습 seed): 성공률 Semantic-flat 75% $\approx$ Low-level 74% $\approx$ R-GAT 72%, 위험 접촉률 Low-level 2% 최저

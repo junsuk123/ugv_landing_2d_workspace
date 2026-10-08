@@ -11,6 +11,11 @@ if landing2d.environment.isSpatial(c)
     contract.actionLimits = landing2d.environment.actionLimits(c)';
     contract.spatial = c.experiment.spatial;
 end
+if isfield(c.experiment,'commonObservation')
+    % Planar marker perception drives the safety supervisor and landing
+    % authorization, so its camera/estimator/noise settings are task contract.
+    contract.commonObservation = c.experiment.commonObservation;
+end
 text=jsonencode(contract);
 id=landing2d.util.checksum(double(unicode2native(text,'UTF-8')));
 end

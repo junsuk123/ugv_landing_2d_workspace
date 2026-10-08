@@ -1,69 +1,115 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "MATLAB: Full pipeline (train, validate, test, figures)",
-      "type": "process",
-      "command": "matlab",
-      "args": ["-batch", "run(struct('showLiveDashboard',false,'figureVisible',false));"],
-      "options": { "cwd": "${workspaceFolder}" },
-      "problemMatcher": []
-    },
-    {
-      "label": "MATLAB: Re-evaluate saved checkpoints",
-      "type": "process",
-      "command": "matlab",
-      "args": ["-batch", "run(struct('retrain',false,'showLiveDashboard',false,'figureVisible',false));"],
-      "options": { "cwd": "${workspaceFolder}" },
-      "problemMatcher": []
-    },
-    {
-      "label": "MATLAB: Smoke check",
-      "type": "process",
-      "command": "matlab",
-      "args": ["-batch", "run(struct('executionMode','smoke','generatePaper',false,'figureVisible',false,'saveResults',false,'showLiveDashboard',false));"],
-      "options": { "cwd": "${workspaceFolder}" },
-      "problemMatcher": []
-    },
-    {
-      "label": "MATLAB: Full 3D pipeline (train, validate, test, figures -> results/spatial3d)",
-      "type": "process",
-      "command": "matlab",
-      "args": ["-batch", "run(struct('spatialDimension',3,'showLiveDashboard',false,'figureVisible',false));"],
-      "options": { "cwd": "${workspaceFolder}" },
-      "problemMatcher": []
-    },
-    {
-      "label": "MATLAB: Scenario S3 (3D option)",
-      "type": "process",
-      "command": "matlab",
-      "args": ["-batch", "run_scenario('S3',struct('spatialDimension',3,'figureVisible',false));"],
-      "options": { "cwd": "${workspaceFolder}" },
-      "problemMatcher": []
-    },
-    {
-      "label": "MATLAB: Smoke check (3D option)",
-      "type": "process",
-      "command": "matlab",
-      "args": ["-batch", "run(struct('executionMode','smoke','spatialDimension',3,'runSelfTest',false,'generatePaper',false,'figureVisible',false,'saveResults',false,'showLiveDashboard',false));"],
-      "options": { "cwd": "${workspaceFolder}" },
-      "problemMatcher": []
-    },
-    {
-      "label": "MATLAB: Self-test",
-      "type": "process",
-      "command": "matlab",
-      "args": ["-batch", "addpath(fullfile(pwd,'src','orchestration'),fullfile(pwd,'src','simulations'),fullfile(pwd,'src','algorithms')); disp(landing2d.orchestration.selfTest());"],
-      "options": { "cwd": "${workspaceFolder}" },
-      "problemMatcher": []
-    },
-    {
-      "label": "MATLAB: Scenario S3",
-      "type": "process",
-      "command": "matlab",
-      "args": ["-batch", "run_scenario('S3',struct('figureVisible',false));"],
-      "options": { "cwd": "${workspaceFolder}" },
-      "problemMatcher": []
-    }
-  ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "MATLAB: Full pipeline (train, validate, test, figures)",
+			"type": "process",
+			"command": "matlab",
+			"args": [
+				"-batch",
+				"run(struct('showLiveDashboard',false,'figureVisible',false));"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "MATLAB: Re-evaluate saved checkpoints",
+			"type": "process",
+			"command": "matlab",
+			"args": [
+				"-batch",
+				"run(struct('retrain',false,'showLiveDashboard',false,'figureVisible',false));"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "MATLAB: Smoke check",
+			"type": "process",
+			"command": "matlab",
+			{
+				"label": "Temporary Git status",
+				"type": "shell",
+				"command": "git",
+				"args": ["status", "--short", "--branch"],
+				"problemMatcher": []
+			"args": [
+				"-batch",
+				"run(struct('executionMode','smoke','generatePaper',false,'figureVisible',false,'saveResults',false,'showLiveDashboard',false));"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "MATLAB: Full 3D pipeline (train, validate, test, figures -> results/spatial3d)",
+			"type": "process",
+			"command": "matlab",
+			"args": [
+				"-batch",
+				"run(struct('spatialDimension',3,'showLiveDashboard',false,'figureVisible',false));"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "MATLAB: Scenario S3 (3D option)",
+			"type": "process",
+			"command": "matlab",
+			"args": [
+				"-batch",
+				"run_scenario('S3',struct('spatialDimension',3,'figureVisible',false));"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "MATLAB: Smoke check (3D option)",
+			"type": "process",
+			"command": "matlab",
+			"args": [
+				"-batch",
+				"run(struct('executionMode','smoke','spatialDimension',3,'runSelfTest',false,'generatePaper',false,'figureVisible',false,'saveResults',false,'showLiveDashboard',false));"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "MATLAB: Self-test",
+			"type": "process",
+			"command": "matlab",
+			"args": [
+				"-batch",
+				"addpath(fullfile(pwd,'src','orchestration'),fullfile(pwd,'src','simulations'),fullfile(pwd,'src','algorithms')); disp(landing2d.orchestration.selfTest());"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "MATLAB: Scenario S3",
+			"type": "process",
+			"command": "matlab",
+			"args": [
+				"-batch",
+				"run_scenario('S3',struct('figureVisible',false));"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": []
+		}
+	]
 }

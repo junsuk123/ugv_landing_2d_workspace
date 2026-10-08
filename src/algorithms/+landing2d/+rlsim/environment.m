@@ -38,7 +38,9 @@ function n = policyStateDim(c)
 if strcmp(c.graphState.stateRepresentation,'baseline')
     n = c.experiment.observationSchema.dimension;
 else
-    schema = landing2d.graphstate.contextSchema(c.graphState.stateRepresentation);
+    schema = landing2d.graphstate.schemaFor(c.graphState.stateRepresentation, ...
+        landing2d.graphstate.graphDimension(c.graphState), ...
+        landing2d.graphstate.graphSource(c.graphState));
     n = schema.inDim*schema.nNodes;
 end
 end
