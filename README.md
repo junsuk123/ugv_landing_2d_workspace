@@ -1,6 +1,6 @@
 # Causal Ontology R-GAT PPO for Moving-Platform Landing
 
-![일반 PPO 대비 온톨로지–R-GAT PPO 최종 실험 결과](results/consistency/ontology_vs_ppo_evidence.png)
+![일반 PPO 대비 온톨로지–R-GAT PPO 최종 실험 결과](docs/assets/paper/ontology_vs_ppo_evidence.png)
 
 ## 최종 결과
 
@@ -283,6 +283,7 @@ run_live('S3')
 - [보상 함수 이론](docs/refactor/REWARD_RATIONALE.md)
 - [공통 관측 계약](docs/COMMON_OBSERVATION_KO.md)
 - [최종 그림 코드](src/orchestration/+landing2d/+viz/plotOntologyEvidence.m)
+- `docs/assets/paper/ontology_vs_ppo_evidence.png` (GitHub README 표시용)
 - `results/consistency/ontology_vs_ppo_evidence.png`
 - `results/consistency/ontology_vs_ppo_summary.csv`
 

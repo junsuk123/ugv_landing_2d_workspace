@@ -21,7 +21,7 @@
 - 결론: **동일 임무 성공률과 안전성에서 물리적 행동 일관성·관측 잡음 강건성·pooled 명령 평활성 개선**
 - 한계: 단일 학습 시드에 따른 착륙률 우월성 및 일반적 통계 우월성 주장 제외
 
-![일반 PPO 대비 온톨로지–R-GAT 결과](../../results/consistency/ontology_vs_ppo_evidence.png)
+![일반 PPO 대비 온톨로지–R-GAT 결과](../assets/paper/ontology_vs_ppo_evidence.png)
 
 **그림 1.** Held-out 임무 성능, 관측 잡음 일관성, 명령 jerk, 학습 곡선 및 계산 비용
 
@@ -540,6 +540,7 @@ run(struct('latestOntology',true))
 산출물:
 
 - `results/consistency/ontology_vs_ppo_evidence.png`
+- `docs/assets/paper/ontology_vs_ppo_evidence.png` (Git 추적 문서용 그림)
 - `results/consistency/ontology_vs_ppo_summary.csv`
 - `results/planar_visibility_full.mat`
 - `results/consistency/priority_review_test.mat`
