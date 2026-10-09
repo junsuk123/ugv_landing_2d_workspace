@@ -32,6 +32,9 @@ else
         && startsWith(schema.variant,bank.meta.graphVariant), ...
         'landing2d:ProbeBank','The probe bank graph features do not match the agent schema.');
     states = bank.policyInput.graph;
+    if strcmp(agent.encoderSpec.readout,'observation_plus_groups')
+        states = [bank.policyInput.vector;states];
+    end
 end
 assert(size(states,1) == agent.encoderSpec.stateDim,'landing2d:ProbeBank', ...
     'Probe state dimension %d differs from the agent state dimension %d.', ...

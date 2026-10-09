@@ -44,12 +44,24 @@ switch spec.readout
         for b = 1:B
             dH(:,:,b) = dGrouped(:,:,b)*spec.groupMatrix;
         end
+    case 'observation_plus_groups'
+        directRaw = dG(1:spec.rawDim,:);
+        dContext = dG(spec.rawDim+1:end,:);
+        preOutput = dContext.*(1-cache.relationContext.^2);
+        grads.Wg = preOutput*cache.readout';
+        grads.bg = sum(preOutput,2);
+        dGrouped = reshape(params.Wg'*preOutput,dh,spec.groupCount,B);
+        dH = zeros(dh,N,B);
+        for b = 1:B
+            dH(:,:,b) = dGrouped(:,:,b)*spec.groupMatrix;
+        end
     otherwise
         error('landing2d:UnknownReadout','Unknown readout: %s',spec.readout);
 end
 [backboneGrads,dS] = landing2d.graphstate.encoderNodeBackward( ...
     params,spec,cache,dH);
 if exist('directDS','var'), dS = dS+directDS; end
+if exist('directRaw','var'), dS = [directRaw;dS]; end
 names = fieldnames(backboneGrads);
 for i = 1:numel(names), grads.(names{i}) = backboneGrads.(names{i}); end
 grads = orderfields(grads,params);

@@ -69,11 +69,15 @@ e.contextSchemaVersion = s.contextSchemaVersion;
 % Preserve the established optional 3-D supervisor/training contract.
 if isfield(e,'actionApplication'), e = rmfield(e,'actionApplication'); end
 if isfield(cfg.rl,'trainingRegime'), cfg.rl = rmfield(cfg.rl,'trainingRegime'); end
-for name = {'observationSource','observationFeatures','standardizeRawBypass'}
+for name = {'observationSource','observationFeatures','standardizeRawBypass', ...
+        'ontologyReadout'}
     if isfield(cfg.graphState,name{1})
         cfg.graphState = rmfield(cfg.graphState,name{1});
     end
 end
+cfg.graphState.readout = 'grouped';
+cfg.graphState.graphAdaptationWarmupFraction = 0;
+cfg.graphState.preserveRawPolicyDuringGraphAdaptation = false;
 e.sensor.fov = s.cameraFov;
 e.sensor.cameraPitchOffset = s.cameraPitchOffset;
 cfg.cameraFovDeg = rad2deg(s.cameraFov);

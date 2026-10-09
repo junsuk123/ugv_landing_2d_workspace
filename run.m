@@ -1,6 +1,7 @@
 function output = run(options)
 % RUN  Complete scratch-training, validation, and visualization pipeline.
 %   run(struct('spatialDimension',3))   % 3D option (lateral y + roll), results/spatial3d
+%   run(struct('latestOntology',true))  % latest saved ontology evidence only
 if nargin < 1, options=struct(); end
 root=fileparts(mfilename('fullpath'));
 sourceRoots={fullfile(root,'src','orchestration'), ...

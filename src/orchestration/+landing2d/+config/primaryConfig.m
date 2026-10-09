@@ -137,9 +137,9 @@ cfg.graphState.observationSource = 'commonObservation';
 % Node-feature version of that graph (landing2d.graphstate.observationGraph).
 % Every node feature is a deterministic function of the registered vector.
 cfg.graphState.observationFeatures = 'minimal_sensor_v1';
-% The R-GAT embedding is the Actor/Critic input. There is no raw semantic
-% bypass, additive action residual, descent gate, staged adaptation or frozen
-% backbone. All graph parameters are optimized end-to-end by PPO.
+% Graph-only proposal: Actor and Critic receive only the grouped typed R-GAT
+% embedding built from the same common observation as PPO. There is no raw
+% observation bypass, additive residual, state gate, or validation guard.
 cfg.graphState.readout = 'grouped';
 cfg.graphState.hiddenDim = 16;
 cfg.graphState.graphDim = 32;

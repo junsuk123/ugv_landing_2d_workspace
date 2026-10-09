@@ -5,12 +5,17 @@ function [residual,slope,detail] = relationPolicyResidual(W,spec,raw,context)
 % therefore admitted only in proportion to the causal DescentEligibility
 % node. Positive braking/climb corrections are never suppressed.
 % The vertical channel is the last action row ([a_x,a_z] or [a_x,a_y,a_z]).
-linear = W*context;
+scale=1;
+if isfield(spec,'relationResidualScale')
+    scale=spec.relationResidualScale;
+end
+linear = scale*(W*context);
 v = size(linear,1);
 residual = linear;
 slope = ones(size(linear));
 eligibility = ones(1,size(linear,2));
-if size(linear,1)>=2 && isfield(spec,'descentEligibilityIndex') ...
+if ~strcmp(spec.readout,'observation_plus_groups') ...
+        && size(linear,1)>=2 && isfield(spec,'descentEligibilityIndex') ...
         && ~isempty(spec.descentEligibilityIndex)
     eligibility = min(max(raw(spec.descentEligibilityIndex,:),0),1);
     descending = linear(v,:)<0;

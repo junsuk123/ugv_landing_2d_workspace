@@ -74,7 +74,11 @@ for i = 1:numel(seeds)
             resultCells{i}.policyDiagnostics.verticalGateFraction;
     end
     if traceGraph && ~isempty(finalStates{i})
-        X=reshape(finalStates{i},graphSchema.inDim,graphSchema.nNodes);
+        graphState=finalStates{i};
+        if strcmp(agent.encoderSpec.readout,'observation_plus_groups')
+            graphState=graphState(agent.encoderSpec.rawDim+1:end,:);
+        end
+        X=reshape(graphState,graphSchema.inDim,graphSchema.nNodes);
         finalNodeValues(:,i)=X(1,:)';
         if hasAttention
             [~,cache]=landing2d.graphstate.encoderForward(agent.policy.encoder, ...

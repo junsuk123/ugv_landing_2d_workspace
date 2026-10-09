@@ -7,6 +7,8 @@ function X = mlpInput(agent,X)
 % (landing2d.rl.updateInputNorm). 필드가 없으면(3차원 옵션, 이전 체크포인트) 항등입니다.
 if ~isfield(agent,'inputNorm') || isempty(agent.inputNorm), return; end
 n = agent.inputNorm;
-X = (X-n.mean)./sqrt(n.var+n.epsilon);
-X = min(max(X,-n.clip),n.clip);
+d=numel(n.mean);
+raw = (X(1:d,:)-n.mean)./sqrt(n.var+n.epsilon);
+raw = min(max(raw,-n.clip),n.clip);
+X = [raw;X(d+1:end,:)];
 end

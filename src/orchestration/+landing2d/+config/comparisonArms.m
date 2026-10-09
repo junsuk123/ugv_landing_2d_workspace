@@ -31,8 +31,10 @@ if landing2d.environment.isSpatial(cfg) || ~isempty(modes)
 end
 registry = landing2d.config.methodRegistry();
 ids = fieldOr(options,'methods',{registry.methods.id});
-for i = 1:numel(registry.methods)
-    method = registry.methods(i);
+requestedAblations = registry.ablations(ismember({registry.ablations.id},ids));
+catalog = [registry.methods,requestedAblations];
+for i = 1:numel(catalog)
+    method = catalog(i);
     if ~ismember(method.id,ids), continue; end
     arm = landing2d.config.applyMethod(cfg,method.id,trainSeed,graphSeed);
     arms(end+1) = struct('id',method.id,'label',method.label, ...

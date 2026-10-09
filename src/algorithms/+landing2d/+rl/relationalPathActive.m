@@ -4,7 +4,7 @@ if nargin < 2 || isempty(tolerance), tolerance = 1e-10; end
 validateattributes(tolerance,{'numeric'},{'scalar','real','finite','nonnegative'});
 direct = isfield(agent,'encoderSpec') ...
     && ismember(agent.encoderSpec.mode,{'context_gat','context_rgat'}) ...
-    && strcmp(agent.encoderSpec.readout,'grouped');
+    && ismember(agent.encoderSpec.readout,{'grouped','observation_plus_groups'});
 required = isfield(agent,'encoderSpec') ...
     && ismember(agent.encoderSpec.mode,{'context_gat','context_rgat'}) ...
     && strcmp(agent.encoderSpec.readout,'raw_plus_groups');
@@ -13,6 +13,9 @@ valueReadout = parameterNorm(agent.value.encoder,'Wg');
 policyHead = relationNorm(agent.policy);
 valueHead = relationNorm(agent.value);
 active = direct && policyReadout>tolerance && valueReadout>tolerance;
+if direct && strcmp(agent.encoderSpec.readout,'observation_plus_groups')
+    active = active && policyHead>tolerance && valueHead>tolerance;
+end
 if ~direct
     active = ~required || (policyReadout>tolerance && valueReadout>tolerance ...
     && policyHead>tolerance && valueHead>tolerance);

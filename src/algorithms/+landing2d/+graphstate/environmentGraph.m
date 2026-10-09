@@ -6,9 +6,14 @@ if strcmp(landing2d.graphstate.graphSource(c.graphState),'commonObservation')
     if nargin>=3 && ~isempty(observation)
         [S,detail] = landing2d.graphstate.observationVectorGraph(observation, ...
             env.observationContext,c);
+        observationVector=observation(:);
     else
         [S,detail] = landing2d.graphstate.observationGraph(env.commonObservation, ...
             env.observationContext,c);
+        observationVector=detail.observationVector(:);
+    end
+    if strcmp(c.graphState.readout,'observation_plus_groups')
+        S=[observationVector;S];
     end
 else
     [S,detail] = landing2d.graphstate.contextGraph(env.packet,c);

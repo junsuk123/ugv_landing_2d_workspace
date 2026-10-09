@@ -24,7 +24,7 @@ if isfield(agent.policy,'relation')
     agent.policy.encoder = readEncoder(actor,agent.policy.encoder);
     agent.value.encoder = readEncoder(critic,agent.value.encoder);
 elseif ismember(agent.encoderSpec.mode,{'context_gat','context_rgat'}) ...
-        && strcmp(agent.encoderSpec.readout,'grouped')
+        && ismember(agent.encoderSpec.readout,{'grouped','observation_plus_groups'})
     agent.policy.encoder = readEncoder(actor,agent.policy.encoder);
     agent.value.encoder = readEncoder(critic,agent.value.encoder);
 end

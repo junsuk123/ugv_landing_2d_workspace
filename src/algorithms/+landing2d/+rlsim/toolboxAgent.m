@@ -21,7 +21,8 @@ rl = c.rl;
 spec = source.encoderSpec;
 relational = isfield(source.policy,'relation');
 directGraph = ismember(spec.mode,{'context_gat','context_rgat'}) ...
-    && strcmp(spec.readout,'grouped') && ~relational;
+    && ismember(spec.readout,{'grouped','observation_plus_groups'}) ...
+    && ~relational;
 [obsInfo,actInfo] = landing2d.rlsim.specs(c,spec.stateDim);
 
 actorNet = actorNetwork(source,spec,rl,relational,directGraph);
@@ -81,15 +82,19 @@ if relational
         'Name','relation_head','Weights',source.policy.relation.W, ...
         'Bias',zeros(size(source.policy.relation.W,1),1), ...
         'BiasLearnRateFactor',0));
-    net = addLayers(net,landing2d.rlsim.DescentGateLayer( ...
-        spec.descentEligibilityIndex,'descent_gate'));
     net = addLayers(net,additionLayer(2,'Name','mean'));
     net = connectLayers(net,'obs','relation_context');
     net = connectLayers(net,'relation_context','relation_head');
-    net = connectLayers(net,'relation_head','descent_gate/residual');
-    net = connectLayers(net,'obs','descent_gate/state');
     net = connectLayers(net,'raw_fc3','mean/in1');
-    net = connectLayers(net,'descent_gate','mean/in2');
+    if strcmp(spec.readout,'observation_plus_groups')
+        net = connectLayers(net,'relation_head','mean/in2');
+    else
+        net = addLayers(net,landing2d.rlsim.DescentGateLayer( ...
+            spec.descentEligibilityIndex,'descent_gate'));
+        net = connectLayers(net,'relation_head','descent_gate/residual');
+        net = connectLayers(net,'obs','descent_gate/state');
+        net = connectLayers(net,'descent_gate','mean/in2');
+    end
 end
 net = initialize(net);
 end
@@ -125,12 +130,19 @@ end
 function net = connectMlpInput(net,source)
 % landing2d.rl.mlpInput: the raw MLP reads the standardized state when the
 % policy has input statistics; the relation path and descent gate read obs.
+inputName='obs';
+if strcmp(source.encoderSpec.readout,'observation_plus_groups')
+    net=addLayers(net,landing2d.rlsim.PrefixLayer( ...
+        source.encoderSpec.rawDim,'observation_prefix'));
+    net=connectLayers(net,'obs','observation_prefix');
+    inputName='observation_prefix';
+end
 if isfield(source,'inputNorm') && ~isempty(source.inputNorm)
     net = addLayers(net,landing2d.rlsim.InputNormLayer(source.inputNorm,'input_norm'));
-    net = connectLayers(net,'obs','input_norm');
+    net = connectLayers(net,inputName,'input_norm');
     net = connectLayers(net,'input_norm','raw_fc1');
 else
-    net = connectLayers(net,'obs','raw_fc1');
+    net = connectLayers(net,inputName,'raw_fc1');
 end
 end
 

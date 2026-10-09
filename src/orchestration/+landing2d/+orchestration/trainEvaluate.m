@@ -85,6 +85,8 @@ landing2d.config.validateConfig(cfg);
 dashboardOn=cfg.showLiveDashboard && cfg.figureVisible;
 if dashboardOn, landing2d.viz.liveDashboard('init',cfg); end
 armList=landing2d.config.comparisonArms(cfg,armOptions);
+assert(~isempty(armList),'landing2d:ComparisonMethod', ...
+    'No registered comparison or ablation method matched the request.');
 validModes={'baseline','context_flat','context_node_pool','context_gat','context_rgat'};
 assert(all(ismember({armList.representation},validModes)),'landing2d:AblationMode', ...
     'Unsupported V2 comparison mode requested.');
@@ -139,7 +141,7 @@ summaryTable=table(labels',modes',meanReturn,successRate,unsafeRate,safeAbortRat
     'ParameterCount','InferenceMs'});
 if isfield(armList(1).config,'comparisonRun')
     % Registered planar methods: identify each run (method, seeds, graph).
-    runTable=struct2table([runs{:}]);
+    runTable=struct2table([runs{:}],'AsArray',true);
     summaryTable=[runTable(:,{'MethodId'}),summaryTable(:,1:2), ...
         runTable(:,{'TrainSeed','GraphSeed','GraphHash','RelationalPathActive'}), ...
         summaryTable(:,3:end)];

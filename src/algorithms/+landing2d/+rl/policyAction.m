@@ -8,8 +8,8 @@ function [u,logProbability,mu,detail] = policyAction(agent,S,rs,deterministic)
 g = landing2d.graphstate.encoderForward(agent.policy.encoder, ...
     agent.encoderSpec,S,'policy');
 if isfield(agent.policy,'relation')
-    raw = g(1:agent.encoderSpec.stateDim,:);
-    context = g(agent.encoderSpec.stateDim+1:end,:);
+    raw = g(1:agent.encoderSpec.rawDim,:);
+    context = g(agent.encoderSpec.rawDim+1:end,:);
     baseMean = landing2d.rl.mlpForward(agent.policy.mean, ...
         landing2d.rl.mlpInput(agent,raw));
     [relationResidual,~,relationDetail] = ...

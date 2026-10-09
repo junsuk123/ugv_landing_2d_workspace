@@ -18,7 +18,12 @@ end
 B = size(S,2);
 N = spec.nNodes;
 dh = spec.hiddenDim;
-X = reshape(S,spec.inDim,N,B);
+graphState=S;
+if strcmp(spec.readout,'observation_plus_groups')
+    rawObservation=S(1:spec.rawDim,:);
+    graphState=S(spec.rawDim+1:end,:);
+end
+X = reshape(graphState,spec.inDim,N,B);
 cache = struct('mode',spec.mode,'B',B,'N',N,'dh',dh);
 switch spec.mode
     case {'node_pool','context_node_pool'}
@@ -97,6 +102,19 @@ switch spec.readout
         g = [S;relationContext];
         cache.readout = readout;
         cache.relationContext = relationContext;
+        cache.g = g;
+    case 'observation_plus_groups'
+        K = spec.groupCount;
+        grouped = zeros(dh,K,B);
+        for b = 1:B
+            grouped(:,:,b) = H(:,:,b)*spec.groupMatrix';
+        end
+        readout = reshape(grouped,dh*K,B);
+        relationContext = tanh(params.Wg*readout+params.bg);
+        g = [rawObservation;relationContext];
+        cache.readout = readout;
+        cache.relationContext = relationContext;
+        cache.rawObservation = rawObservation;
         cache.g = g;
     otherwise
         error('landing2d:UnknownReadout','Unknown readout: %s',spec.readout);

@@ -15,6 +15,8 @@ if strcmp(mode,'baseline')
     spec.inDim = 0;
     spec.nNodes = 0;
     spec.hiddenDim = 0;
+    spec.rawDim = observationDim;
+    spec.graphStateDim = 0;
     spec.stateDim = observationDim;
     spec.graphDim = observationDim;
     spec.schema = [];
@@ -28,6 +30,21 @@ end
 % read the same typed topology from encoderSpec. graphHash identifies the
 % typed graph actually used (canonical or shuffled).
 [schema,T,graph] = landing2d.rgat.applyRelationPerturbation(schema,T,gs);
+if isfield(gs,'ontologyReadout') && ~strcmp(gs.ontologyReadout,'all_nodes_v1')
+    assert(strcmp(gs.ontologyReadout,'control_nodes_v1') ...
+        && isfield(schema,'observationSource') ...
+        && strcmp(schema.observationSource,'commonObservation'), ...
+        'landing2d:OntologyReadout','Unknown or incompatible ontology readout.');
+    names={'RelativePosition','RelativeVelocity','VerticalMotion','Attitude'};
+    nodes=cellfun(@(name)find(strcmp(schema.nodeNames,name),1),names);
+    assert(all(nodes>0),'landing2d:OntologyReadout', ...
+        'The control-node ontology readout requires all registered nodes.');
+    schema.groupNames=names;
+    schema.readoutGroups=num2cell(nodes);
+    schema.groupMatrix=zeros(numel(nodes),schema.nNodes);
+    for g=1:numel(nodes), schema.groupMatrix(g,nodes(g))=1; end
+    schema.variant=[schema.variant,'_control_readout'];
+end
 dh = gs.hiddenDim;
 spec.schema = schema;
 spec.T = T;
@@ -41,7 +58,16 @@ end
 spec.inDim = schema.inDim;
 spec.nNodes = schema.nNodes;
 spec.hiddenDim = dh;
-spec.stateDim = schema.inDim*schema.nNodes;
+spec.graphStateDim = schema.inDim*schema.nNodes;
+spec.rawDim = spec.graphStateDim;
+spec.stateDim = spec.graphStateDim;
+if strcmp(gs.readout,'observation_plus_groups')
+    assert(strcmp(landing2d.graphstate.graphSource(gs),'commonObservation'), ...
+        'landing2d:ObservationResidual', ...
+        'observation_plus_groups requires the planar common observation graph.');
+    spec.rawDim = observationDim;
+    spec.stateDim = observationDim+spec.graphStateDim;
+end
 spec.descentEligibilityIndex = [];
 spec.landingInhibitIndex = [];
 if isfield(schema,'nodeNames')
@@ -142,6 +168,16 @@ switch gs.readout
         params.Wg = zeros(spec.groupCount,dh*spec.groupCount);
         params.bg = zeros(spec.groupCount,1);
         spec.graphDim = spec.stateDim+spec.groupCount;
+    case 'observation_plus_groups'
+        assert(isfield(schema,'groupMatrix'),'landing2d:GroupedReadout', ...
+            'Observation-plus-groups readout requires schema.groupMatrix.');
+        spec.groupMatrix = schema.groupMatrix;
+        spec.groupNames = schema.groupNames;
+        spec.groupCount = size(schema.groupMatrix,1);
+        % Zero context preserves exact initial equality with plain PPO.
+        params.Wg = zeros(spec.groupCount,dh*spec.groupCount);
+        params.bg = zeros(spec.groupCount,1);
+        spec.graphDim = spec.rawDim+spec.groupCount;
     otherwise
         error('landing2d:UnknownReadout','Unknown readout: %s',gs.readout);
 end

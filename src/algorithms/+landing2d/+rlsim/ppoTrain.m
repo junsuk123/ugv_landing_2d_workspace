@@ -19,7 +19,8 @@ template = agent;
 episodesPerIteration = rl.episodesPerIteration;
 maxSteps = ceil(c.experiment.maxMissionTime/c.experiment.policyDt)+1;
 relational = isfield(agent.policy,'relation') ...
-    && strcmp(agent.encoderSpec.readout,'raw_plus_groups');
+    && ismember(agent.encoderSpec.readout, ...
+    {'raw_plus_groups','observation_plus_groups'});
 warmupIteration = ceil(gs.graphAdaptationWarmupFraction*rl.ppoIterations);
 if ~relational, warmupIteration = Inf; end
 

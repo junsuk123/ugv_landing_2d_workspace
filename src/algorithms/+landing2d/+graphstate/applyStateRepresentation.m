@@ -31,7 +31,12 @@ if strcmp(mode,'node_pool') && strcmp(cfg.graphState.readout,'decision_nodes') .
     cfg.graphState.readout = 'meanmax';
 end
 if ismember(mode,{'context_node_pool','context_gat','context_rgat'}) ...
-        && ~isfield(options,'readout')
+        && ~isfield(options,'readout') ...
+        && ~strcmp(cfg.graphState.readout,'observation_plus_groups')
+    cfg.graphState.readout = 'grouped';
+end
+if strcmp(mode,'context_flat') && strcmp(cfg.graphState.readout, ...
+        'observation_plus_groups') && ~isfield(options,'readout')
     cfg.graphState.readout = 'grouped';
 end
 if ismember(mode,{'gat','ontology_rgat'}) && ~isfield(options,'readout')

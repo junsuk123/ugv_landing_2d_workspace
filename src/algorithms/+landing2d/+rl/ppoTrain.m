@@ -86,7 +86,7 @@ if snapshotCount > 0
 end
 notifyDashboard(c,history(end),rl.ppoIterations);
 if rl.verbose
-    fprintf(['  [BC] return %8.2f | select %8.2f | landing %3.0f%%' ...
+    fprintf(['  [INIT] return %8.2f | select %8.2f | landing %3.0f%%' ...
         ' | capture %3.0f%%\n'],bestScore,bestInfo.selectionScore, ...
         100*bestInfo.landingRate,100*bestInfo.meanCaptureRate);
 end
@@ -153,8 +153,9 @@ for iteration = 1:rl.ppoIterations
     episodes = episodes+rl.episodesPerIteration;
     updatePolicy = iteration > rl.valueWarmup;
     gsUpdate = gs;
-    gsUpdate.enableGraphAdaptation = directTraining || iteration > ceil( ...
-        gs.graphAdaptationWarmupFraction*rl.ppoIterations);
+    stagedResidual=strcmp(agent.encoderSpec.readout,'observation_plus_groups');
+    gsUpdate.enableGraphAdaptation = (~stagedResidual && directTraining) ...
+        || iteration > ceil(gs.graphAdaptationWarmupFraction*rl.ppoIterations);
     for epoch = 1:rl.ppoEpochs
         order = randperm(rs,n);
         for start = 1:rl.miniBatch:n
@@ -173,7 +174,7 @@ for iteration = 1:rl.ppoIterations
     % the same normalization, and frozen while the raw path is preserved.
     if isfield(agent,'inputNorm') && ~shouldPreserveRaw(gsUpdate,agent.encoderSpec)
         agent.inputNorm = landing2d.rl.updateInputNorm(agent.inputNorm, ...
-            X(1:agent.encoderSpec.stateDim,:));
+        X(1:agent.encoderSpec.rawDim,:));
     end
     isLast = iteration == rl.ppoIterations;
     if mod(iteration,rl.evaluateEvery) == 0 || isLast
@@ -330,8 +331,8 @@ function [agent,state,encoderState] = policyStep(agent,state,encoderState, ...
     agent.encoderSpec,X,'policy');
 hasRelation = isfield(agent.policy,'relation');
 if hasRelation
-    raw = g(1:agent.encoderSpec.stateDim,:);
-    context = g(agent.encoderSpec.stateDim+1:end,:);
+    raw = g(1:agent.encoderSpec.rawDim,:);
+    context = g(agent.encoderSpec.rawDim+1:end,:);
     [mu,cache] = landing2d.rl.mlpForward(agent.policy.mean, ...
         landing2d.rl.mlpInput(agent,raw));
     [relationResidual,relationSlope] = ...
@@ -359,6 +360,10 @@ if hasRelation
     dG = [dBase;agent.policy.relation.W'*dRelation];
 else
     dG = dBase;
+end
+if suppressGraphFusion(gs,agent.encoderSpec)
+    grads.mean.W{1}(:,agent.encoderSpec.rawDim+1:end)=0;
+    dG(agent.encoderSpec.rawDim+1:end,:)=0;
 end
 grads.logStd = sum(dLogProbability.*(z.^2-1),2)-rl.entropyWeight;
 if shouldPreserveRaw(gs,agent.encoderSpec)
@@ -388,8 +393,8 @@ function [agent,state,encoderState] = valueStep(agent,state,encoderState,X,R,rl,
     agent.encoderSpec,X,'value');
 hasRelation = isfield(agent.value,'relation');
 if hasRelation
-    raw = g(1:agent.encoderSpec.stateDim,:);
-    context = g(agent.encoderSpec.stateDim+1:end,:);
+    raw = g(1:agent.encoderSpec.rawDim,:);
+    context = g(agent.encoderSpec.rawDim+1:end,:);
     [prediction,cache] = landing2d.rl.mlpForward(agent.value.net, ...
         landing2d.rl.mlpInput(agent,raw));
     prediction = prediction+agent.value.relation.W*context;
@@ -405,6 +410,10 @@ if hasRelation
     dG = [dBase;agent.value.relation.W'*dValue];
 else
     dG = dBase;
+end
+if suppressGraphFusion(gs,agent.encoderSpec)
+    grads.net.W{1}(:,agent.encoderSpec.rawDim+1:end)=0;
+    dG(agent.encoderSpec.rawDim+1:end,:)=0;
 end
 if shouldPreserveRaw(gs,agent.encoderSpec)
     for layer = 1:numel(grads.net.W), grads.net.W{layer}(:) = 0; end
@@ -461,8 +470,14 @@ end
 function yes=shouldPreserveRaw(gs,spec)
 yes = isfield(gs,'enableGraphAdaptation') && gs.enableGraphAdaptation ...
     && gs.preserveRawPolicyDuringGraphAdaptation ...
-    && strcmp(spec.readout,'raw_plus_groups');
+    && ismember(spec.readout,{'raw_plus_groups','observation_plus_groups'});
 end
+
+function yes=suppressGraphFusion(gs,spec)
+yes = strcmp(spec.readout,'observation_plus_groups') ...
+    && isfield(gs,'enableGraphAdaptation') && ~gs.enableGraphAdaptation;
+end
+
 
 % ------------------------------------------------- 에피소드 하나 수집 (병렬 단위)
 function [state,command,logProbability,advantage,target,episodeReturn, ...

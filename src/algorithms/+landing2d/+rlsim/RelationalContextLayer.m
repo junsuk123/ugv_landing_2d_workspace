@@ -30,6 +30,7 @@ classdef RelationalContextLayer < nnet.layer.Layer
         Dst
         Msel
         GroupMatrix
+        GraphOffset
     end
 
     methods
@@ -48,6 +49,10 @@ classdef RelationalContextLayer < nnet.layer.Layer
             layer.Dst = T.dst(:);
             layer.Msel = T.Msel;
             layer.GroupMatrix = spec.groupMatrix;
+            layer.GraphOffset = 0;
+            if strcmp(spec.readout,'observation_plus_groups')
+                layer.GraphOffset = spec.rawDim;
+            end
             layer.W1 = params.W1;
             layer.a1 = params.a1;
             layer.E1 = params.E1;
@@ -58,6 +63,7 @@ classdef RelationalContextLayer < nnet.layer.Layer
         end
 
         function Z = predict(layer,X)
+            X = X(layer.GraphOffset+1:end,:);
             din = layer.InDim;
             N = layer.NumNodes;
             dh = layer.HiddenDim;
