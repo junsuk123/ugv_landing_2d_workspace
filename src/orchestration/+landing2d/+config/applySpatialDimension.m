@@ -76,6 +76,8 @@ for name = {'observationSource','observationFeatures','standardizeRawBypass', ..
     end
 end
 cfg.graphState.readout = 'grouped';
+cfg.graphState.policyHiddenSizes = [cfg.rl.hiddenSize,cfg.rl.hiddenSize];
+cfg.graphState.valueHiddenSizes = [cfg.rl.hiddenSize,cfg.rl.hiddenSize];
 cfg.graphState.graphAdaptationWarmupFraction = 0;
 cfg.graphState.preserveRawPolicyDuringGraphAdaptation = false;
 e.sensor.fov = s.cameraFov;

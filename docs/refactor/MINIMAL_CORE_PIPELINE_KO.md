@@ -25,6 +25,17 @@
 
 PPO가 R-GAT encoder와 Actor/Critic을 처음부터 end-to-end로 공동 학습한다. Simulink/RL Toolbox 변환도 같은 direct grouped embedding을 사용한다.
 
+### 2026-10-10 최종 파라미터 정합 구조
+
+- 관계 은닉: 16차원 복원
+- 저랭크 grouped readout: `W_c ∈ R^(16×16)`, `W_n ∈ R^(16×7)`, 출력 16차원
+- Actor head: `16–38–37–2`, Critic head: `16–35–34–1`
+- 인코더당 1,040개, Actor 3,207개, Critic 2,894개, 합계 6,101개
+- 일반 PPO와 파라미터 수 정확히 동일
+- raw 관측 우회·residual·gate·guard 없음
+
+Held-out 100회 결과는 착륙 96%, unsafe 1%, timeout 3%, 평균 return 32.372이다. 일반 PPO 대비 공칭 `C_valid`는 77.329%에서 80.799%로 증가했다. `D_obs` P95 0.095983과 pooled `J_policy` 6.6914는 종전 6,095개 과압축 모델보다 각각 5.5%, 11.4% 개선됐지만 일반 PPO보다는 높다.
+
 ## 측정 결과
 
 - MATLAB self-test 13/13 통과

@@ -21,7 +21,7 @@ rl = c.rl;
 spec = source.encoderSpec;
 relational = isfield(source.policy,'relation');
 directGraph = ismember(spec.mode,{'context_gat','context_rgat'}) ...
-    && ismember(spec.readout,{'grouped','observation_plus_groups'}) ...
+    && ismember(spec.readout,{'grouped','grouped_factorized','observation_plus_groups'}) ...
     && ~relational;
 [obsInfo,actInfo] = landing2d.rlsim.specs(c,spec.stateDim);
 
@@ -65,8 +65,7 @@ net = addLayers(net,featureInputLayer(spec.stateDim,'Name','obs', ...
     'Normalization','none'));
 net = addMlp(net,source.policy.mean,'raw');
 if directGraph
-    net = addLayers(net,landing2d.rlsim.RelationalContextLayer( ...
-        source.policy.encoder,spec,'relation_context'));
+    net = addLayers(net,contextLayer(source.policy.encoder,spec,'relation_context'));
     net = connectLayers(net,'obs','relation_context');
     net = connectLayers(net,'relation_context','raw_fc1');
 else
@@ -106,8 +105,7 @@ net = addLayers(net,featureInputLayer(spec.stateDim,'Name','obs', ...
     'Normalization','none'));
 net = addMlp(net,source.value.net,'raw');
 if directGraph
-    net = addLayers(net,landing2d.rlsim.RelationalContextLayer( ...
-        source.value.encoder,spec,'relation_context'));
+    net = addLayers(net,contextLayer(source.value.encoder,spec,'relation_context'));
     net = connectLayers(net,'obs','relation_context');
     net = connectLayers(net,'relation_context','raw_fc1');
 else
@@ -196,14 +194,29 @@ end
 end
 
 function net = setEncoderFactor(net,factor,freezeStatic)
-for name = {'W1','a1','Wg','bg'}
-    net = setLearnRateFactor(net,'relation_context',name{1},factor);
+for name = {'W1','a1','Wg','Wc','Wn','bg'}
+    if hasLearnable(net,'relation_context',name{1})
+        net = setLearnRateFactor(net,'relation_context',name{1},factor);
+    end
 end
 static = factor;
 if freezeStatic, static = 0; end
 for name = {'E1','W0','b0'}
     net = setLearnRateFactor(net,'relation_context',name{1},static);
 end
+end
+
+function layer = contextLayer(params,spec,name)
+if strcmp(spec.readout,'grouped_factorized')
+    layer=landing2d.rlsim.FactorizedRelationalContextLayer(params,spec,name);
+else
+    layer=landing2d.rlsim.RelationalContextLayer(params,spec,name);
+end
+end
+
+function yes = hasLearnable(net,layer,parameter)
+t=net.Learnables;
+yes=any(string(t.Layer)==layer & string(t.Parameter)==parameter);
 end
 
 function o = optimizer(learnRate,rl)

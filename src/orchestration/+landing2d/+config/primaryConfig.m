@@ -139,15 +139,17 @@ cfg.graphState.observationSource = 'commonObservation';
 cfg.graphState.observationFeatures = 'minimal_sensor_v1';
 % Parameter-matched graph-only proposal: Actor and Critic receive only the
 % grouped typed R-GAT embedding built from the same common observation as
-% PPO. The 4-D node state retains relation-specific message capacity and the
-% 5-D learned graph bottleneck retains all seven identity readout groups.
-% Actor + Critic contain 6,095 trainable scalars versus 6,101 for plain PPO
-% (six fewer; 0.10%), removing model-size as a comparison confound. There is
-% no raw observation bypass, additive residual, state gate, or validation
-% guard.
-cfg.graphState.readout = 'grouped';
-cfg.graphState.hiddenDim = 4;
-cfg.graphState.graphDim = 5;
+% PPO. The original 16-D relation state is retained, while its parameter-
+% dominant dense grouped readout is replaced by a channel x node factorized
+% map. This yields a 16-D graph embedding without a raw observation bypass.
+% Capacity is reallocated from the post-graph MLP: actor 38-37, critic 35-34.
+% Actor + Critic contain exactly 6,101 trainable scalars, identical to plain
+% PPO. There is no additive residual, state gate, or validation guard.
+cfg.graphState.readout = 'grouped_factorized';
+cfg.graphState.hiddenDim = 16;
+cfg.graphState.graphDim = 16;
+cfg.graphState.policyHiddenSizes = [38,37];
+cfg.graphState.valueHiddenSizes = [35,34];
 cfg.graphState.encoderLearnRate = 1e-4;
 cfg.graphState.freezeStaticBackbone = false;
 cfg.graphState.graphAdaptationWarmupFraction = 0;

@@ -25,6 +25,8 @@ gs.stateRepresentation = 'baseline';
 gs.hiddenDim = 4;            % Parameter-matched compact relation state.
 gs.relationDim = 4;          % Compact relation embedding.
 gs.graphDim = 5;             % Compact graph-only bottleneck (primary: 6,095 parameters).
+gs.policyHiddenSizes = [48,48]; % Graph Actor MLP widths; baseline uses rl.hiddenSize.
+gs.valueHiddenSizes = [48,48];  % Graph Critic MLP widths.
 gs.initScale = 0.12;         % 부호기 초기 가중치 배율
 gs.encoderLearnRate = 3e-4;  % 부호기 Adam 학습률
 

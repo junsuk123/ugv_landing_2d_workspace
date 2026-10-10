@@ -33,6 +33,22 @@ switch spec.readout
             dH(:,:,b) = dGrouped(:,:,b)*spec.groupMatrix;
         end
         directDS = zeros(spec.stateDim,B);
+    case 'grouped_factorized'
+        preOutput = dG.*(1-cache.g.^2);
+        grads.Wc = zeros(size(params.Wc));
+        grads.Wn = zeros(size(params.Wn));
+        grads.bg = sum(preOutput,2);
+        dGrouped = zeros(dh,spec.groupCount,B);
+        for b = 1:B
+            weighted = preOutput(:,b).*params.Wn;
+            grads.Wc = grads.Wc+weighted*cache.grouped(:,:,b)';
+            grads.Wn = grads.Wn+preOutput(:,b).*cache.channel(:,:,b);
+            dGrouped(:,:,b) = params.Wc'*weighted;
+        end
+        dH = zeros(dh,N,B);
+        for b = 1:B
+            dH(:,:,b) = dGrouped(:,:,b)*spec.groupMatrix;
+        end
     case 'raw_plus_groups'
         directDS = dG(1:spec.stateDim,:);
         dContext = dG(spec.stateDim+1:end,:);

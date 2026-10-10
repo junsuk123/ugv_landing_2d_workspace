@@ -156,6 +156,31 @@ switch gs.readout
         params.Wg = scale*randn(rs,gs.graphDim,dh*spec.groupCount);
         params.bg = zeros(gs.graphDim,1);
         spec.graphDim = gs.graphDim;
+    case 'grouped_factorized'
+        assert(isfield(schema,'groupMatrix'),'landing2d:GroupedReadout', ...
+            'Factorized grouped readout requires schema.groupMatrix.');
+        spec.groupMatrix = schema.groupMatrix;
+        spec.groupNames = schema.groupNames;
+        spec.groupCount = size(schema.groupMatrix,1);
+        params.Wc = scale*randn(rs,gs.graphDim,dh);
+        params.Wn = scale*randn(rs,gs.graphDim,spec.groupCount);
+        params.bg = zeros(gs.graphDim,1);
+        % Twelve rows start as explicit causal ontology coordinates. The
+        % remaining rows retain random relation-summary capacity. Wc and Wn
+        % remain trainable, so relation messages can reshape every channel.
+        if isfield(schema,'variant') && startsWith(schema.variant, ...
+                'minimal_observation_rgat_') && dh>=6 && gs.graphDim>=12 ...
+                && spec.groupCount==7
+            nodeChannel=[1,2;1,3;2,2;3,2;4,2;5,2;6,3;5,3; ...
+                6,1;6,5;7,1;7,5];
+            params.Wc(1:12,:)=0; params.Wn(1:12,:)=0;
+            for row=1:size(nodeChannel,1)
+                node=nodeChannel(row,1); channel=nodeChannel(row,2);
+                params.Wc(row,channel)=1;
+                params.Wn(row,node)=0.25;
+            end
+        end
+        spec.graphDim = gs.graphDim;
     case 'raw_plus_groups'
         assert(isfield(schema,'groupMatrix'),'landing2d:GroupedReadout', ...
             'Raw-plus-groups readout requires schema.groupMatrix.');

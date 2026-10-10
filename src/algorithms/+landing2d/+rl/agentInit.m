@@ -24,6 +24,12 @@ if gs.freezeStaticBackbone && ismember(gs.stateRepresentation, ...
     valueEncoder = policyEncoder;
 end
 inputDim = spec.graphDim;
+policyHiddenSizes = [rl.hiddenSize,rl.hiddenSize];
+valueHiddenSizes = [rl.hiddenSize,rl.hiddenSize];
+if ~strcmp(spec.mode,'baseline') && isfield(gs,'policyHiddenSizes')
+    policyHiddenSizes = gs.policyHiddenSizes;
+    valueHiddenSizes = gs.valueHiddenSizes;
+end
 % Component streams make the shared raw-semantic part of context_flat and
 % raw_plus_groups start from exactly the same MLP. Encoder size no longer
 % changes the random policy initialization, removing a major A/B confound.
@@ -45,10 +51,9 @@ if ismember(spec.readout,{'raw_plus_groups','observation_plus_groups'})
     agent.value.relation.W = 0.05*randn(valueExtraRs, ...
         1,inputDim-spec.rawDim);
 else
-    agent.policy.mean = landing2d.rl.mlpInit([inputDim,rl.hiddenSize, ...
-        rl.hiddenSize,rl.actionDim],0.1,policyRs);
-    agent.value.net = landing2d.rl.mlpInit([inputDim,rl.hiddenSize, ...
-        rl.hiddenSize,1],0.1,valueRs);
+    agent.policy.mean = landing2d.rl.mlpInit([inputDim,policyHiddenSizes, ...
+        rl.actionDim],0.1,policyRs);
+    agent.value.net = landing2d.rl.mlpInit([inputDim,valueHiddenSizes,1],0.1,valueRs);
 end
 agent.policy.logStd = rl.initialLogStd*ones(rl.actionDim,1);
 if rl.actionDim == 3 && isfield(rl,'lateralInitialLogStd')

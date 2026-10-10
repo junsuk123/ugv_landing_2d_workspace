@@ -91,6 +91,19 @@ switch spec.readout
         g = tanh(params.Wg*readout+params.bg);
         cache.readout = readout;
         cache.g = g;
+    case 'grouped_factorized'
+        K = spec.groupCount;
+        grouped = zeros(dh,K,B);
+        channel = zeros(spec.graphDim,K,B);
+        for b = 1:B
+            grouped(:,:,b) = H(:,:,b)*spec.groupMatrix';
+            channel(:,:,b) = params.Wc*grouped(:,:,b);
+        end
+        pre = reshape(sum(channel.*params.Wn,2),spec.graphDim,B)+params.bg;
+        g = tanh(pre);
+        cache.grouped = grouped;
+        cache.channel = channel;
+        cache.g = g;
     case 'raw_plus_groups'
         K = spec.groupCount;
         grouped = zeros(dh,K,B);

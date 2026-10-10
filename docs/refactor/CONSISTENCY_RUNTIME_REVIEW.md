@@ -1,5 +1,7 @@
 # 일반 PPO 대비 온톨로지–R-GAT PPO 최종 설계 및 검증
 
+> **2026-10-10 최종 결과 우선 적용:** 아래 2026-10-09 본문은 16,565개 구형 모델의 실험 기록임. 현재 배포 모델은 저랭크 grouped readout을 사용한 6,101개 완전 정합 모델임. 최신 held-out 결과는 착륙 96%, unsafe 1%, timeout 3%, return 32.372이며, 공칭 `C_valid` 80.799%, `D_obs` P95 0.095983, pooled `J_policy` 6.6914임. 일반 PPO 대비 `C_valid`는 +3.470%p이나 `D_obs`와 `J_policy`는 각각 +29.3%, +63.2%이므로 세 지표 전체 우월 주장은 금지함. 최신 그림은 `docs/assets/paper/parameter_matched_consistency.png`, 발표 수정 지침은 `docs/refactor/PPT_AGENT_PROMPT_KO.md`를 기준으로 함.
+
 > 최종 배포 기준일: 2026-10-09
 >
 > 기본 실험: `planar_visibility_v2`

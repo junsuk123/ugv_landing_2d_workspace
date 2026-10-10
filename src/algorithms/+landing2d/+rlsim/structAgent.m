@@ -24,7 +24,8 @@ if isfield(agent.policy,'relation')
     agent.policy.encoder = readEncoder(actor,agent.policy.encoder);
     agent.value.encoder = readEncoder(critic,agent.value.encoder);
 elseif ismember(agent.encoderSpec.mode,{'context_gat','context_rgat'}) ...
-        && ismember(agent.encoderSpec.readout,{'grouped','observation_plus_groups'})
+        && ismember(agent.encoderSpec.readout, ...
+        {'grouped','grouped_factorized','observation_plus_groups'})
     agent.policy.encoder = readEncoder(actor,agent.policy.encoder);
     agent.value.encoder = readEncoder(critic,agent.value.encoder);
 end
@@ -49,9 +50,12 @@ end
 end
 
 function encoder = readEncoder(map,encoder)
-for name = {'W1','a1','E1','W0','b0','Wg','bg'}
-    encoder.(name{1}) = keep(encoder.(name{1}), ...
-        map(['relation_context/' name{1}]));
+names=fieldnames(encoder);
+for i=1:numel(names)
+    name=names{i}; key=['relation_context/' name];
+    if isKey(map,key)
+        encoder.(name) = keep(encoder.(name),map(key));
+    end
 end
 end
 

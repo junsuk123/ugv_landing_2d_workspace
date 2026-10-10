@@ -39,9 +39,9 @@ timeout = 100*T.TimeoutRate;
 meanReturn = T.MeanReturn;
 parameters = T.ParameterCount;
 inference = T.InferenceMs;
-assert(isequal(parameters(:)',[6101,6095]), ...
+assert(isequal(parameters(:)',[6101,6101]), ...
     'landing2d:ParameterMatchedResult', ...
-    'Expected final parameter counts [6101 6095], got [%g %g].',parameters);
+    'Expected final parameter counts [6101 6101], got [%g %g].',parameters);
 
 state = 'on'; if ~defaults.visible, state = 'off'; end
 fig = figure('Name','Parameter-matched ontology R-GAT evidence', ...
@@ -53,7 +53,7 @@ title(layout,{ ...
     'Same 12-D observation, reward, environment and 4,500-episode PPO budget | held-out n = 100 | one training seed'}, ...
     'FontWeight','bold','FontSize',18);
 
-% A. Mission outcomes: disclose the improved completion and the 2% unsafe tail.
+% A. Mission outcomes: disclose both completion and the unsafe tail.
 ax = nexttile(layout,1); hold(ax,'on'); grid(ax,'on'); box(ax,'on');
 mission = [landing,unsafe,timeout];
 b = bar(ax,mission,'grouped');
@@ -69,7 +69,7 @@ for k = 1:numel(b)
     text(ax,b(k).XEndPoints,b(k).YEndPoints+2,compose('%.0f%%',b(k).YEndPoints), ...
         'HorizontalAlignment','center','FontWeight','bold','FontSize',10);
 end
-text(ax,1.5,52,'+3 pp landing; timeout removed; 2% unsafe remains', ...
+text(ax,1.5,52,'+1 pp landing; timeout -2 pp; 1% unsafe remains', ...
     'HorizontalAlignment','center','FontSize',10,'Color',[0.25,0.25,0.25]);
 
 % B. Capacity matching: plot from zero so the equality is visually honest.
@@ -77,7 +77,7 @@ ax = nexttile(layout,2); hold(ax,'on'); grid(ax,'on'); box(ax,'on');
 b = barh(ax,1:2,parameters,0.55,'FaceColor','flat'); b.CData=colors;
 xlim(ax,[0,7000]); xlabel(ax,'Trainable parameters');
 set(ax,'YTick',1:2,'YTickLabel',labels,'YDir','reverse','FontSize',11);
-title(ax,'B  Model capacity matched within 0.10%','FontWeight','bold');
+title(ax,'B  Model capacity matched exactly','FontWeight','bold');
 for i = 1:2
     text(ax,parameters(i)-120,i,sprintf('%.0f',parameters(i)), ...
         'HorizontalAlignment','right','Color','w','FontWeight','bold','FontSize',12);

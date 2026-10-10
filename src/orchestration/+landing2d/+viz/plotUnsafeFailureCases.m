@@ -22,21 +22,22 @@ allResults=R.comparison.testResults{index};
 unsafe=find(ismember(string({allResults.terminalReason}), ...
     ["UNSAFE_CONTACT","MISSED_PAD_CONTACT","UNAUTHORIZED_CONTACT", ...
     "SAFETY_ENVELOPE_VIOLATION"]));
-assert(numel(unsafe)==2,'landing2d:UnsafeFailureCount', ...
-    'Expected two held-out unsafe failures, found %d.',numel(unsafe));
+assert(~isempty(unsafe),'landing2d:UnsafeFailureCount', ...
+    'Expected at least one held-out unsafe failure.');
 cases=allResults(unsafe);
+nCase=numel(cases);
 
 state='on'; if ~defaults.visible, state='off'; end
 fig=figure('Name','Held-out unsafe terminal cases','NumberTitle','off', ...
     'Color','w','Units','pixels','Position',[40,40,1600,900],'Visible',state);
-layout=tiledlayout(fig,2,2,'TileSpacing','compact','Padding','compact');
+layout=tiledlayout(fig,nCase,2,'TileSpacing','compact','Padding','compact');
 title(layout,{ ...
     'Held-out unsafe terminal cases of the parameter-matched Ontology--R-GAT PPO'; ...
-    'Two cases among 100 test episodes | terminal quantities normalized by mechanical touchdown limits'}, ...
+    sprintf('%d case among 100 test episodes | terminal quantities normalized by mechanical touchdown limits',nCase)}, ...
     'FontSize',19,'FontWeight','bold');
 metricNames={'Position','Horizontal speed','Vertical speed','Pitch','Pitch rate'};
 summary=table();
-for j=1:2
+for j=1:nCase
     r=cases(j); ex=r.xPad-r.xDrone; h=r.zDrone-c.padHeight;
     relVx=r.vxPad-r.vxDrone;
     ratios=[abs(ex(end))/c.padHalfLength, ...
@@ -53,7 +54,7 @@ for j=1:2
         'RelativeVx_mps','Vz_mps','Pitch_deg','PitchRate_degps', ...
         'DominantViolation','PeakNormalizedViolation'})]; %#ok<AGROW>
 
-    ax=nexttile(layout,j); hold(ax,'on'); grid(ax,'on'); box(ax,'on');
+    ax=nexttile(layout,2*j-1); hold(ax,'on'); grid(ax,'on'); box(ax,'on');
     plot(ax,ex,h,'Color',[0.35,0.16,0.60],'LineWidth',3);
     plot(ax,ex(1),h(1),'o','MarkerFaceColor',[0.20,0.62,0.42], ...
         'MarkerEdgeColor','none','MarkerSize',9);
@@ -71,7 +72,7 @@ for j=1:2
     text(ax,0.02,0.96,sprintf('t = %.2f s | return = %.2f',r.time(end),r.return), ...
         'Units','normalized','VerticalAlignment','top','FontSize',13);
 
-    ax=nexttile(layout,j+2); hold(ax,'on'); grid(ax,'on'); box(ax,'on');
+    ax=nexttile(layout,2*j); hold(ax,'on'); grid(ax,'on'); box(ax,'on');
     b=bar(ax,1:5,ratios,0.62,'FaceColor','flat');
     b.CData=repmat([0.20,0.62,0.42],5,1);
     b.CData(ratios>1,:)=repmat([0.82,0.20,0.18],sum(ratios>1),1);
