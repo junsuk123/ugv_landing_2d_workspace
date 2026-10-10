@@ -8,6 +8,7 @@
 - `parameter_matched_consistency.*`: `C_valid`, `D_obs`, `J_policy` 비교 그림
 - `parameter_matched_learning_curve.*`: 고해상도 학습 곡선
 - `parameter_matched_unsafe_failures.*`: 위험 실패 궤적·종료 원인
+- 각 `.fig`: MATLAB에서 직접 열어 축·범례·주석을 수정할 수 있는 원본 figure
 - 각 CSV: 해당 그림의 원자료
 
 ## 로컬 원시 결과
@@ -15,6 +16,8 @@
 Git 저장 용량 증가를 피하기 위해 MAT 체크포인트와 평가 결과는 아래 ignored 폴더에 별도로 모음.
 
 `results/latest_parameter_matched/`
+
+MATLAB에서 재생성한 전체 플롯 묶음은 `results/latest_parameter_matched/plots/`에 PNG, PDF, FIG, CSV 형식으로 함께 저장됨.
 
 - `ppo_s01.mat`
 - `onto_rgat_ppo_s01.mat`

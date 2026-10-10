@@ -290,6 +290,7 @@ run_live('S3')
 - `docs/assets/paper/latest_parameter_matched/parameter_matched_consistency.png` / `.pdf`
 - `docs/assets/paper/latest_parameter_matched/parameter_matched_unsafe_failures.png` / `.pdf`
 - `docs/assets/paper/latest_parameter_matched/parameter_matched_learning_curve.png` / `.pdf`
+- 같은 폴더의 동명 `.fig` 4개 (MATLAB 편집용 원본 figure)
 
 ## 검증 상태
 
