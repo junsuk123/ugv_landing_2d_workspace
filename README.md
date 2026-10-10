@@ -10,10 +10,13 @@
 | Unsafe 종료율 | **0%** | 2% | +2%p |
 | Timeout | 5% | **0%** | **−5%p** |
 | 평균 return | 31.819 | **32.051** | **+0.233** |
+| 공칭 `C_valid` | **77.329%** | 64.182% | −13.147%p |
+| 공칭 `D_obs` P95 | **0.074238** | 0.10162 | +36.9% |
+| Pooled `J_policy` | **4.0996** | 7.5562 | +84.3% |
 | 파라미터 | 6,101 | **6,095** | **−6 (−0.10%)** |
 | Actor 추론 | **0.0369 ms** | 0.1840 ms | 100 ms 주기의 0.184% |
 
-> **결론:** 사실상 동일한 모델 용량에서 온톨로지–R-GAT의 held-out 착륙률과 평균 return 개선. 단, 위험 실패 2%와 단일 학습 시드 결과를 함께 공개하며 안전성·통계적 우월성 주장은 제외.
+> **결론:** 사실상 동일한 모델 용량에서 온톨로지–R-GAT의 held-out 착륙률과 평균 return은 개선됐지만, 세 일관성 지표는 모두 악화. 현재 결과는 임무 완료 성능과 관계형 정책의 평활성·잡음 강건성 사이의 trade-off를 나타내며, 안전성·통계적 우월성 주장은 제외.
 
 동일한 센서·12차원 관측·보상·행동·종료 조건에서 일반 PPO와 graph-only 온톨로지–R-GAT PPO를 비교하는 2차원 이동 UGV 착륙 연구 코드.
 
@@ -194,8 +197,18 @@ $$
 
 ### 고정 probe 지표
 
-기존 `C_valid`, `D_obs`, `J_policy` 수치는 16,565개 구형 모델 결과이므로
-6,095개 파라미터 정합 모델의 최종 결과에서 제외. 새 체크포인트 기반 재평가 후 별도 보고 예정.
+6,095개 파라미터 정합 체크포인트로 독립 재평가한 결과:
+
+| 잡음 배율 | 방법 | `C_valid` | `D_obs` P95 |
+|---:|---|---:|---:|
+| 0.5 | PPO / R-GAT | **77.735** / 67.242 | **0.038167** / 0.049678 |
+| 1.0 | PPO / R-GAT | **77.329** / 64.182 | **0.074238** / 0.10162 |
+| 2.0 | PPO / R-GAT | **74.895** / 59.604 | **0.13726** / 0.21246 |
+
+- 공칭 `C_valid`: −13.147%p
+- 공칭 `D_obs` P95: +36.9%
+- pooled `J_policy`: 4.0996 → 7.5562, +84.3%
+- 판정: 구형 16,565개 모델에서 관찰된 일관성 이점이 파라미터 정합 압축 모델에서는 유지되지 않음
 
 ### 계산 비용
 
@@ -218,7 +231,7 @@ Shin et al., *Vision-Based Autonomous Drone Landing on Moving Platforms With Unc
 | true relative state 기반 privileged critic | Actor/Critic 모두 동일 인과 관측 | 학습–배포 정보 경계 일치 |
 | 성공률·RMSE·FOV heatmap 중심 평가 | `C_valid`, `D_obs`, `J_policy` | 정책 일관성 평가 공백 보완 |
 | 접촉 중심 성공 정의 | 속도·자세·각속도 접촉 한계 | touchdown quality 강화 |
-| binary visibility reward의 진동 | 카메라 정렬 다양체 + 관계형 상태 | pooled jerk 감소 근거 |
+| binary visibility reward의 진동 | 카메라 정렬 다양체 + 관계형 상태 | 정합 모델 pooled jerk 증가, 미해결 |
 | 형식적 안전 보장 부재 | 독립 물리 유효성 판정 | 평가 보완, 보장 미해결 |
 
 현재 결과로 해결하지 못한 범위:
@@ -273,6 +286,9 @@ run_live('S3')
 - `docs/assets/paper/parameter_matched_ontology_evidence.png` (GitHub·PPT용 고해상도 PNG)
 - `docs/assets/paper/parameter_matched_ontology_evidence.pdf` (벡터 PDF)
 - `docs/assets/paper/parameter_matched_ontology_summary.csv` (그림 원자료)
+- `docs/assets/paper/parameter_matched_consistency.png` / `.pdf`
+- `docs/assets/paper/parameter_matched_unsafe_failures.png` / `.pdf`
+- `docs/assets/paper/parameter_matched_learning_curve.png` / `.pdf`
 
 ## 검증 상태
 
