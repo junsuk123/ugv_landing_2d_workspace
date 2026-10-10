@@ -32,25 +32,25 @@
 
 - 행동 출력: 수평·수직 가속도 `[a_x,a_z]`, 3차원 옵션 `[a_x,a_y,a_z]` (수직 성분 마지막)
 - 3차원 옵션의 수치·task fingerprint·학습 서명 불변: 3차원 항목(`experiment.spatial`, `graphState.spatialDimension`)은 3차원 옵션에서만 생성, 3차원은 공통 관측 제거·하향 원뿔 카메라(`defaultSpatialConfig.cameraFov`, `cameraPitchOffset`)·tracker 기반 감독기 유지
-- 평면 계약(리팩토링): 마커 카메라 단일 기하, 광축 기준 시작 위치, 공통 관측 기반 감독기·착륙 승인으로 변경, 변경 전 2차원 체크포인트·결과 재사용 금지
+- 평면 계약: 마커 카메라 단일 기하, 광축 기준 시작 위치, 12차원 공통 관측, direct-policy 적용. 감독기·착륙 승인·SAFE_ABORT 가드 미사용
 - 3차원 설정의 단일 정의: `landing2d.config.defaultSpatialConfig`, 적용 `landing2d.config.applySpatialDimension`
 - 3차원 체크포인트: `results/spatial3d` 분리 저장
 - 3차원 계약 보완(3차원 전용, 세 비교군 공통): 최종 하강 단계(`experiment.spatial.finalDescent*`), 행동 변화량 보상 비용(`reward.actionChangeWeight`), 학습 에피소드 한정 커리큘럼(`rl.trackAuthorizationCurriculumScale`, `rl.touchdownAttitudeCurriculumScale`)과 탐색 잡음(`rl.initialLogStd`, `rl.lateralInitialLogStd`)
 - 정책 입력(2차원): 12차원 공통 관측(`experiment.observationSchema` = `landing2d.observation.vectorSchema`)과 공통 관측 기반 graph(`landing2d.graphstate.observationGraph`)만 허용, 관측 차원·필드명은 스키마에서 읽기, 26차원 packet으로 되돌리기 금지
 - 정책 입력(3차원 옵션): causal sensor packet과 해당 packet 기반 graph
 - 2차원 graph: 7개 노드·4개 관계·6채널, 노드별 정보보존 grouped readout. 12차원 공통 관측 외 입력 금지
-- 2차원 graph 노드 특징 버전 `graphState.observationFeatures = 'forward_camera_v2'`(그래프 비교군 학습 서명 포함, 3차원 옵션은 필드 제거): 수평 오프셋·상대 수평 속도는 $o_t$와 같은 연성 척도 x/(|x|+3)(전방 하향 카메라의 패드 시야 지점 약 0.58h 앞에서 포화 금지), 영상 경과시간은 Γ 고정 척도(커리큘럼 중단 기준과 무관), 착륙 억제·하강 근거에 감독기 최종 하강 규칙(`experiment.commonObservation.finalDescent`) 반영
+- 2차원 graph 노드 특징 버전 `graphState.observationFeatures = 'minimal_sensor_v1'`(학습 서명 포함, 3차원 옵션은 필드 제거): 접근 곡면 cross-track $e_x-mh$, closure $v_{rel,x}-mv_z$, UGV 속도, 수직 운동, 자세, 영상·측위 품질을 7노드×6채널로 구성. 모든 특징은 등록된 12차원 $o_t$의 결정론적 함수
 - 비가시 시점 hidden pad truth·미래 상태·보상·결과 라벨 입력 금지
 - 공통 reward·environment·action·termination 변경 금지 (예외: 2026-10-08 사용자 요청의 평면 reward_v3 개정, 이후 변경도 비교군 공통·`docs/refactor/REWARD_RATIONALE.md` 근거·측정 결과 필수)
-- 평면 보상 reward_v4: goal 기준점 $h\tan30^\circ$, 접근 곡면 속도 목표 $v_x^*=\tan30^\circ v_z-0.35(e_x-h\tan30^\circ)$, 수직 목표 $v_z^*=-\min(0.4,0.8h)$, potential 가중치 goal/수평/수직=4/4/4. 3차원 옵션은 reward_v2 유지
-- PPO 입력 표준화(평면, 비교군 공통): `rl.inputNormalization`, Actor/Critic MLP 입력의 running 평균·분산 표준화(`landing2d.rl.mlpInput`·`updateInputNorm`, 공유 통계 `agent.inputNorm`), 정책 입력 자체(24차원 $o_t$·그래프 특징) 불변, 수집 정책 입력으로만 갱신, raw 경로 보존 단계(관계 적응) 동결, 관계 residual·하강 gate는 비표준화 입력 사용, Simulink 변환은 고정 `landing2d.rlsim.InputNormLayer`(RL Toolbox 학습 중 통계 갱신 없음), 3차원 옵션 필드 제거
+- 평면 보상 reward_v5: goal 기준점 $h\tan30^\circ$, 접근 곡면 속도 목표 $v_x^*=\tan30^\circ v_z-0.35(e_x-h\tan30^\circ)$, 수직 목표 $v_z^*=-\min(0.4,0.8h)$, potential 가중치 goal/수평/수직=4/4/4, 원거리 goal running cost는 pseudo-Huber. 3차원 옵션은 reward_v2 유지
+- PPO 입력 표준화(평면, 비교군 공통): `rl.inputNormalization.enabled=false`. 일반 PPO는 bounded 12차원 $o_t$, R-GAT은 bounded graph embedding을 그대로 사용. raw bypass·relation residual·하강 gate 없음
 - 커리큘럼 재생 계약(평면, 비교군 공통): `rl.curriculumReplayContract='current'`, 쉬운·중간 재생 에피소드는 시작 고도·UGV 운동만 재생 수준, 접지 속도 한계·실패 보상·장기 손실 시간은 현재 커리큘럼 수준(`trainingEpisodeConfig` 4번째 인자), 3차원 옵션 필드 제거
 - 비교군 간 task fingerprint 동일성 유지
 - 비교군 설정: `landing2d.config.applyMethod`(method·학습 시드·그래프 시드), 실행 목록 `landing2d.config.comparisonArms`, 학습·평가·실시간 비교 공용
 - 체크포인트(2차원): `checkpoints/<method_id>_s<train_seed>[_g<graph_seed>].mat`, 학습 서명에 파일명·`rl.seed`·관계 교란 포함, 실행 식별 `run` 저장 (`landing2d.rl.runIdentity`)
 - 관계 교란: `graphState.relationPerturbation`(graph_seed) 고정 순열 `landing2d.rgat.applyRelationPerturbation`, 자기 간선 보호, 원 배치·전역 이름 치환 배치 거부, 사전학습부터 추론까지 `encoderSpec.graph`(src/dst/rel/graph_hash) 단일 사용, 로드 시 `landing2d.rl.verifyCheckpointGraph`
 - 관계 교란 절제 실험: 처음부터 교란 그래프로 학습, 추론 시 재순열 금지, 온톨로지-RGAT와 초기화·사전학습·동결·PPO 예산·관계 경로 가드 동일
-- 평면 R-GAT은 raw semantic bypass·relation residual 없이 노드별 정보를 보존하는 direct grouped embedding만 사용
+- 평면 R-GAT은 raw semantic bypass·relation residual 없이 16차원 relation state와 `grouped_factorized` 노드별 readout 사용. graph embedding 16, Actor hidden 38–37, Critic hidden 35–34, 전체 파라미터 6,101개
 - 실시간 역전파 금지
 - test seed의 checkpoint 선택 사용 금지
 - 결과 생성 없는 수치·그림 작성 금지
@@ -81,13 +81,13 @@
 - 평면 학습 커리큘럼 시작 고도: 0.45–0.6 m(`rl.initialHeightRange(1)` 0.1125, `rl.curriculumStartHeight` 0.075, 전방 카메라 사각지대 0.35 m 이하 회피), 3차원 옵션은 기존 0.1–0.4 m 유지(`defaultSpatialConfig`)
 - 평면 학습 에피소드 난수 흐름 분리: 에피소드별 환경 시드·사례는 `rl.seed + rl.episodeStreamSeedOffset` 전용 흐름(`ppoTrain`), 같은 학습 시드의 비교군은 같은 학습 에피소드 순서, 미니배치 순열은 기존 흐름, 3차원 옵션은 필드 제거
 - 평면 성능 커리큘럼(비교군 공통): 현재 단계 착륙률 30% 이상 3개 구간이면 승급(`rl.curriculumLandingThreshold`), 10% 미만 2개 구간 연속이면 한 단계 강등(`rl.curriculumDemotionThreshold`·`curriculumDemotionWindows`, `advanceCurriculumLevel`), 예정 하한(`curriculumFloor`) 유지, 3차원 옵션은 10% 승급·강등 없음 유지(`defaultSpatialConfig`)
-- 평면 구동기 인계 커리큘럼(학습 에피소드 전용, 비교군 공통): 확률 max(`rl.descentPrefixProbability`×(1−커리큘럼 수준), `rl.descentPrefixMinProbability` 0.3)로 기준 구동기가 `rl.descentPrefixHandoverRange`(0.1–0.3 m) 또는 무작위 시각 `rl.descentPrefixMaxTimeRange`(2–15 s) 중 먼저 오는 쪽까지 비행 후 정책 인계(`rolloutEpisodeV2`의 `descentPrefix`), 구동기 구간은 학습 전이 제외, 평가·보상·환경·감독기 불변, 3차원 옵션은 필드 제거
+- 평면 구동기 인계 커리큘럼(학습 에피소드 전용, 비교군 공통): 확률 max(`rl.descentPrefixProbability`×(1−커리큘럼 수준), `rl.descentPrefixMinProbability` 0.3)로 기준 구동기가 `rl.descentPrefixHandoverRange`(0.1–0.3 m) 또는 무작위 시각 `rl.descentPrefixMaxTimeRange`(2–15 s) 중 먼저 오는 쪽까지 비행 후 정책 인계(`rolloutEpisodeV2`의 `descentPrefix`), 구동기 구간은 학습 전이 제외, 평가·보상·환경·direct action 적용 불변, 3차원 옵션은 필드 제거
 - 마커 검출 판정: 잡음이 더해진 관측 코너로 영상 경계·최소 변 길이 판정, PnP 퇴화(야코비안 랭크 부족) 시 자세 기각
 - 학습 기록: `info.history`의 누적 `environmentSteps`·`episodes`·`wallSeconds`, `info.snapshots`(학습 진행 정책, `c.consistency.trainingSnapshots`), `info.pretrainingSeconds`·`ppoSeconds`, `info.relationActivation.seconds`
 - 학습 실행: `landing2d.orchestration.trainCampaign`(비교군·학습 시드·그래프 시드별 체크포인트, 동시 실행 시 실행별 파일 분리)
-- Simulink 평면 인지 경로: `PerceptionUpdateBlock`(결정 구간 끝 검출·측위·`capture`·결정 문맥), 감독기 입력은 `perceptionView` 값, tracker 잡음은 시간 기준 잡음표 색인, 신호 `perception`·status 최종 하강 필드는 `signalCodec` 단일 정의, `verifyEquivalence`에 기준 구동기 재생(착륙 경로) 포함
+- Simulink 평면 인지 경로: `PerceptionUpdateBlock`(결정 구간 끝 검출·측위·`capture`), tracker 잡음은 시간 기준 잡음표 색인, `signalCodec` 단일 정의, `verifyEquivalence`에 기준 구동기 재생 포함. 평면 action은 MATLAB과 동일한 direct-policy
 - 평면 direct-policy: 감독기·착륙 승인·SAFE_ABORT 가드 미적용, 접촉은 footprint·상대속도·자세의 기계적 조건만 판정. 3차원 옵션은 기존 감독기·승인 유지
-- `experiment.commonObservation`: task fingerprint·학습 서명 포함 (정책 입력·감독기·승인 구동)
+- `experiment.commonObservation`: task fingerprint·학습 서명 포함, 평면 정책 입력과 graph 생성 구동
 - 추정기 파라미터 조정: 검증 시드 한정, 시험 시드 사용 금지
 
 ## 실행 계약

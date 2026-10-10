@@ -1,75 +1,27 @@
 {
-  "schema_version": "causal_packet_v2",
+  "schema_version": "minimal_common_observation_v3",
   "profile": "planar_visibility_v2",
-  "policy_vector_dimension": 26,
-  "packet_update_rate_hz": 100,
+  "policy_vector_dimension": 12,
   "policy_decision_rate_hz": 10,
-  "own_state_noise": "none (ideal own-state)",
-  "source_of_truth": "landing2d.sensing.observationSchema",
+  "source_of_truth": "landing2d.observation.vectorSchema",
   "groups": {
-    "own_motion": [
-      "h",
-      "vx",
-      "vz",
-      "sinTheta",
-      "cosTheta",
-      "pitchRate"
-    ],
-    "pad_track": [
-      "exEstimate",
-      "relativeVxEstimate",
-      "padVxEstimate",
-      "padAxEstimate",
-      "positionStd",
-      "velocityStd",
-      "accelerationStd",
-      "trackInitialized"
-    ],
-    "visibility": [
-      "detected",
-      "measuredBearing",
-      "bearingValid",
-      "detectionConfidence",
-      "timeSinceLastDetection",
-      "predictedBearing",
-      "predictedFovMargin"
-    ],
-    "task_memory": [
-      "remainingMissionTime",
-      "previousNormalizedActionX",
-      "previousNormalizedActionZ",
-      "landingInhibited",
-      "abortRequested"
-    ]
+    "relative": ["relative_x", "relative_height", "relative_vx"],
+    "motion": ["ugv_vx", "drone_vz", "drone_sinTheta", "drone_cosTheta", "drone_pitchRate"],
+    "quality": ["ugv_visionUpdated", "ugv_visionAge", "drone_navigationValid", "drone_navigationAge"]
   },
   "graph_projection": {
-    "schema": "compact_context_graph_v3_grouped",
-    "node_count": 9,
-    "feature_count_per_node": 12,
-    "flattened_dimension": 108,
-    "semantic_edge_count": 17,
-    "self_edge_count": 9,
-    "relation_type_count": 5,
-    "readout": "raw_plus_groups",
-    "relation_context_dimension": 4
+    "schema": "minimal_observation_rgat_v3",
+    "node_count": 7,
+    "feature_count_per_node": 6,
+    "semantic_edge_count": 9,
+    "self_edge_count": 7,
+    "relation_type_count": 4,
+    "hidden_dimension": 16,
+    "graph_dimension": 16,
+    "readout": "grouped_factorized"
   },
   "causal_boundary": {
-    "allowed": [
-      "current own-state",
-      "current camera measurement",
-      "causal pad-track estimate",
-      "observation age",
-      "track uncertainty",
-      "previous normalized action",
-      "public safety state"
-    ],
-    "excluded": [
-      "hidden current pad truth while unobserved",
-      "future pad trajectory",
-      "scenario phase label",
-      "reward or return",
-      "terminal outcome",
-      "teacher action"
-    ]
+    "allowed": ["current and past marker measurements", "causal UGV estimate", "fused drone navigation", "measurement validity and age"],
+    "excluded": ["hidden pad truth", "future state", "absolute horizontal position", "reward", "terminal outcome", "supervisor or authorization state"]
   }
 }

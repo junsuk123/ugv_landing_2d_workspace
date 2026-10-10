@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f8fafc"/><stop offset="1" stop-color="#eef2ff"/></linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#475569"/></marker>
+    <style>.t{font-family:Arial,'Noto Sans KR',sans-serif;fill:#172033}.h{font-size:38px;font-weight:700}.s{font-size:22px}.b{font-size:25px;font-weight:700}.box{fill:white;stroke:#94a3b8;stroke-width:2;rx:20}.arr{stroke:#475569;stroke-width:4;fill:none;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <text x="80" y="75" class="t h">Current parameter-matched landing pipeline</text>
+  <text x="80" y="112" class="t s">Same environment, sensors, observation source, reward, action, termination and 4,500-episode budget</text>
+  <rect x="70" y="180" width="240" height="160" class="box"/>
+  <text x="190" y="225" text-anchor="middle" class="t b">Sensors</text>
+  <text x="190" y="265" text-anchor="middle" class="t s">Marker corners</text><text x="190" y="298" text-anchor="middle" class="t s">Navigation estimate</text>
+  <rect x="385" y="180" width="250" height="160" class="box"/>
+  <text x="510" y="225" text-anchor="middle" class="t b">Causal estimation</text>
+  <text x="510" y="265" text-anchor="middle" class="t s">Planar PnP + CV-KF</text><text x="510" y="298" text-anchor="middle" class="t s">No hidden truth</text>
+  <rect x="710" y="180" width="250" height="160" class="box"/>
+  <text x="835" y="225" text-anchor="middle" class="t b">Common observation</text>
+  <text x="835" y="270" text-anchor="middle" class="t s">o<tspan baseline-shift="sub">t</tspan> ∈ R¹²</text><text x="835" y="305" text-anchor="middle" class="t s">relative · motion · quality</text>
+  <path d="M310 260 H375" class="arr"/><path d="M635 260 H700" class="arr"/>
+  <path d="M835 340 V420 H490 V455" class="arr"/><path d="M835 340 V420 H1180 V455" class="arr"/>
+  <rect x="250" y="455" width="480" height="220" class="box" stroke="#2563eb"/>
+  <text x="490" y="505" text-anchor="middle" class="t b" fill="#1d4ed8">Plain PPO</text>
+  <text x="490" y="550" text-anchor="middle" class="t s">12 → 48 → 48</text>
+  <text x="490" y="590" text-anchor="middle" class="t s">Actor + Critic</text>
+  <text x="490" y="635" text-anchor="middle" class="t b">6,101 parameters</text>
+  <rect x="870" y="455" width="620" height="220" class="box" stroke="#6d28d9"/>
+  <text x="1180" y="500" text-anchor="middle" class="t b" fill="#6d28d9">Ontology–R-GAT PPO</text>
+  <text x="1180" y="540" text-anchor="middle" class="t s">7 nodes × 6 channels · 4 relations · 16 edges</text>
+  <text x="1180" y="578" text-anchor="middle" class="t s">Typed attention → factorized grouped readout (16)</text>
+  <text x="1180" y="615" text-anchor="middle" class="t s">Actor 38–37 · Critic 35–34</text>
+  <text x="1180" y="650" text-anchor="middle" class="t b">6,101 parameters</text>
+  <path d="M490 675 V740 H800" class="arr"/><path d="M1180 675 V740 H820" class="arr"/>
+  <rect x="630" y="755" width="340" height="100" class="box"/>
+  <text x="800" y="795" text-anchor="middle" class="t b">Direct [a<tspan baseline-shift="sub">x</tspan>, a<tspan baseline-shift="sub">z</tspan>]</text>
+  <text x="800" y="830" text-anchor="middle" class="t s">Dynamics + mechanical touchdown</text>
+  <text x="1190" y="815" class="t s" fill="#6d28d9">No raw bypass · no gate · no safety guard</text>
+</svg>

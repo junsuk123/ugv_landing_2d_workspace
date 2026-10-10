@@ -1,126 +1,240 @@
-# PPT 수정 에이전트용 최종 프롬프트
+# 발표자료 제작 에이전트 지시서
 
-아래 PowerPoint를 직접 수정하라.
+## 1. 작업 목적
 
-- 원본: `C:\Users\user\SynologyDrive\junsuk\세미나\발표\20261012\261012_김준석_드론 자율 착륙을 위한 온톨로지 관계 추론 기반 강화학습 기법.pptx`
-- 출력: 원본을 덮어쓰지 말고 같은 폴더에 `261012_김준석_드론 자율 착륙을 위한 온톨로지 관계 추론 기반 강화학습 기법_파라미터정합_최종.pptx`로 저장
-- 수치 원본: `C:\Users\user\SynologyDrive\junsuk\학술대회\CICS2026\codes\ugv_landing_2d_workspace_refactor\results\planar_visibility_full_summary.csv`
-- 학습 원본: `C:\Users\user\SynologyDrive\junsuk\학술대회\CICS2026\codes\ugv_landing_2d_workspace_refactor\results\planar_visibility_full.mat`
-- 종합 결과 그림: `C:\Users\user\SynologyDrive\junsuk\학술대회\CICS2026\codes\ugv_landing_2d_workspace_refactor\docs\assets\paper\latest_parameter_matched\parameter_matched_ontology_evidence.png`
-- 일관성 그림: `C:\Users\user\SynologyDrive\junsuk\학술대회\CICS2026\codes\ugv_landing_2d_workspace_refactor\docs\assets\paper\latest_parameter_matched\parameter_matched_consistency.png`
-- 위험 실패 그림: `C:\Users\user\SynologyDrive\junsuk\학술대회\CICS2026\codes\ugv_landing_2d_workspace_refactor\docs\assets\paper\latest_parameter_matched\parameter_matched_unsafe_failures.png`
-- 단독 학습곡선: `C:\Users\user\SynologyDrive\junsuk\학술대회\CICS2026\codes\ugv_landing_2d_workspace_refactor\docs\assets\paper\latest_parameter_matched\parameter_matched_learning_curve.png`
+- 주제: 이동 UGV 착륙을 위한 최소 관측 온톨로지–R-GAT PPO
+- 기준 코드: 현재 저장소 `main`의 실행 가능한 `planar_visibility_v2`
+- 비교 대상: 일반 PPO와 온톨로지–R-GAT PPO
+- 핵심 통제: 환경·센서·12차원 관측 원자료·보상·행동·종료·학습 예산 동일
+- 핵심 차이: Actor/Critic 상태 표현
+- 발표 원칙: 생성된 결과만 사용, 단일 학습 seed의 통계적·안전성 우월 주장 금지
 
-## 최종 발표 주장
+원본:
 
-> 일반 PPO와 정확히 동일한 6,101개 파라미터에서, 정보보존형 저랭크 ontology–R-GAT가 held-out 착륙률·평균 누적 보상·물리적 유효행동 일관성 `C_valid`를 개선함. 종전 6,095개 과압축 모델보다 잡음 민감도와 명령 jerk도 감소했으나, `D_obs`와 `J_policy`는 일반 PPO보다 여전히 높음. 단일 학습 seed와 위험 실패 1% 때문에 안전성·통계적 우월성 주장은 제외함.
+`C:\Users\user\SynologyDrive\junsuk\세미나\발표\20261012\261012_김준석_드론 자율 착륙을 위한 온톨로지 관계 추론 기반 강화학습 기법.pptx`
 
-공통 관측·보상·환경·행동·종료·PPO 예산은 변경하지 않았음을 명시한다. 게이트, 안전 가드, raw observation bypass, additive residual은 사용하지 않는다.
+원본 PPTX를 덮어쓰지 않고 같은 폴더에 다음 이름으로 저장.
 
-## 확정 구조와 파라미터
+`261012_김준석_드론 자율 착륙을 위한 온톨로지 관계 추론 기반 강화학습 기법_최종.pptx`
 
-- 공통 관측: 12차원
-- 온톨로지: 7개 노드, 4개 관계(`informs`, `conditions`, `couples`, `self`), 16개 간선
-- 노드 특징: 공통 관측에서만 계산한 6차원
-- R-GAT: 관계 메시지 전달 1층, 관계 임베딩 4차원, 노드 은닉 16차원
-- 노드별 grouped state: `H ∈ R^(16×7)`
-- 저랭크 grouped readout: 채널 투영 `W_c ∈ R^(16×16)`과 노드 혼합 `W_n ∈ R^(16×7)`
-- 그래프 임베딩: `g ∈ R^16`
-- Actor MLP: `16–38–37–2`
-- Critic MLP: `16–35–34–1`
-- Actor/Critic 인코더: 서로 독립, 인코더당 1,040개
-- Actor 전체: 3,207개
-- Critic 전체: 2,894개
-- 제안 모델 전체: 6,101개
-- 일반 PPO 전체: 6,101개
-- 파라미터 차이: 0개
+## 2. 필수 파일
 
-파라미터 산식:
+기준 폴더:
 
-`P_relation = (4×16×6) + 4(2×16+4) + (4×4) + (16×6) + 16 = 656`
+`C:\Users\user\SynologyDrive\junsuk\학술대회\CICS2026\codes\ugv_landing_2d_workspace_refactor\docs\assets\paper\latest_parameter_matched`
 
-`P_readout = (16×16) + (16×7) + 16 = 384`
+| 용도 | 파일 |
+|---|---|
+| 종합 결과 | `parameter_matched_ontology_evidence.png` |
+| 일관성 지표 | `parameter_matched_consistency.png` |
+| 학습 곡선 | `parameter_matched_learning_curve.png` |
+| 위험 실패 분석 | `parameter_matched_unsafe_failures.png` |
+| 편집용 MATLAB 원본 | 위와 같은 이름의 `.fig` |
+| 표 원자료 | 같은 이름의 `.csv` |
+| 현재 파이프라인 | `current_pipeline.svg` |
+| 7노드 온톨로지 | `current_ontology.svg` |
 
-`P_encoder = 656 + 384 = 1,040`
+수치를 재계산하거나 눈대중으로 옮기지 않고 CSV와 본 문서 사용.
 
-`P_actor = 1,040 + 2,167 = 3,207`
+## 3. 한 문장 결론
 
-`P_critic = 1,040 + 1,854 = 2,894`
+> 동일한 6,101개 파라미터와 동일한 착륙 과업에서, 12차원 센서 관측을 7개 물리·센서 노드와 4개 관계 유형으로 구조화한 온톨로지–R-GAT PPO가 일반 PPO보다 held-out 착륙률, 평균 return, 물리적 유효행동 일관성 `C_valid`를 개선했으나, 관측 잡음 민감도 `D_obs`와 명령 변화율 `J_policy`는 더 높은 결과.
 
-`P_proposed = 3,207 + 2,894 = 6,101 = P_PPO`
+## 4. 실험 계약
 
-수식:
+| 항목 | 값 |
+|---|---|
+| 실험 | `planar_visibility_v2` |
+| 공간 | x–z 평면 |
+| 물리/정책 주기 | 0.01 s / 0.10 s |
+| 최대 임무 시간 | 70 s |
+| 정책 입력 | 공통 12차원 관측 `o_t` |
+| 행동 | `[a_x,a_z]` 정규화 명령 후 축별 한계 적용 |
+| 행동 적용 | 평면 direct policy, 안전 감독기·착륙 승인·SAFE_ABORT guard 없음 |
+| 보상 | 공통 `reward_v5` |
+| PPO 예산 | 750 update × 6 episode = 4,500 episode |
+| 평가 | validation 100회, held-out test 100회 |
+| 학습 seed | 1개 |
+| 비교군 | `ppo`, `onto_rgat_ppo` |
 
-`e_ji^(r) = LeakyReLU(a_r^T [W_r x_i || W_r x_j || E_r])`
+학습 중 기준 구동기 prefix는 두 방법에 동일한 커리큘럼으로만 사용되며 prefix 구간은 PPO transition에서 제외. 평가에는 prefix 미사용.
 
-`α_ji^(r) = softmax_(j,r)(e_ji^(r))`
+## 5. 공통 관측
 
-`h_i = tanh(Σ_(j,r) α_ji^(r) W_r x_j + W_0 x_i + b_0)`, `h_i ∈ R^16`
+$$
+o_t=[e_x,h,v_{rel,x},\hat v_{G,x},v_z,\sin\theta,\cos\theta,\dot\theta,
+I_G,\tau_G,I_D,\tau_D]^\top\in\mathbb{R}^{12}.
+$$
 
-`q_kn = w_(c,k)^T h_n`
+| 그룹 | 성분 |
+|---|---|
+| 상대 상태 | `relative_x`, `relative_height`, `relative_vx` |
+| 운동·자세 | `ugv_vx`, `drone_vz`, `drone_sinTheta`, `drone_cosTheta`, `drone_pitchRate` |
+| 센서 품질 | `ugv_visionUpdated`, `ugv_visionAge`, `drone_navigationValid`, `drone_navigationAge` |
 
-`g_k = tanh(Σ_n W_n[k,n] q_kn + b_k)`, `g ∈ R^16`
+은닉 패드 참값, 미래 상태, 보상, 종료 라벨, 감독기 모드, 착륙 승인 플래그, 절대 수평 위치 제외.
 
-초기 readout의 12개 채널은 횡오차·고도·폐합속도·UGV 속도·수직속도·자세·영상/항법 유효도와 경과시간에 일대일 대응한다. 이는 학습 가능한 ontology 좌표 초기화이며 raw 관측 우회가 아니다.
+## 6. 제안 온톨로지
 
-## 확정 실험 결과
+### 6.1 노드
 
-동일한 750 PPO 반복 × 반복당 6에피소드 = 4,500에피소드, 학습 seed 1개, held-out test 100에피소드 결과만 사용한다.
+1. RelativePosition
+2. RelativeVelocity
+3. PadVelocity
+4. VerticalMotion
+5. Attitude
+6. VisionQuality
+7. NavigationQuality
 
-| 지표 | 일반 PPO | 최종 온톨로지–R-GAT PPO | 차이 |
+각 노드는 6채널 특징 `[primary,signed,secondary,validity,age,typeId]` 사용. 모든 값은 12차원 `o_t`의 결정론적 함수.
+
+전방 하향 카메라 접근 곡면:
+
+$$
+m=\tan(-\theta_C),\qquad e_c=e_x-mh,\qquad
+v_c=v_{rel,x}-mv_z.
+$$
+
+`RelativePosition`은 $(e_c,h)$, `RelativeVelocity`는 $(v_c,v_{rel,x})$, `PadVelocity`는 $\hat v_{G,x}$, `VerticalMotion`은 $(v_z,h)$, `Attitude`는 $(\sin\theta,\cos\theta,\dot\theta)$, 품질 노드는 유효도와 경과시간으로 구성.
+
+### 6.2 관계
+
+- `informs`
+- `conditions`
+- `couples`
+- `self`
+
+의미 간선 9개와 자기 간선 7개, 총 16개 간선.
+
+### 6.3 R-GAT
+
+관계 $r$의 간선 $i\rightarrow j$:
+
+$$
+q_{ij}^{(r)}=\operatorname{LReLU}\!\left(
+a_r^\top[W_rh_i\Vert W_rh_j\Vert e_r]\right),
+$$
+
+$$
+\alpha_{ij}^{(r)}=
+\frac{\exp q_{ij}^{(r)}}{\sum_{(k,r')\in\mathcal N(j)}\exp q_{kj}^{(r')}},
+\qquad
+z_j=\sum_{(i,r)\in\mathcal N(j)}\alpha_{ij}^{(r)}W_rh_i.
+$$
+
+현재 구현은 16차원 관계 상태와 local transform을 결합한 단일 typed-attention 층 사용.
+
+### 6.4 정보보존형 저랭크 readout
+
+7개 노드를 평균으로 합치지 않고 노드별 grouped representation 유지.
+
+$$
+U_k=W_c h_k,\qquad
+g=\tanh\!\left(b_g+\sum_{k=1}^{7}U_k\odot w_k\right),
+\qquad g\in\mathbb{R}^{16}.
+$$
+
+- $W_c\in\mathbb{R}^{16\times16}$
+- $W_n=[w_1,\ldots,w_7]\in\mathbb{R}^{16\times7}$
+- raw observation bypass·additive residual·descent gate 없음
+- Actor와 Critic은 독립 R-GAT encoder 사용
+
+## 7. 파라미터 정합
+
+| 구성 | Actor | Critic | 합계 |
 |---|---:|---:|---:|
+| 일반 PPO | 3,076 | 3,025 | 6,101 |
+| 온톨로지–R-GAT PPO | 3,207 | 2,894 | 6,101 |
+
+제안 모델 Actor MLP 16–38–37–2, Critic MLP 16–35–34–1. 각 encoder 1,040개 파라미터. 파라미터 차이 0개.
+
+## 8. 공통 보상
+
+전방 카메라 광축과 일치하는 목표 곡면:
+
+$$
+e_x^*=mh,\qquad
+v_{rel,x}^*=mv_z-0.35(e_x-mh),
+$$
+
+$$
+v_z^*=-\min(0.4,0.8h).
+$$
+
+bounded goal·수평 속도·수직 속도 potential 가중치 각각 4. 원거리 수평 오차에 pseudo-Huber running cost 적용. 종료 보상 SUCCESS +25, TASK_TIMEOUT −12, 기계적 실패 −40.
+
+## 9. 최종 결과
+
+### 9.1 Held-out 100회
+
+| 지표 | 일반 PPO | 온톨로지–R-GAT PPO | 변화 |
+|---|---:|---:|---:|
+| 착륙률 | 95% | 96% | +1%p |
+| unsafe | 0% | 1% | +1%p |
+| timeout | 5% | 3% | −2%p |
+| 평균 return | 31.819 | 32.372 | +0.553 |
 | 파라미터 | 6,101 | 6,101 | 0 |
-| 착륙 성공률 | 95% | 96% | +1%p |
-| 위험 실패율 | 0% | 1% | +1%p |
-| 시간 초과율 | 5% | 3% | −2%p |
-| 평균 누적 보상 | 31.8186 | 32.372 | +0.553 |
-| Actor 추론시간 | 0.0353 ms | 0.1693 ms | 약 4.8배 |
-| 공칭 `C_valid` | 77.329% | 80.799% | +3.470%p |
-| 공칭 `D_obs` P95 | 0.074238 | 0.095983 | +29.3% |
-| pooled `J_policy` | 4.0996 | 6.6914 | +63.2% |
+| Actor 추론 | 0.0353 ms | 0.1693 ms | 약 4.8배 |
 
-종전 6,095개 모델 대비 최종 모델의 변화도 별도 callout으로 제시한다.
+R-GAT 추론시간은 100 ms 정책 주기의 약 0.169%.
 
-- `C_valid`: 64.182% → 80.799%, +16.617%p
-- `D_obs` P95: 0.10162 → 0.095983, −5.5%
-- `J_policy`: 7.5562 → 6.6914, −11.4%
-- 파라미터: 6,095 → 6,101, PPO와 정확히 동일
+### 9.2 일관성
 
-추론시간 0.1693 ms는 100 ms 정책 주기의 약 0.169%이므로 실시간 예산 안이지만 일반 PPO보다 빠르다는 주장은 금지한다. 선택 체크포인트는 validation 525회에서 착륙 98%, unsafe 0%, 평균 return 33.27을 기록했다. test seed는 선택에 사용하지 않았다.
+| 지표 | 일반 PPO | 온톨로지–R-GAT PPO | 판정 |
+|---|---:|---:|---|
+| 공칭 `C_valid` | 77.329% | 80.799% | 제안 +3.470%p |
+| 공칭 `D_obs` P95 | 0.074238 | 0.095983 | 일반 PPO 우세 |
+| pooled `J_policy` | 4.0996 | 6.6914 | 일반 PPO 우세 |
 
-## 슬라이드별 필수 수정
+잡음 배율 0.5/1/2에서 R-GAT `C_valid` 81.821/80.799/76.812%, PPO 77.735/77.329/74.895%.
 
-1. 슬라이드 1: 발표일 `2026. 10. 12.` 표기.
-2. 슬라이드 3~4: 핵심 기여에 `동일 6,101개 예산에서 관계 표현 용량 재배분` 추가.
-3. 슬라이드 5: `R-GAT 1층·노드 16차원`, `factorized grouped readout 16차원`, Actor `16–38–37–2`, Critic `16–35–34–1`로 교체.
-4. 슬라이드 6: 7노드·4관계·16간선 유지. 노드나 관계 추가·삭제 금지.
-5. 슬라이드 7: dense `112→32` 또는 과압축 `28→5` 도식을 삭제하고 `H(16×7) → W_c(16×16), W_n(16×7) → g(16)` 저랭크 수식과 1,040개/인코더 산식 배치.
-6. 슬라이드 8~9: 공통 보상·환경 내용 유지.
-7. 슬라이드 10: `일반 PPO 6,101개 = 제안 모델 6,101개` 및 `파라미터 차이 0` 배지 표시.
-8. 슬라이드 11: 착륙 95→96%, timeout 5→3%, 평균 보상 31.82→32.37, 위험 실패 0→1%를 동일 가시성으로 표시.
-9. 슬라이드 12: 제목을 `동일 파라미터에서 회복된 유효행동 일관성`으로 변경. `parameter_matched_consistency.png`를 사용해 `C_valid +3.470%p`, `D_obs +29.3%`, `J_policy +63.2%`를 함께 제시. 한 지표만 선택해 우월성을 주장하지 말 것.
-10. 슬라이드 13: 향후 연구에 다중 학습 seed 신뢰구간, 위험 실패 1건 원인 개선, `D_obs`·`J_policy` 격차 해소 추가.
-11. 슬라이드 16·19: 노드 16차원, 그래프 16차원, 1,040개/인코더, 총 6,101개로 전면 수정.
-12. 슬라이드 20: 동일 4,500-episode PPO 예산과 validation/test 분리 명시.
-13. 슬라이드 21: `동일 파라미터에서 성공률 +1%p, return +0.553, C_valid +3.470%p`를 결론으로 사용하고 `단일 seed·unsafe 1%·D_obs/J_policy 열세`를 병기.
-14. 부록: `parameter_matched_unsafe_failures.png` 추가. 유일한 위험 실패는 seed 3076의 `UNSAFE_CONTACT`이며 종단 pitch-rate가 허용 한계의 1.164배였음을 명시.
-15. 작은 학습곡선을 `parameter_matched_learning_curve.png`로 교체하고 추론시간 중복 주석은 제거.
+### 9.3 위험 실패
 
-## 삭제할 구형 주장
+- 1건, seed 3076, `UNSAFE_CONTACT`
+- 종단 pitch rate −11.643 deg/s
+- 허용 한계 대비 1.164배
+- 위치·수평·수직 속도·pitch는 허용 범위, pitch-rate 단일 위반
 
-- 16,565개 모델의 `C_valid +20.2%p`, `D_obs P95 −6.68%`, `J_policy −8.85%`
-- 6,095개 과압축 모델의 `C_valid −13.147%p`, `D_obs +36.9%`, `J_policy +84.3%`
-- `성공률 98%`, `unsafe 2%`, `timeout 0%`, `28→5`, `총 6,095개`
-- `온톨로지가 안전성을 개선`, `통계적으로 유의`, `모든 일관성 지표 우월` 표현
+### 9.4 학습 선택
 
-## 편집·검수 원칙
+- R-GAT 선택 checkpoint: update 525
+- validation 착륙률 98%, unsafe 0%, 평균 return 33.27
+- test seed는 checkpoint 선택에 미사용
 
-- 기존 네이비·보라 계열 디자인, 글꼴, 페이지 번호, 여백, 도형 스타일 유지.
-- 개조식·두괄식·명사형 종결어미 사용.
-- 결과에 `held-out n=100`, `training seed n=1` 직접 표기.
-- 공통 관측·보상·환경·행동·종료·PPO 예산 동일성 반복 명시.
-- 수치 추정 금지. 위 파일의 최신 값만 사용.
-- 전체 슬라이드를 렌더링하여 겹침·잘림·슬라이드 밖 배치를 육안 검수.
-- 수정본 PPTX와 렌더링 PDF 동시 저장.
+## 10. 슬라이드 구성
 
-최종 응답에는 수정 슬라이드 번호, 핵심 수치, 삭제한 구형 주장, 출력 PPTX/PDF 경로를 요약하라.
+1. 제목·연구 질문
+2. 비구조 관측 정책의 한계와 공정 비교 조건
+3. 전체 파이프라인 — `current_pipeline.svg`
+4. 12차원 공통 관측과 정보 경계
+5. 7노드 온톨로지 — `current_ontology.svg`
+6. typed R-GAT 수식과 관계 유형
+7. factorized grouped readout과 raw bypass 부재
+8. PPO 결합·공통 reward·학습 커리큘럼
+9. 정확한 6,101개 파라미터 정합
+10. 학습 곡선
+11. held-out 임무 결과
+12. `C_valid`, `D_obs`, `J_policy` 동시 보고
+13. 위험 실패 1건 분석
+14. 계산 비용과 실시간성
+15. 결론·한계·향후 다중 seed 검증
+
+## 11. 표현 규칙
+
+- 개조식·두괄식·명사형 종결어미
+- 본문 최소 20 pt, 축·범례 최소 14 pt
+- PPO 파랑, 온톨로지–R-GAT 보라 유지
+- `C_valid`만 단독 제시 금지, `D_obs`·`J_policy`·임무 성공률 병기
+- `해석 가능성 = 정책 일관성 보장` 문구 금지
+- `안전성 향상`, `통계적 유의`, `전 지표 우월`, `일반 PPO보다 빠름` 주장 금지
+- 3차원 결과와 관계 교란 절제 실험을 공식 비교 결과에 포함 금지
+- 코드 변경 과정·폐기 모델·과거 파라미터 수·과거 실험 결과 언급 금지
+
+## 12. 최종 검수
+
+- 12차원, 7노드, 4관계, 16간선 표기 일치
+- 양 모델 6,101개 표기 일치
+- 착륙 95%/96%, unsafe 0%/1%, timeout 5%/3% 일치
+- `C_valid` 77.329%/80.799%, `D_obs` 0.074238/0.095983, `J_policy` 4.0996/6.6914 일치
+- 모든 그림이 `latest_parameter_matched` 폴더의 최신 파일인지 확인
+- 출력 PPTX와 PDF 열림·폰트·잘림·투명도 확인

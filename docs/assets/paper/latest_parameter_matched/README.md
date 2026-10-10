@@ -4,6 +4,8 @@
 
 ## 발표·논문용 파일
 
+- `current_pipeline.svg`: 현재 12차원 관측 기반 공정 비교 파이프라인
+- `current_ontology.svg`: 현재 7노드·4관계·16간선 온톨로지
 - `parameter_matched_ontology_evidence.*`: 임무 성능·모델 크기·추론시간 종합 그림
 - `parameter_matched_consistency.*`: `C_valid`, `D_obs`, `J_policy` 비교 그림
 - `parameter_matched_learning_curve.*`: 고해상도 학습 곡선

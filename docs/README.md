@@ -1,58 +1,21 @@
-# 문서 색인
+# 문서 안내
 
-## 요약
-
-- 문서 체계: 문제 정의·시스템 모델·알고리즘·평가의 이론 문서 구성
-- 공통 기호: [기호 정의](NOTATION_KO.md) 단일 기준
-- 결과 기준: 시험 seed 집합 $\mathcal S_{te}=\{3001,\dots,3100\}$ 100개 평가
-- 수록 범위: 최종 알고리즘·최종 평가 결과 한정
-- 리팩토링 상태: 평면 계약의 카메라(전방 아래 60° 마커 카메라)·시작 위치·안전 감독기 변경, 내용은 [공통 관측](COMMON_OBSERVATION_KO.md) 기준, 다른 문서의 2차원 계약 설명·결과 수치는 변경 전 기준
-
-## 진입 문서
-
-- 결론: 전체 README의 결론·결과·실험 설정 우선 참조
+모든 문서는 현재 `main`의 `planar_visibility_v2` 실행 계약을 기준으로 함. 개발 과정·폐기 모델·구형 수치는 문서 범위에서 제외.
 
 | 문서 | 내용 |
 |---|---|
-| [전체 README](../README.md) | 결론·결과·POMDP 정의·알고리즘·실험 설정·평가 프로토콜 |
-| [연구 개요](../README_KO.md) | 문제 정의·방법 개요·핵심 결과 요약 |
-| [기호 정의](NOTATION_KO.md) | 전 문서 공통 기호 체계 |
+| [현재 시스템·실험 명세](CURRENT_SYSTEM_KO.md) | 환경, 관측, 온톨로지, R-GAT, PPO, 결과의 단일 기준 |
+| [공통 관측](COMMON_OBSERVATION_KO.md) | 12차원 센서 관측과 정보 경계 |
+| [온톨로지–R-GAT](ONTOLOGY_GRAPH_STATE_KO.md) | 7노드·4관계·16간선·factorized readout |
+| [모듈 구성](MODULE_MAP_KO.md) | 실행 경로와 소스 책임 |
+| [기호](NOTATION_KO.md) | 논문·발표 수식 기호 |
+| [검증](VALIDATION_KO.md) | 최종 수치, 일관성 지표, 검증 상태 |
+| [Simulink](SIMULINK_KO.md) | backend와 MATLAB 등가성 |
+| [3차원 옵션](SPATIAL_3D_KO.md) | 기본 연구 범위 밖의 선택 확장 |
+| [최종 연구 보고서](refactor/FINAL_REPORT.md) | 논문 구성용 요약 |
+| [보상 근거](refactor/REWARD_RATIONALE.md) | 현행 reward_v5 수식과 계수 |
+| [PPT 에이전트 지시서](refactor/PPT_AGENT_PROMPT_KO.md) | 발표자료 제작용 최종 프롬프트 |
 
-## 이론 문서
+최신 그림·CSV·MATLAB FIG:
 
-- 결론: 시스템 모델 → 상태 표현 → 보상 → 알고리즘 → 평가 순서의 참조 구조
-
-| 문서 | 내용 |
-|---|---|
-| [시스템 모델](refactor/SYSTEM_SPEC.md) | 동역학·패드 운동·센서·행동·안전 감독기·종료 조건 |
-| [온톨로지 그래프 상태 설계](ONTOLOGY_GRAPH_STATE_KO.md) | 9노드·26간선·R-GAT 수식·Actor/Critic 결합 |
-| [보상 설계](refactor/REWARD_RATIONALE.md) | 보상 수식·가중치·정보 경계 |
-| [실험 파라미터](refactor/CONFIGURATION.md) | 시나리오 분포·seed 분할·PPO·커리큘럼 설정 |
-| [알고리즘 구성](MODULE_MAP_KO.md) | 인지·추정·그래프·정책·감독기·학습 알고리즘 구성 |
-| [평가 프로토콜·결과](VALIDATION_KO.md) | 시험 결과·대표 시나리오·안정성 지표 |
-| [관계 해석 지표](ONTOLOGY_VIEW_KO.md) | attention·관계 residual·그림 해석 |
-| [Simulink 실행·학습](SIMULINK_KO.md) | 블록 구조·RL Agent 학습·등가성 검증·실행 시간 |
-| [3차원 확장 옵션](SPATIAL_3D_KO.md) | 측방 $y$축·roll 축·원뿔 시야·37차원 packet·실행 방법 |
-| [공통 관측](COMMON_OBSERVATION_KO.md) | UGV 추정 상태·드론 융합 측위·직전 운동 기록 24차원, 평면 PnP·칼만 필터, 부가 정보 $\Gamma$ |
-| [최소 핵심 파이프라인](refactor/MINIMAL_CORE_PIPELINE_KO.md) | 12차원 공통 관측, 관측 전용 온톨로지, direct R-GAT PPO, 보조 장치 제거 및 실측 결과 |
-| [연구 결과 보고](refactor/FINAL_REPORT.md) | 방법·결과·제한·최종 판정 |
-
-## 그림
-
-- 결론: 파이프라인·그래프 구조와 평가 결과 그림의 분리 제시
-
-| 그림 | 내용 |
-|---|---|
-| [시스템 파이프라인](assets/pipeline.svg) | 세 비교군과 공통 환경 |
-| [온톨로지 그래프](assets/ontology_graph.svg) | 9개 의미 노드와 관계 유형 |
-| [대표 궤적](assets/paper/paper_trajectories.png) | 고정 3시나리오 궤적 |
-| [안정성 지표](assets/paper/paper_stability.png) | 6개 안정성 지표 |
-| [착륙 가능성](assets/paper/paper_feasibility.png) | authority margin $m_v,m_a,m_T$·하강 금지 원인 |
-| [관계 경로 검증](assets/paper/paper_ontology.png) | 온톨로지 신호·관계 residual $\tilde\delta_t$ |
-| [Monte Carlo 평가](assets/paper/planar_visibility_monte_carlo.png) | $\mathcal S_{te}$ 평균·1시그마 궤적·결과율 |
-
-## 문서 기준
-
-- 최종 알고리즘·최종 평가 결과 한정 수록
-- 중간 설계 기록·폐기 보상 설계·초기 분석 기록 제외
-- 기호: [기호 정의](NOTATION_KO.md) 준수, 신규 기호는 첫 등장 위치 정의
+`docs/assets/paper/latest_parameter_matched/`

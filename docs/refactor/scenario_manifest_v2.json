@@ -1,16 +1,20 @@
 {
   "schema_version": "scenario_manifest_v2",
-  "source_of_truth": "landing2d.config.defaultPlanarVisibilityConfig (manifest)",
+  "source_of_truth": "landing2d.config.defaultPlanarVisibilityConfig",
   "base_seed": 20261002,
   "parameterization": "duration",
-  "units": {"duration": "s", "distance": "m", "speed": "m/s", "acceleration": "m/s^2"},
   "splits": {
-    "train": {"start": 1, "count": 2000, "used_count": 12, "label": "causal_graph_pretraining_only"},
-    "validation": {"start": 2001, "count": 200, "used_count": 100, "label": "checkpoint_selection"},
-    "test": {"start": 3001, "count": 200, "used_count": 100, "label": "final_report"},
-    "stress": {"start": 9001, "count": 200, "used_count": 0, "label": "reserved_overlap_check_only"}
+    "train": {"start": 1, "count": 2000, "use": "scenario family and training episode stream"},
+    "validation": {"start": 2001, "count": 200, "used_count": 100, "use": "checkpoint selection"},
+    "test": {"start": 3001, "count": 200, "used_count": 100, "use": "held-out final report"},
+    "stress": {"start": 9001, "count": 200, "use": "reserved"}
   },
-  "ppo_training_episode_seeds": "Drawn as int32 integers from RandStream('threefry', rl.seed + 404) with rl.seed = 20240501; not taken from the train split.",
-  "paper_scenario_seeds": [41001, 41002, 41003],
-  "note": "Each integer seed identifies a deterministic scenario via landing2d.scenario.sampleParameters(scenario, base_seed + seed) and a sensor-event/noise stream seeded with base_seed + seed + 1000000 (landing2d.environment.reset). Evaluation uses the first used_count seeds of each split. Test cases are never rejected based on policy performance."
+  "training": {
+    "updates": 750,
+    "episodes_per_update": 6,
+    "total_episodes": 4500,
+    "episode_stream_seed_offset": 52001,
+    "same_stream_for_compared_methods": true
+  },
+  "test_selection_forbidden": true
 }

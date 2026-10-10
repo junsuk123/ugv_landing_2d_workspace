@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <marker id="ai" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#2563eb"/></marker>
+    <marker id="ac" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#d97706"/></marker>
+    <marker id="ak" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#7c3aed"/></marker>
+    <style>.t{font-family:Arial,'Noto Sans KR',sans-serif;fill:#172033}.h{font-size:38px;font-weight:700}.s{font-size:21px}.n{fill:white;stroke:#64748b;stroke-width:3}.nt{font-size:21px;font-weight:700}.i{stroke:#2563eb;stroke-width:4;fill:none;marker-end:url(#ai)}.c{stroke:#d97706;stroke-width:4;fill:none;marker-end:url(#ac)}.k{stroke:#7c3aed;stroke-width:4;fill:none;marker-end:url(#ak)}</style>
+  </defs>
+  <rect width="1600" height="900" fill="#f8fafc"/>
+  <text x="70" y="70" class="t h">Seven-node minimal observation ontology</text>
+  <text x="70" y="108" class="t s">Every node feature is a deterministic function of the same 12-D observation</text>
+  <path d="M380 590 Q290 450 420 325" class="i"/><path d="M620 325 Q570 455 440 570" class="i"/>
+  <path d="M970 250 Q810 180 650 285" class="c"/><path d="M970 270 Q760 350 455 560" class="c"/>
+  <path d="M1110 510 Q960 600 790 610" class="c"/><path d="M1110 530 Q1050 430 970 315" class="c"/>
+  <path d="M420 590 Q280 680 245 480" class="k"/><path d="M970 315 Q720 150 260 430" class="k"/><path d="M780 610 Q610 500 430 350" class="k"/>
+  <g><circle cx="420" cy="300" r="105" class="n"/><text x="420" y="294" text-anchor="middle" class="t nt">Relative</text><text x="420" y="322" text-anchor="middle" class="t nt">Position</text><text x="420" y="354" text-anchor="middle" class="t s">e<tspan baseline-shift="sub">x</tspan>−mh, h</text></g>
+  <g><circle cx="420" cy="620" r="105" class="n"/><text x="420" y="614" text-anchor="middle" class="t nt">Relative</text><text x="420" y="642" text-anchor="middle" class="t nt">Velocity</text><text x="420" y="674" text-anchor="middle" class="t s">v<tspan baseline-shift="sub">rel</tspan>−mv<tspan baseline-shift="sub">z</tspan></text></g>
+  <g><circle cx="720" cy="720" r="105" class="n"/><text x="720" y="714" text-anchor="middle" class="t nt">Pad</text><text x="720" y="742" text-anchor="middle" class="t nt">Velocity</text><text x="720" y="774" text-anchor="middle" class="t s">estimated v<tspan baseline-shift="sub">G</tspan></text></g>
+  <g><circle cx="1180" cy="620" r="105" class="n"/><text x="1180" y="614" text-anchor="middle" class="t nt">Vertical</text><text x="1180" y="642" text-anchor="middle" class="t nt">Motion</text><text x="1180" y="674" text-anchor="middle" class="t s">v<tspan baseline-shift="sub">z</tspan>, h</text></g>
+  <g><circle cx="1180" cy="280" r="105" class="n"/><text x="1180" y="274" text-anchor="middle" class="t nt">Attitude</text><text x="1180" y="306" text-anchor="middle" class="t s">sin/cos θ, θ̇</text></g>
+  <g><circle cx="210" cy="450" r="105" class="n"/><text x="210" y="444" text-anchor="middle" class="t nt">Vision</text><text x="210" y="472" text-anchor="middle" class="t nt">Quality</text><text x="210" y="504" text-anchor="middle" class="t s">update, age</text></g>
+  <g><circle cx="1370" cy="450" r="105" class="n"/><text x="1370" y="444" text-anchor="middle" class="t nt">Navigation</text><text x="1370" y="472" text-anchor="middle" class="t nt">Quality</text><text x="1370" y="504" text-anchor="middle" class="t s">valid, age</text></g>
+  <g transform="translate(560,150)"><line x1="0" y1="0" x2="60" y2="0" class="i"/><text x="75" y="7" class="t s">informs</text><line x1="210" y1="0" x2="270" y2="0" class="c"/><text x="285" y="7" class="t s">conditions</text><line x1="450" y1="0" x2="510" y2="0" class="k"/><text x="525" y="7" class="t s">couples</text></g>
+  <text x="70" y="855" class="t s">Self loops on all seven nodes omitted for readability · 9 semantic edges + 7 self edges = 16</text>
+</svg>

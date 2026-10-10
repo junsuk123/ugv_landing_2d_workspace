@@ -16,7 +16,7 @@
 | 파라미터 | 6,101 | 6,101 | **동일** |
 | Actor 추론 | **0.0353 ms** | 0.1693 ms | 100 ms 주기의 0.169% |
 
-> **결론:** 정확히 동일한 모델 용량에서 온톨로지–R-GAT의 held-out 착륙률·평균 return·`C_valid` 개선. 저랭크 관계 readout으로 종전 압축 모델보다 `D_obs`와 `J_policy`도 개선했으나 일반 PPO에는 아직 미달. 단일 학습 seed와 위험 실패 1%를 함께 공개하며 안전성·통계적 우월성 주장은 제외.
+> **결론:** 정확히 동일한 모델 용량에서 온톨로지–R-GAT의 held-out 착륙률·평균 return·`C_valid` 개선. `D_obs`와 `J_policy`는 일반 PPO보다 높음. 단일 학습 seed와 위험 실패 1%를 함께 공개하며 안전성·통계적 우월성 주장은 제외.
 
 동일한 센서·12차원 관측·보상·행동·종료 조건에서 일반 PPO와 graph-only 온톨로지–R-GAT PPO를 비교하는 2차원 이동 UGV 착륙 연구 코드.
 
@@ -29,6 +29,10 @@ run(struct('latestOntology',true))
 ## 연구 질문
 
 > 동일한 최소 센서 정보와 공통 보상 조건에서, 물리 의미를 가진 typed ontology와 R-GAT 상태 표현이 일반 MLP PPO보다 일관된 착륙 정책을 생성하는가?
+
+![현재 파라미터 정합 비교 파이프라인](docs/assets/paper/latest_parameter_matched/current_pipeline.svg)
+
+![현재 7노드 최소 관측 온톨로지](docs/assets/paper/latest_parameter_matched/current_ontology.svg)
 
 공식 비교:
 
@@ -156,18 +160,20 @@ h_i=\tanh\left(W_0x_i+b_0+
 \sum_{(j\to i,r)}\alpha_{ji}^{(r)}W_rx_j\right).
 $$
 
-Identity-preserving grouped readout:
+노드 정체성을 보존하는 factorized grouped readout:
 
 $$
-g_t=\tanh\left(W_g[h_1\Vert\cdots\Vert h_7]+b_g\right)
-\in\mathbb R^{5},\qquad [h_1\Vert\cdots\Vert h_7]\in\mathbb R^{28}.
+U_k=W_ch_k,\qquad
+g_t=\tanh\left(b_g+\sum_{k=1}^{7}U_k\odot w_k\right)
+\in\mathbb R^{16}.
 $$
 
 | 망 | 일반 PPO | 온톨로지–R-GAT PPO |
 |---|---|---|
-| Actor | 12–48–48–2 | R-GAT–5–48–48–2 |
-| Critic | 12–48–48–1 | R-GAT–5–48–48–1 |
-| R-GAT 은닉/관계 폭 | 없음 | 4/4 |
+| Actor | 12–48–48–2 | R-GAT–16–38–37–2 |
+| Critic | 12–48–48–1 | R-GAT–16–35–34–1 |
+| R-GAT 은닉/관계 embedding | 없음 | 16/4 |
+| 전체 파라미터 | 6,101 | 6,101 |
 
 ## 학습
 
@@ -183,6 +189,7 @@ $$
 - 무작위 초기화 직접 PPO
 - 그래프 사전학습 없음
 - 동일 성능 커리큘럼 및 episode 난수열
+- 공통 학습 전용 reference-driver descent prefix, prefix 구간은 PPO transition 제외, 평가에는 미사용
 - validation 100회 기반 checkpoint 선택
 - held-out test seed를 이용한 선택 금지
 
@@ -208,8 +215,7 @@ $$
 - 공칭 `C_valid`: 77.329% → 80.799%, **+3.470%p**
 - 공칭 `D_obs` P95: 0.074238 → 0.095983, +29.3%
 - pooled `J_policy`: 4.0996 → 6.6914, +63.2%
-- 종전 6,095개 모델 대비: `C_valid` +16.617%p, `D_obs` P95 −5.5%, `J_policy` −11.4%
-- 판정: 유효행동 일관성 우위 회복, 잡음 민감도·평활성 격차 축소. 후자의 PPO 대비 열세는 잔존
+- 판정: 유효행동 일관성 우위, 잡음 민감도·명령 평활성은 PPO 대비 열세
 
 ### 계산 비용
 
@@ -279,6 +285,7 @@ run_live('S3')
 
 ## 문서 및 산출물
 
+- [현재 시스템·실험 단일 명세](docs/CURRENT_SYSTEM_KO.md)
 - [최종 설계·수식·실험 분석](docs/refactor/CONSISTENCY_RUNTIME_REVIEW.md)
 - [보상 함수 이론](docs/refactor/REWARD_RATIONALE.md)
 - [공통 관측 계약](docs/COMMON_OBSERVATION_KO.md)
@@ -291,6 +298,8 @@ run_live('S3')
 - `docs/assets/paper/latest_parameter_matched/parameter_matched_unsafe_failures.png` / `.pdf`
 - `docs/assets/paper/latest_parameter_matched/parameter_matched_learning_curve.png` / `.pdf`
 - 같은 폴더의 동명 `.fig` 4개 (MATLAB 편집용 원본 figure)
+- [현재 파이프라인 SVG](docs/assets/paper/latest_parameter_matched/current_pipeline.svg)
+- [현재 7노드 온톨로지 SVG](docs/assets/paper/latest_parameter_matched/current_ontology.svg)
 
 ## 검증 상태
 

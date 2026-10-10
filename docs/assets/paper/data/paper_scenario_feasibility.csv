@@ -1,4 +1,0 @@
-Scenario,ScenarioName,Challenge,OntologyPath,InitialSpeed_mps,PadAcceleration_mps2,PeakPadSpeed_mps,InitialHeight_m,SpeedLimit_mps,SpeedMargin_mps,AccelerationLimit_mps2,AccelerationMargin_mps2,Deadline_s,TimeMargin_s,PhysicalFeasible,PhysicalCause,DropoutKind,DropoutDuration_s
-S1,S1 Nominal alignment,Nominal tracking / DescentEligibility,PadVisibility -> RelativeTracking -> DescentEligibility,1.5,0.6,2.4,6,9.5,7.1,2.5,1.9,31.5,38.5,1,feasible,clean,0
-S2,S2 Rapid acceleration,Pad acceleration / TrackingCorrection,PadMotion -> RelativeTracking -> TrackingCorrection,1,1.5,4.375,7,9.5,5.125,2.5,1,32.25,37.75,1,feasible,clean,0
-S3,S3 Visibility recovery,Bounded dropout / ViewRecovery and LandingInhibit,PadVisibility -> ViewRecovery -> LandingInhibit,1,1.2,4.3,6.5,9.5,5.2,2.5,1.3,34.75,35.25,1,feasible,short,0.8

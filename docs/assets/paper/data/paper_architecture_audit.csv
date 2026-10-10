@@ -1,4 +1,0 @@
-Method,StateRepresentation,RequiresRelationalPath,PolicyGraphReadoutNorm,ValueGraphReadoutNorm,PolicyRelationHeadNorm,ValueRelationHeadNorm,RelationalPathActive
-Low-level MLP PPO,baseline,0,NaN,NaN,0,0,1
-Semantic-flat MLP PPO,context_flat,0,NaN,NaN,0,0,1
-Ontology R-GAT PPO,context_rgat,1,0.000166537182707148,0.000605601859816821,0.151693272665975,0.479223014828098,1
