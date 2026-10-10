@@ -6,10 +6,10 @@
 - 출력: 원본을 덮어쓰지 말고 같은 폴더에 `261012_김준석_드론 자율 착륙을 위한 온톨로지 관계 추론 기반 강화학습 기법_파라미터정합_최종.pptx`로 저장
 - 수치 원본: `C:\Users\user\SynologyDrive\junsuk\학술대회\CICS2026\codes\ugv_landing_2d_workspace_refactor\results\planar_visibility_full_summary.csv`
 - 학습 원본: `C:\Users\user\SynologyDrive\junsuk\학술대회\CICS2026\codes\ugv_landing_2d_workspace_refactor\results\planar_visibility_full.mat`
-- 종합 결과 그림: `C:\Users\user\SynologyDrive\junsuk\학술대회\CICS2026\codes\ugv_landing_2d_workspace_refactor\docs\assets\paper\parameter_matched_ontology_evidence.png`
-- 일관성 그림: `C:\Users\user\SynologyDrive\junsuk\학술대회\CICS2026\codes\ugv_landing_2d_workspace_refactor\docs\assets\paper\parameter_matched_consistency.png`
-- 위험 실패 그림: `C:\Users\user\SynologyDrive\junsuk\학술대회\CICS2026\codes\ugv_landing_2d_workspace_refactor\docs\assets\paper\parameter_matched_unsafe_failures.png`
-- 단독 학습곡선: `C:\Users\user\SynologyDrive\junsuk\학술대회\CICS2026\codes\ugv_landing_2d_workspace_refactor\docs\assets\paper\parameter_matched_learning_curve.png`
+- 종합 결과 그림: `C:\Users\user\SynologyDrive\junsuk\학술대회\CICS2026\codes\ugv_landing_2d_workspace_refactor\docs\assets\paper\latest_parameter_matched\parameter_matched_ontology_evidence.png`
+- 일관성 그림: `C:\Users\user\SynologyDrive\junsuk\학술대회\CICS2026\codes\ugv_landing_2d_workspace_refactor\docs\assets\paper\latest_parameter_matched\parameter_matched_consistency.png`
+- 위험 실패 그림: `C:\Users\user\SynologyDrive\junsuk\학술대회\CICS2026\codes\ugv_landing_2d_workspace_refactor\docs\assets\paper\latest_parameter_matched\parameter_matched_unsafe_failures.png`
+- 단독 학습곡선: `C:\Users\user\SynologyDrive\junsuk\학술대회\CICS2026\codes\ugv_landing_2d_workspace_refactor\docs\assets\paper\latest_parameter_matched\parameter_matched_learning_curve.png`
 
 ## 최종 발표 주장
 

@@ -1,6 +1,6 @@
 # Causal Ontology R-GAT PPO for Moving-Platform Landing
 
-![파라미터 정합 일반 PPO 대비 온톨로지–R-GAT PPO 최종 실험 결과](docs/assets/paper/parameter_matched_ontology_evidence.png)
+![파라미터 정합 일반 PPO 대비 온톨로지–R-GAT PPO 최종 실험 결과](docs/assets/paper/latest_parameter_matched/parameter_matched_ontology_evidence.png)
 
 ## 최종 결과
 
@@ -284,12 +284,12 @@ run_live('S3')
 - [공통 관측 계약](docs/COMMON_OBSERVATION_KO.md)
 - [PPT용 최종 그림 코드](src/orchestration/+landing2d/+viz/plotParameterMatchedEvidence.m)
 - [PPT 수정 에이전트 프롬프트](docs/refactor/PPT_AGENT_PROMPT_KO.md)
-- `docs/assets/paper/parameter_matched_ontology_evidence.png` (GitHub·PPT용 고해상도 PNG)
-- `docs/assets/paper/parameter_matched_ontology_evidence.pdf` (벡터 PDF)
-- `docs/assets/paper/parameter_matched_ontology_summary.csv` (그림 원자료)
-- `docs/assets/paper/parameter_matched_consistency.png` / `.pdf`
-- `docs/assets/paper/parameter_matched_unsafe_failures.png` / `.pdf`
-- `docs/assets/paper/parameter_matched_learning_curve.png` / `.pdf`
+- `docs/assets/paper/latest_parameter_matched/parameter_matched_ontology_evidence.png` (GitHub·PPT용 고해상도 PNG)
+- `docs/assets/paper/latest_parameter_matched/parameter_matched_ontology_evidence.pdf` (벡터 PDF)
+- `docs/assets/paper/latest_parameter_matched/parameter_matched_ontology_summary.csv` (그림 원자료)
+- `docs/assets/paper/latest_parameter_matched/parameter_matched_consistency.png` / `.pdf`
+- `docs/assets/paper/latest_parameter_matched/parameter_matched_unsafe_failures.png` / `.pdf`
+- `docs/assets/paper/latest_parameter_matched/parameter_matched_learning_curve.png` / `.pdf`
 
 ## 검증 상태
 
