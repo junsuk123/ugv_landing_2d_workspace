@@ -137,12 +137,17 @@ cfg.graphState.observationSource = 'commonObservation';
 % Node-feature version of that graph (landing2d.graphstate.observationGraph).
 % Every node feature is a deterministic function of the registered vector.
 cfg.graphState.observationFeatures = 'minimal_sensor_v1';
-% Graph-only proposal: Actor and Critic receive only the grouped typed R-GAT
-% embedding built from the same common observation as PPO. There is no raw
-% observation bypass, additive residual, state gate, or validation guard.
+% Parameter-matched graph-only proposal: Actor and Critic receive only the
+% grouped typed R-GAT embedding built from the same common observation as
+% PPO. The 4-D node state retains relation-specific message capacity and the
+% 5-D learned graph bottleneck retains all seven identity readout groups.
+% Actor + Critic contain 6,095 trainable scalars versus 6,101 for plain PPO
+% (six fewer; 0.10%), removing model-size as a comparison confound. There is
+% no raw observation bypass, additive residual, state gate, or validation
+% guard.
 cfg.graphState.readout = 'grouped';
-cfg.graphState.hiddenDim = 16;
-cfg.graphState.graphDim = 32;
+cfg.graphState.hiddenDim = 4;
+cfg.graphState.graphDim = 5;
 cfg.graphState.encoderLearnRate = 1e-4;
 cfg.graphState.freezeStaticBackbone = false;
 cfg.graphState.graphAdaptationWarmupFraction = 0;

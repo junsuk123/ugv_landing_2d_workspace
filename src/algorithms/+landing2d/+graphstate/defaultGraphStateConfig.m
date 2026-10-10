@@ -22,9 +22,9 @@ gs.stateRepresentation = 'baseline';
 %% 그래프 부호기 (stateRepresentation이 'baseline'이 아닐 때만 사용)
 % 9개 의미 노드에 PolicyNode/ValueNode를 붙이고 두 층의 message passing으로
 % 정보를 모읍니다. hiddenDim은 각 노드와 두 의사결정 노드의 임베딩 폭입니다.
-gs.hiddenDim = 8;            % Compact relational residual; raw semantics bypass it.
+gs.hiddenDim = 4;            % Parameter-matched compact relation state.
 gs.relationDim = 4;          % Compact relation embedding.
-gs.graphDim = 32;            % mean/meanmax 제거 실험의 출력 폭 (가상 노드는 hiddenDim)
+gs.graphDim = 5;             % Compact graph-only bottleneck (primary: 6,095 parameters).
 gs.initScale = 0.12;         % 부호기 초기 가중치 배율
 gs.encoderLearnRate = 3e-4;  % 부호기 Adam 학습률
 
