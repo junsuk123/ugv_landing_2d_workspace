@@ -1,22 +1,19 @@
 # Causal Ontology R-GAT PPO for Moving-Platform Landing
 
-![일반 PPO 대비 온톨로지–R-GAT PPO 최종 실험 결과](docs/assets/paper/ontology_vs_ppo_evidence.png)
+![파라미터 정합 일반 PPO 대비 온톨로지–R-GAT PPO 최종 실험 결과](docs/assets/paper/parameter_matched_ontology_evidence.png)
 
 ## 최종 결과
 
 | 지표 | 일반 PPO | 온톨로지–R-GAT PPO | 결과 |
 |---|---:|---:|---:|
-| Held-out 착륙률 | 95% | **95%** | 동등 |
-| Unsafe 종료율 | 0% | **0%** | 동등 |
-| Timeout | 5% | **5%** | 동등 |
-| 평균 return | **31.819** | 30.406 | −4.44% |
-| 공칭 `C_valid` | 77.329% | **97.479%** | **+20.150%p** |
-| 공칭 `D_obs` P95 | 0.074238 | **0.069280** | **6.68% 감소** |
-| Pooled `J_policy` | 4.0996 | **3.7366** | **8.85% 감소** |
-| 파라미터 | **6,101** | 16,565 | 2.72배 |
-| Actor 추론 | **0.0393 ms** | 0.1780 ms | 100 ms 주기의 0.18% |
+| Held-out 착륙률 | 95% | **98%** | **+3%p** |
+| Unsafe 종료율 | **0%** | 2% | +2%p |
+| Timeout | 5% | **0%** | **−5%p** |
+| 평균 return | 31.819 | **32.051** | **+0.233** |
+| 파라미터 | 6,101 | **6,095** | **−6 (−0.10%)** |
+| Actor 추론 | **0.0369 ms** | 0.1840 ms | 100 ms 주기의 0.184% |
 
-> **결론:** 동일 임무 성공률과 안전성을 유지하면서 온톨로지–R-GAT의 물리적 행동 일관성, 관측 잡음 강건성, pooled 명령 평활성 개선. 단일 학습 시드 결과에 따른 일반적 우월성 주장 제외.
+> **결론:** 사실상 동일한 모델 용량에서 온톨로지–R-GAT의 held-out 착륙률과 평균 return 개선. 단, 위험 실패 2%와 단일 학습 시드 결과를 함께 공개하며 안전성·통계적 우월성 주장은 제외.
 
 동일한 센서·12차원 관측·보상·행동·종료 조건에서 일반 PPO와 graph-only 온톨로지–R-GAT PPO를 비교하는 2차원 이동 UGV 착륙 연구 코드.
 
@@ -160,14 +157,14 @@ Identity-preserving grouped readout:
 
 $$
 g_t=\tanh\left(W_g[h_1\Vert\cdots\Vert h_7]+b_g\right)
-\in\mathbb R^{32}.
+\in\mathbb R^{5},\qquad [h_1\Vert\cdots\Vert h_7]\in\mathbb R^{28}.
 $$
 
 | 망 | 일반 PPO | 온톨로지–R-GAT PPO |
 |---|---|---|
-| Actor | 12–48–48–2 | R-GAT–32–48–48–2 |
-| Critic | 12–48–48–1 | R-GAT–32–48–48–1 |
-| R-GAT 은닉/관계 폭 | 없음 | 16/4 |
+| Actor | 12–48–48–2 | R-GAT–5–48–48–2 |
+| Critic | 12–48–48–1 | R-GAT–5–48–48–1 |
+| R-GAT 은닉/관계 폭 | 없음 | 4/4 |
 
 ## 학습
 
@@ -192,34 +189,23 @@ $$
 
 | 방법 | 착륙 | unsafe | timeout | 평균 return |
 |---|---:|---:|---:|---:|
-| 일반 PPO | 95% | 0% | 5% | **31.819** |
-| 온톨로지–R-GAT PPO | **95%** | **0%** | **5%** | 30.406 |
+| 일반 PPO | 95% | **0%** | 5% | 31.819 |
+| 온톨로지–R-GAT PPO | **98%** | 2% | **0%** | **32.051** |
 
-### 고정 probe 2,858개
+### 고정 probe 지표
 
-| 잡음 배율 | 방법 | `C_valid` | `D_obs` P95 |
-|---:|---|---:|---:|
-| 0.5 | PPO / R-GAT | 77.735 / **97.559** | 0.038167 / **0.034031** |
-| 1.0 | PPO / R-GAT | 77.329 / **97.479** | 0.074238 / **0.069280** |
-| 2.0 | PPO / R-GAT | 74.895 / **94.980** | 0.137256 / **0.129166** |
-
-공칭 효과량:
-
-$$
-\Delta C_{valid}=\mathbf{+20.150\%p},\qquad
-D_{obs,P95}=\mathbf{6.68\%}\ \text{감소},\qquad
-J_{policy}=\mathbf{8.85\%}\ \text{감소}.
-$$
+기존 `C_valid`, `D_obs`, `J_policy` 수치는 16,565개 구형 모델 결과이므로
+6,095개 파라미터 정합 모델의 최종 결과에서 제외. 새 체크포인트 기반 재평가 후 별도 보고 예정.
 
 ### 계산 비용
 
 | 방법 | 파라미터 | Actor 추론 | PPO 학습 시간 |
 |---|---:|---:|---:|
-| 일반 PPO | 6,101 | 0.0393 ms | 859.3 s |
-| 온톨로지–R-GAT PPO | 16,565 | 0.1780 ms | 1,319.3 s |
+| 일반 PPO | 6,101 | 0.0369 ms | 859.3 s |
+| 온톨로지–R-GAT PPO | 6,095 | 0.1840 ms | 1,274.2 s |
 
 - 제안 모델 추론 시간: 100 ms 정책 결정 주기의 약 0.18%
-- 계산 비용 증가와 평균 return 감소의 동시 공개
+- 그래프 구성·관계별 연산으로 인한 MATLAB 추론 오버헤드와 위험 실패 2% 동시 공개
 
 ## 기존 vision-based DRL 파이프라인 대비 의미
 
@@ -282,10 +268,11 @@ run_live('S3')
 - [최종 설계·수식·실험 분석](docs/refactor/CONSISTENCY_RUNTIME_REVIEW.md)
 - [보상 함수 이론](docs/refactor/REWARD_RATIONALE.md)
 - [공통 관측 계약](docs/COMMON_OBSERVATION_KO.md)
-- [최종 그림 코드](src/orchestration/+landing2d/+viz/plotOntologyEvidence.m)
-- `docs/assets/paper/ontology_vs_ppo_evidence.png` (GitHub README 표시용)
-- `results/consistency/ontology_vs_ppo_evidence.png`
-- `results/consistency/ontology_vs_ppo_summary.csv`
+- [PPT용 최종 그림 코드](src/orchestration/+landing2d/+viz/plotParameterMatchedEvidence.m)
+- [PPT 수정 에이전트 프롬프트](docs/refactor/PPT_AGENT_PROMPT_KO.md)
+- `docs/assets/paper/parameter_matched_ontology_evidence.png` (GitHub·PPT용 고해상도 PNG)
+- `docs/assets/paper/parameter_matched_ontology_evidence.pdf` (벡터 PDF)
+- `docs/assets/paper/parameter_matched_ontology_summary.csv` (그림 원자료)
 
 ## 검증 상태
 
@@ -294,7 +281,7 @@ run_live('S3')
 | self-test | 13/13 통과 |
 | smoke pipeline | 통과 |
 | S1 시나리오 | 두 비교군 착륙 성공 |
-| 최신 결과 그림·CSV | 생성 및 검증 완료 |
+| 파라미터 정합 결과 그림·CSV | MATLAB 생성 및 육안 검증 완료 |
 
 ## 제한 및 다음 검증
 
