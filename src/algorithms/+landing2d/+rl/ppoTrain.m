@@ -100,6 +100,7 @@ for iteration = 1:rl.ppoIterations
     logProbability = cell(rl.episodesPerIteration,1);
     advantage = cell(rl.episodesPerIteration,1);
     target = cell(rl.episodesPerIteration,1);
+    previousState = cell(rl.episodesPerIteration,1);
     episodeReturn = zeros(rl.episodesPerIteration,1);
     episodeSuccess = false(rl.episodesPerIteration,1);
     episodeAbort = false(rl.episodesPerIteration,1);
@@ -143,6 +144,14 @@ for iteration = 1:rl.ppoIterations
         sum(episodeSuccess(currentMask));
     windowCurrentEpisodeCount = windowCurrentEpisodeCount+sum(currentMask);
     X = [state{:}];
+    for e = 1:numel(state)
+        if isempty(state{e})
+            previousState{e} = state{e};
+        else
+            previousState{e} = [state{e}(:,1),state{e}(:,1:end-1)];
+        end
+    end
+    XP = [previousState{:}];
     U = [command{:}];
     oldLogProbability = [logProbability{:}];
     A = [advantage{:}];
@@ -162,7 +171,7 @@ for iteration = 1:rl.ppoIterations
             index = order(start:min(start+rl.miniBatch-1,n));
             if updatePolicy
                 [agent,policyState,policyEncoderState] = policyStep(agent, ...
-                    policyState,policyEncoderState,X(:,index),U(:,index), ...
+                    policyState,policyEncoderState,X(:,index),XP(:,index),U(:,index), ...
                     oldLogProbability(index),A(index),rl,gsUpdate);
             end
             [agent,valueState,valueEncoderState] = valueStep(agent,valueState, ...
@@ -326,7 +335,7 @@ end
 % PPO 목적함수는 그대로입니다. 달라진 것은 망이 받는 것이 관측 벡터가 아니라
 % PolicyNode 임베딩이라는 점, 그리고 기울기가 부호기까지 이어진다는 점뿐입니다.
 function [agent,state,encoderState] = policyStep(agent,state,encoderState, ...
-    X,U,oldLogProbability,A,rl,gs)
+    X,previousX,U,oldLogProbability,A,rl,gs)
 [g,encoderCache] = landing2d.graphstate.encoderForward(agent.policy.encoder, ...
     agent.encoderSpec,X,'policy');
 hasRelation = isfield(agent.policy,'relation');
@@ -353,6 +362,24 @@ batch = numel(A);
 % 클리핑된 표본은 기울기를 만들지 않음 (PPO 표준 구현).
 dLogProbability = -(A.*ratio.*double(unclippedSelected))/batch;
 dMu = dLogProbability.*(z./sigma);
+consistencyWeight = 0;
+if isfield(gs,'temporalPolicyConsistencyWeight') ...
+        && strcmp(agent.encoderSpec.mode,'context_rgat')
+    consistencyWeight = gs.temporalPolicyConsistencyWeight;
+end
+if consistencyWeight > 0
+    previousMu = deterministicMean(agent,previousX);
+    actionMean = tanh(mu); previousActionMean = tanh(previousMu);
+    % The common observation is bounded. Weight the penalty by raw-state
+    % proximity so legitimate manoeuvre transitions remain responsive while
+    % nearby, noise-perturbed decisions are driven toward the same command.
+    rawDim = agent.encoderSpec.rawDim;
+    stateProximity = 1./(1+mean((X(1:rawDim,:)- ...
+        previousX(1:rawDim,:)).^2,1));
+    dMu = dMu+2*consistencyWeight*stateProximity.* ...
+        (actionMean-previousActionMean) ...
+        .*(1-actionMean.^2)/batch;
+end
 [grads.mean,dBase] = landing2d.rl.mlpBackward(agent.policy.mean,cache,dMu);
 if hasRelation
     dRelation = dMu.*relationSlope;
@@ -388,6 +415,23 @@ agent.policy.logStd = max(agent.policy.logStd,rl.minimumLogStd);
 end
 
 % ------------------------------------------------------------ 가치망 갱신 한 단계
+function mu = deterministicMean(agent,X)
+g = landing2d.graphstate.encoderForward(agent.policy.encoder, ...
+    agent.encoderSpec,X,'policy');
+if isfield(agent.policy,'relation')
+    raw = g(1:agent.encoderSpec.rawDim,:);
+    context = g(agent.encoderSpec.rawDim+1:end,:);
+    mu = landing2d.rl.mlpForward(agent.policy.mean, ...
+        landing2d.rl.mlpInput(agent,raw));
+    residual = landing2d.rl.relationPolicyResidual(agent.policy.relation.W, ...
+        agent.encoderSpec,raw,context);
+    mu = mu+residual;
+else
+    mu = landing2d.rl.mlpForward(agent.policy.mean, ...
+        landing2d.rl.mlpInput(agent,g));
+end
+end
+
 function [agent,state,encoderState] = valueStep(agent,state,encoderState,X,R,rl,gs)
 [g,encoderCache] = landing2d.graphstate.encoderForward(agent.value.encoder, ...
     agent.encoderSpec,X,'value');

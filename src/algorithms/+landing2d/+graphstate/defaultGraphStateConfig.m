@@ -50,6 +50,9 @@ gs.preserveRawPolicyDuringGraphAdaptation = true;
 % A relational checkpoint replaces the flat-equivalent anchor only when its
 % validation score improves by a meaningful margin, limiting seed overfit.
 gs.graphSelectionMargin = 5.0;
+% Optional on-policy temporal action-consistency loss. The planar primary
+% R-GAT enables a small value; baseline PPO and the 3-D option keep zero.
+gs.temporalPolicyConsistencyWeight = 0;
 gs.pretrain = struct('enabled',true,'episodes',12,'maxDecisions',80, ...
     'epochs',8,'batchSize',128,'maskProbability',0.25, ...
     'learnRate',1e-3,'seedOffset',7000000);

@@ -14,9 +14,10 @@ fields = {'dt','tEnd','segmentTimes','scenarioSpeeds','ugvAccelMax', ...
 algorithmVersion=landing2d.rl.algorithmVersion();
 % Graph-only implementation revisions must not invalidate an unchanged
 % baseline PPO checkpoint. The widened parameter-matched R-GAT was trained
-% with v3.6, while the common environment/PPO path remains v3.5.
+% with v3.6. The on-policy action-consistency revision is v3.7, while the
+% common environment/PPO path remains v3.5.
 if isfield(c,'graphState') && ~strcmp(c.graphState.stateRepresentation,'baseline')
-    algorithmVersion='minimal-observation-direct-rgat-v3.6';
+    algorithmVersion='minimal-observation-direct-rgat-v3.7';
 end
 signature = struct('algorithmVersion',algorithmVersion, ...
     'rl',c.rl);

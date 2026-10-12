@@ -155,6 +155,10 @@ cfg.graphState.freezeStaticBackbone = false;
 cfg.graphState.graphAdaptationWarmupFraction = 0;
 cfg.graphState.preserveRawPolicyDuringGraphAdaptation = false;
 cfg.graphState.pretrain.enabled = false;
+% Training-only smoothing of consecutive deterministic actor means. It uses
+% PPO's on-policy episodes (no validation/test data), adds no parameters or
+% policy memory, and leaves reward/action/termination unchanged.
+cfg.graphState.temporalPolicyConsistencyWeight = 0.01;
 cfg.scratchBaseline = true;
 % Evaluation-only consistency settings (noise scales, fixed probes, command
 % logs). Top-level, so they are outside the training signature and the task

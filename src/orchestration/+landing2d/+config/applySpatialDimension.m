@@ -70,7 +70,7 @@ e.contextSchemaVersion = s.contextSchemaVersion;
 if isfield(e,'actionApplication'), e = rmfield(e,'actionApplication'); end
 if isfield(cfg.rl,'trainingRegime'), cfg.rl = rmfield(cfg.rl,'trainingRegime'); end
 for name = {'observationSource','observationFeatures','standardizeRawBypass', ...
-        'ontologyReadout'}
+        'ontologyReadout','temporalPolicyConsistencyWeight'}
     if isfield(cfg.graphState,name{1})
         cfg.graphState = rmfield(cfg.graphState,name{1});
     end
