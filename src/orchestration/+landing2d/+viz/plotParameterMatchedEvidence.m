@@ -1,7 +1,6 @@
 function [fig,summary] = plotParameterMatchedEvidence(options)
-% PLOTPARAMETERMATCHEDEVIDENCE  PPT-ready evidence for the final matched model.
-% Uses only the current held-out mission results and training histories. The
-% consistency artifacts from the former 16,565-parameter model are excluded.
+% PLOTPARAMETERMATCHEDEVIDENCE  PPT-ready evidence for the final v3.19 model.
+% Uses only the current held-out mission results and training histories.
 if nargin < 1, options = struct(); end
 root = landing2d.orchestration.projectRoot();
 defaults = struct( ...
@@ -26,7 +25,7 @@ end
 
 R = load(defaults.resultFile,'comparison','summaryTable');
 ids = ["ppo","onto_rgat_ppo"];
-labels = {'Plain PPO','Ontology--R-GAT PPO'};
+labels = {'Plain PPO','Ontology--R-GAT PPO v3.19'};
 colors = [0.10,0.32,0.62;0.35,0.16,0.60];
 rows = zeros(1,2);
 for i = 1:2
@@ -51,7 +50,7 @@ fig = figure('Name','Parameter-matched ontology R-GAT evidence', ...
     'Position',[30,30,1600,900],'Visible',state);
 layout = tiledlayout(fig,2,2,'TileSpacing','compact','Padding','compact');
 title(layout,{ ...
-    'Parameter-matched Ontology--R-GAT PPO'; ...
+    'Final v3.19 Parameter-matched Ontology--R-GAT PPO'; ...
     'Same 12-D observation, reward, environment and 4,500-episode PPO budget | held-out n = 100 | one training seed'}, ...
     'FontWeight','bold','FontSize',18);
 
@@ -71,8 +70,12 @@ for k = 1:numel(b)
     text(ax,b(k).XEndPoints,b(k).YEndPoints+2,compose('%.0f%%',b(k).YEndPoints), ...
         'HorizontalAlignment','center','FontWeight','bold','FontSize',10);
 end
-text(ax,1.5,52,'+1 pp landing; timeout -2 pp; 1% unsafe remains', ...
-    'HorizontalAlignment','center','FontSize',10,'Color',[0.25,0.25,0.25]);
+text(ax,1.5,49,sprintf(['Landing: %+.1f pp\n' ...
+    'Unsafe: %+.1f pp\nTimeout: %+.1f pp'], ...
+    landing(2)-landing(1),unsafe(2)-unsafe(1),timeout(2)-timeout(1)), ...
+    'HorizontalAlignment','center','VerticalAlignment','middle', ...
+    'FontSize',10,'Color',[0.25,0.25,0.25], ...
+    'BackgroundColor','white','Margin',4);
 
 % B. Capacity matching: plot from zero so the equality is visually honest.
 ax = nexttile(layout,2); hold(ax,'on'); grid(ax,'on'); box(ax,'on');
@@ -144,7 +147,7 @@ catch errorInfo
     warning('landing2d:FigureExportFallback', ...
         'exportgraphics failed (%s); using print for %s.',errorInfo.message,file);
     if strcmp(kind,'pdf')
-        print(fig,file,'-dpdf','-painters','-bestfit');
+        print(fig,file,'-dpdf','-vector','-bestfit');
     else
         print(fig,file,'-dpng',sprintf('-r%d',resolution));
     end

@@ -1,31 +1,34 @@
-# Latest parameter-matched results
+# 온톨로지–R-GAT PPO v3.19 최종 자산
 
-2026-10-10 기준 일반 PPO와 온톨로지–R-GAT PPO의 6,101개 동일 파라미터 비교 결과 모음.
+2026-10-13 MATLAB 실행으로 생성·검증한 현재 최종 자료만 둔다.
 
-## 발표·논문용 파일
+## 그림
 
-- `current_pipeline.svg`: 현재 12차원 관측 기반 공정 비교 파이프라인
-- `current_ontology.svg`: 현재 7노드·4관계·16간선 온톨로지
-- `parameter_matched_ontology_evidence.*`: 임무 성능·모델 크기·추론시간 종합 그림
-- `parameter_matched_consistency.*`: `C_valid`, `D_obs`, `J_policy` 비교 그림
-- `parameter_matched_learning_curve.*`: 고해상도 학습 곡선
-- `parameter_matched_unsafe_failures.*`: 위험 실패 궤적·종료 원인
-- 각 `.fig`: MATLAB에서 직접 열어 축·범례·주석을 수정할 수 있는 원본 figure
-- 각 CSV: 해당 그림의 원자료
+| 파일 | 설명 |
+|---|---|
+| `parameter_matched_ontology_evidence.*` | held-out 100회 성능, 6,101개 파라미터 정합, return, validation 학습 곡선 |
+| `parameter_matched_consistency.*` | v3.19 validation 20×20 착륙률과 공간 궤적 분산 |
+| `parameter_matched_learning_curve.*` | 현재 4,500-episode validation 학습 곡선 |
+| `trajectory_mc_world_absolute.*` | V2015 1,000회 절대 착륙 궤적, pad-relative 분산, 착륙률 |
+| `current_pipeline.svg` | 최종 v3.19 공정 비교 파이프라인 |
+| `current_ontology.svg` | 최종 7노드·4관계·16간선 온톨로지 |
 
-## 로컬 원시 결과
+`.*` 그림 묶음은 PNG, PDF, MATLAB FIG를 뜻한다.
 
-Git 저장 용량 증가를 피하기 위해 MAT 체크포인트와 평가 결과는 아래 ignored 폴더에 별도로 모음.
+## 원자료
 
-`results/latest_parameter_matched/`
+| 파일 | 내용 |
+|---|---|
+| `parameter_matched_ontology_summary.csv` | held-out 종합 그림 수치 |
+| `parameter_matched_consistency.csv` | validation 20×20 종합 그림 수치 |
+| `parameter_matched_learning_curve.csv` | validation 학습 곡선 |
+| `heldout_test_v319.csv` | 최종 held-out 결과 |
+| `validation_trajectory_robustness_v319.csv` | validation 20×20 집계 |
+| `validation_per_seed_v319.csv` | validation seed별 결과 |
+| `trajectory_mc_world_absolute_summary.csv` | V2015 1,000회 집계 |
 
-MATLAB에서 재생성한 전체 플롯 묶음은 `results/latest_parameter_matched/plots/`에 PNG, PDF, FIG, CSV 형식으로 함께 저장됨.
+## 그림 해석 계약
 
-- `ppo_s01.mat`
-- `onto_rgat_ppo_s01.mat`
-- `planar_visibility_full.mat`
-- `planar_visibility_full_summary.csv`
-- `parameter_matched_consistency.mat`
-- `parameter_matched_unsafe_failures.mat`
+V2015 그림 왼쪽은 드론 월드 절대좌표이며 가로축 수치는 실제 m다. `horizontalDisplayScale=0.15`는 표시 종횡비만 바꾼다. 패드는 평균 접지 시점 UGV 위치에 실제 폭 직사각형으로 그린다. 오른쪽 spread와 CSV 분산은 움직이는 패드에 대한 pad-relative 좌표로 계산한다.
 
-표준 실행 경로의 체크포인트와 결과 파일은 파이프라인 호환성을 위해 그대로 유지한 복사본임.
+Held-out, validation 20×20, V2015 조건부 스트레스 결과는 서로 다른 평가 범위이므로 하나의 성공률로 합치지 않는다.

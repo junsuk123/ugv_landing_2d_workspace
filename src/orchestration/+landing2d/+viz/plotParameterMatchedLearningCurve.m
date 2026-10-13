@@ -16,13 +16,14 @@ defaults=struct( ...
 defaults=mergeOptions(defaults,options);
 R=load(defaults.resultFile,'comparison');
 ids=["ppo","onto_rgat_ppo"];
-labels={'Plain PPO','Ontology--R-GAT PPO (6,101 parameters)'};
+labels={'Plain PPO','Ontology--R-GAT PPO v3.19 (6,101 parameters)'};
 colors=[0.10,0.32,0.62;0.35,0.16,0.60];
 state='on'; if ~defaults.visible, state='off'; end
 fig=figure('Name','Parameter-matched learning curve','NumberTitle','off', ...
     'Color','w','Units','pixels','Position',[40,40,1600,900],'Visible',state);
 ax=axes(fig); hold(ax,'on'); grid(ax,'on'); box(ax,'on');
 summary=table();
+bestRgatLanding=-Inf; bestRgatIteration=NaN;
 for i=1:2
     index=find(cellfun(@(x)string(x.MethodId)==ids(i),R.comparison.runs),1);
     assert(~isempty(index),'landing2d:LearningCurveRun','Missing run %s.',ids(i));
@@ -33,6 +34,10 @@ for i=1:2
         'DisplayName',labels{i});
     summary=[summary;table(repmat(ids(i),numel(iteration),1),iteration,landing, ...
         'VariableNames',{'MethodId','Iteration','ValidationLandingPct'})]; %#ok<AGROW>
+    if ids(i)=="onto_rgat_ppo"
+        [bestRgatLanding,k]=max(landing);
+        bestRgatIteration=iteration(k);
+    end
 end
 xlim(ax,[0,750]); ylim(ax,[0,105]);
 xticks(ax,0:100:750); yticks(ax,0:10:100);
@@ -43,7 +48,8 @@ title(ax,{'Validation learning curve under the same 4,500-episode budget'; ...
     'FontSize',23,'FontWeight','bold');
 legend(ax,'Location','southeast','FontSize',17,'Box','off');
 set(ax,'FontSize',17,'LineWidth',1.2);
-text(ax,390,22,'Best R-GAT validation: 98% at iteration 525', ...
+text(ax,390,22,sprintf('Best R-GAT validation: %.0f%% at iteration %d', ...
+    bestRgatLanding,bestRgatIteration), ...
     'HorizontalAlignment','left','VerticalAlignment','top', ...
     'FontSize',16,'FontWeight','bold','Color',colors(2,:));
 ensureParent(defaults.outputFile); ensureParent(defaults.pdfOutputFile);
@@ -75,7 +81,7 @@ try
         exportgraphics(fig,file,'Resolution',resolution,'BackgroundColor','white');
     end
 catch
-    if strcmp(kind,'pdf'), print(fig,file,'-dpdf','-painters','-bestfit');
+    if strcmp(kind,'pdf'), print(fig,file,'-dpdf','-vector','-bestfit');
     else, print(fig,file,'-dpng',sprintf('-r%d',resolution)); end
 end
 end

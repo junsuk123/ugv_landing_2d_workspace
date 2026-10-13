@@ -6,8 +6,8 @@
     <style>.t{font-family:Arial,'Noto Sans KR',sans-serif;fill:#172033}.h{font-size:38px;font-weight:700}.s{font-size:21px}.n{fill:white;stroke:#64748b;stroke-width:3}.nt{font-size:21px;font-weight:700}.i{stroke:#2563eb;stroke-width:4;fill:none;marker-end:url(#ai)}.c{stroke:#d97706;stroke-width:4;fill:none;marker-end:url(#ac)}.k{stroke:#7c3aed;stroke-width:4;fill:none;marker-end:url(#ak)}</style>
   </defs>
   <rect width="1600" height="900" fill="#f8fafc"/>
-  <text x="70" y="70" class="t h">Seven-node minimal observation ontology</text>
-  <text x="70" y="108" class="t s">Every node feature is a deterministic function of the same 12-D observation</text>
+  <text x="70" y="70" class="t h">Final v3.19 seven-node observation ontology</text>
+  <text x="70" y="108" class="t s">Smooth physical energy × age confidence; deterministic from the same 12-D observation</text>
   <path d="M380 590 Q290 450 420 325" class="i"/><path d="M620 325 Q570 455 440 570" class="i"/>
   <path d="M970 250 Q810 180 650 285" class="c"/><path d="M970 270 Q760 350 455 560" class="c"/>
   <path d="M1110 510 Q960 600 790 610" class="c"/><path d="M1110 530 Q1050 430 970 315" class="c"/>

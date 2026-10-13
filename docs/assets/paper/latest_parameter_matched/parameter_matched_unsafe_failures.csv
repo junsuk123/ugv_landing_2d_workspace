@@ -1,2 +1,0 @@
-Seed,TerminalReason,TerminalTime_s,PositionError_m,RelativeVx_mps,Vz_mps,Pitch_deg,PitchRate_degps,DominantViolation,PeakNormalizedViolation
-3076,UNSAFE_CONTACT,19.2781714216078,-0.0227965498802547,-0.129801888283848,-0.147483344936753,-0.506205978367868,-11.6429619789952,Pitch rate,1.16429619789952

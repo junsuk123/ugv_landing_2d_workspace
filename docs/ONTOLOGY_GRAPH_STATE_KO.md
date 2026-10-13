@@ -1,28 +1,48 @@
-# 최소 관측 온톨로지–R-GAT
+# 온톨로지–R-GAT PPO v3.19
 
-## 구조
+## 최종 구조
 
 - 입력: 공통 관측 $o_t\in\mathbb R^{12}$
-- 노드: 7개
-- 노드 특징: 6채널
-- 관계: 4유형
-- 간선: 의미 간선 9개 + 자기 간선 7개
-- hidden/graph embedding: 16/16
+- 노드/특징: 7개 × 6채널
+- 관계/간선: 4유형, 16개
+- hidden/relation/graph: 16/4/16
 - readout: `grouped_factorized`
+- Actor/Critic encoder: 독립
+- 전체 파라미터: 6,101개
 
-## 노드와 특징
+## 노드 특징
 
-노드: RelativePosition, RelativeVelocity, PadVelocity, VerticalMotion, Attitude, VisionQuality, NavigationQuality.
+접근 곡면 오차와 closure:
 
-특징 열:
+$$
+m=\tan(-\theta_C),\qquad e_c=e_x-mh,\qquad
+v_c=v_{rel,x}-mv_z.
+$$
 
-$$x_i=[p_i,s_i,q_i,v_i,\tau_i,i/7]^T.$$
+영상·측위 confidence:
 
-전방 카메라 접근 곡면의 cross-track과 closure:
+$$
+c_G=\max(0,1-0.5\tau_G),\qquad
+c_D=\max(0,1-0.5\tau_D).
+$$
 
-$$m=\tan(-\theta_C),\quad e_c=e_x-mh,\quad v_c=v_{rel,x}-mv_z.$$
+노드 $i$의 특징은 $x_i=[p_i,s_i,q_i,v_i,\tau_i,i/7]^\top$이다.
 
-모든 $x_i$는 `o_t`만으로 계산되고 $[-1,1]$로 제한.
+$$
+\begin{aligned}
+x_1&=[c_G(e_c^2+h^2)/2,\;c_Ge_c,\;c_Gh,\;0,\;0,\;1/7]^\top,\\
+x_2&=[c_G(v_c^2+v_{rel,x}^2)/2,\;c_Gv_c,\;c_Gv_{rel,x},\;0,\;0,\;2/7]^\top,\\
+x_3&=[c_G\hat v_{G,x}^2,\;c_G\hat v_{G,x},\;0,\;0,\;0,\;3/7]^\top,\\
+x_4&=[c_Dv_z^2,\;c_Dv_z,\;0,\;0,\;0,\;4/7]^\top,\\
+x_5&=[c_D(\sin^2\theta+\dot\theta^2)/2,\;c_D\sin\theta,\;c_D\dot\theta,\;0,\;0,\;5/7]^\top,\\
+x_6&=[I_G,\;1-\tau_G,\;\cos\theta,\;1,\;\tau_G,\;6/7]^\top,\\
+x_7&=[I_D,\;1-\tau_D,\;0,\;1,\;\tau_D,\;1]^\top.
+\end{aligned}
+$$
+
+최종 특징은 $[-1,1]$로 제한한다. 모든 항은 등록된 12차원 $o_t$의 결정론적 함수이다. hidden truth, future state, reward와 outcome은 사용하지 않는다.
+
+제곱 에너지는 `abs`/`max` 크기 특징의 모서리를 제거한다. $c_G,c_D$는 오래된 추정치를 연속적으로 낮추는 estimator-style weighting이며 행동 gate나 안전 guard가 아니다.
 
 ## 관계 배치
 
@@ -38,34 +58,42 @@ $$m=\tan(-\theta_C),\quad e_c=e_x-mh,\quad v_c=v_{rel,x}-mv_z.$$
 | Attitude | VisionQuality | couples |
 | VerticalMotion | RelativePosition | couples |
 
-각 노드에 `self` 추가.
+모든 노드에 `self` 간선을 추가해 총 16간선을 구성한다.
 
 ## Typed attention
 
-$$q_{ij}^{(r)}=\operatorname{LReLU}(a_r^T[W_rh_i\Vert W_rh_j\Vert e_r]),$$
+$$
+\ell_{ji}^{(r)}=\operatorname{LReLU}_{0.2}
+\left(a_r^\top[W_rx_j\Vert W_rx_i\Vert e_r]\right),
+$$
 
-$$\alpha_{ij}^{(r)}=\frac{\exp q_{ij}^{(r)}}{\sum_{(k,r')\in\mathcal N(j)}\exp q_{kj}^{(r')}}.$$
+$$
+\alpha_{ji}^{(r)}=\frac{\exp\ell_{ji}^{(r)}}
+{\sum_{(k\to i,r')}\exp\ell_{ki}^{(r')}+10^{-9}},
+$$
 
-$$z_j=\sum_{(i,r)\in\mathcal N(j)}\alpha_{ij}^{(r)}W_rh_i.$$
-
-구현의 leaky-ReLU 기울기 0.2. 관계 embedding 차원 4. local transform과 typed message를 결합한 단일 관계 층.
+$$
+h_i=\tanh\left(W_0x_i+b_0+
+\sum_{(j\to i,r)}\alpha_{ji}^{(r)}W_rx_j\right).
+$$
 
 ## Factorized grouped readout
 
-7개 노드를 개별 그룹으로 유지:
+$$
+U_k=W_ch_k,\qquad
+g_t=\tanh\left(b_g+\sum_{k=1}^{7}U_k\odot w_k\right)
+\in\mathbb R^{16}.
+$$
 
-$$U_k=W_ch_k,$$
-
-$$g=\tanh\left(b_g+\sum_{k=1}^{7}U_k\odot w_k\right),\quad g\in\mathbb R^{16}.$$
-
-$W_c\in\mathbb R^{16\times16}$, $W_n=[w_1,\ldots,w_7]\in\mathbb R^{16\times7}$. 평균 pooling에 의한 노드 정보 소실을 피하면서 dense concatenation보다 적은 파라미터 사용.
+노드 정체성을 유지하면서 dense concatenation보다 적은 파라미터를 사용한다.
 
 ## PPO 결합
 
 - Actor: graph 16 → 38 → 37 → 2
 - Critic: graph 16 → 35 → 34 → 1
-- Actor/Critic encoder 독립
-- 전체 6,101개, 일반 PPO와 동일
-- raw bypass·relation residual·descent gate·inference guard 없음
+- encoder LR: $10^{-4}$
+- graph pretraining/freeze/warmup: off/off/0
+- temporal consistency weight: 0.03, 학습 전용
+- raw bypass·relation residual·descent gate·inference guard: 없음
 
-구현: `contextSchema`, `observationVectorGraph`, `relationForward`, `encoderForward`, `encoderBackward`, `FactorizedRelationalContextLayer`.
+구현: `observationVectorGraph`, `contextSchema`, `relationForward`, `encoderForward`, `encoderBackward`, `FactorizedRelationalContextLayer`.

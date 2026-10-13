@@ -1,169 +1,145 @@
-# 현재 시스템·실험 명세
+# 현재 시스템·실험 단일 명세
 
-## 1. 범위
+## 1. 최종 범위
 
-- 기준 브랜치: `main`
-- 기본 실험: `planar_visibility_v2`
-- 진입점: `run.m`, `run_scenario.m`, `run_live.m`
-- 공식 비교군: 일반 PPO(`ppo`), 온톨로지–R-GAT PPO(`onto_rgat_ppo`)
-- 선택 옵션: Simulink backend, 3차원 확장
-- 비교 원칙: 환경·센서·관측 원자료·보상·행동·종료·PPO 예산 동일, 상태 표현만 상이
+- 실험: `planar_visibility_v2`
+- 제안 모델: 온톨로지–R-GAT PPO v3.19
+- 공식 비교군: `ppo`, `onto_rgat_ppo`
+- 진입점: `run.m`, `run_scenario.m`, `run_live.m`, `run_trajMC.m`
+- 학습 backend: MATLAB PPO 기본, Simulink 선택
+- 최종 결과 범위: 2차원 $x$–$z$, train seed 1
+- 비교 원칙: 환경·센서·관측 원자료·보상·행동·종료·학습 예산 동일, Actor/Critic 상태 표현만 상이
+
+`shuffled_rgat_ppo`는 관계 절제 실험 구현으로만 남으며 최종 비교·수치·그림에 포함하지 않는다.
 
 ## 2. 환경과 행동
 
 | 항목 | 값 |
 |---|---:|
-| 물리 주기 | 0.01 s |
-| 정책 주기 | 0.10 s |
-| 최대 시간 | 70 s |
-| 초기 고도 분포 | 4–8 m |
+| 물리/정책 주기 | 0.01/0.10 s |
+| 최대 임무 시간 | 70 s |
+| 초기 상대 고도 | 4–8 m |
 | UGV 초기 속도 | 0.5–2.5 m/s |
 | UGV 가속도 | 0.3–1.5 m/s² |
-| 행동 | `[a_x,a_z]` |
-| 행동 한계 | 2.5, 2.0 m/s² |
+| 정책 행동 | `[a_x,a_z]` |
+| 행동 한계 | 2.5/2.0 m/s² |
+| 착륙 위치 한계 | pad half width 0.5 m |
+| 착륙 속도 한계 | 수평 0.35, 수직 0.30 m/s |
+| 자세/각속도 한계 | 5°, 10°/s |
 
-평면 실험은 `direct_policy_v1`. 정책 명령을 안전 감독기나 착륙 승인기가 수정하지 않음. 접촉 성공은 footprint, 상대속도, pitch, pitch-rate의 기계적 조건으로만 판정.
+평면 정책은 `direct_policy_v1`이다. 정책 명령을 안전 감독기·착륙 승인·SAFE_ABORT guard가 수정하지 않는다. 접촉은 footprint, 상대속도, pitch와 pitch-rate의 기계적 조건으로 판정한다.
 
-## 3. 센서와 12차원 공통 관측
-
-마커 코너에서 평면 PnP로 UGV 기준점을 복원하고 등속 KF로 UGV 위치·속도를 추정. 미검출 시 예측만 수행. 드론 상태는 융합 측위 사용. 정책에는 다음 12개 값만 제공.
+## 3. 공통 12차원 관측
 
 $$
 o_t=[e_x,h,v_{rel,x},\hat v_{G,x},v_z,\sin\theta,\cos\theta,\dot\theta,
 I_G,\tau_G,I_D,\tau_D]^\top.
 $$
 
-절대 수평 위치, 패드 참값, 미래 상태, reward, outcome, tracker 판단, 감독기 문맥은 제외. 일반 PPO는 $o_t$를 직접 사용하고 R-GAT는 동일한 $o_t$의 결정론적 그래프만 사용.
+마커 코너→평면 PnP→등속 KF로 UGV 위치·속도를 추정하고, 드론은 융합 측위를 사용한다. 미검출 시 KF 예측만 수행한다. 절대 수평 위치, UGV 참값, 미래 상태, reward, outcome, tracker 판단과 감독기 문맥은 정책 입력에서 제외한다.
 
-## 4. 온톨로지
+- 일반 PPO: $o_t$ 직접 입력
+- v3.19: 동일 $o_t$의 결정론적 7노드 graph만 입력
+- 입력 표준화: 비활성
+- raw observation bypass: 없음
 
-### 4.1 노드
+## 4. v3.19 온톨로지 특징
 
-| 번호 | 노드 | 주요 근거 |
-|---:|---|---|
-| 1 | RelativePosition | cross-track, height, vision quality |
-| 2 | RelativeVelocity | closure error, relative velocity, vision quality |
-| 3 | PadVelocity | estimated UGV velocity |
-| 4 | VerticalMotion | vertical speed, height, navigation quality |
-| 5 | Attitude | sin/cos pitch, pitch rate, navigation quality |
-| 6 | VisionQuality | vision update and age |
-| 7 | NavigationQuality | navigation validity and age |
-
-각 노드 6채널: `[primary,signed,secondary,validity,age,typeId]`.
-
-### 4.2 관계
-
-- `informs`: PadVelocity→RelativeVelocity, RelativeVelocity→RelativePosition
-- `conditions`: VisionQuality→RelativePosition/RelativeVelocity, NavigationQuality→VerticalMotion/Attitude
-- `couples`: RelativePosition→VisionQuality, Attitude→VisionQuality, VerticalMotion→RelativePosition
-- `self`: 모든 노드 자기 간선
-
-의미 간선 9개, 자기 간선 7개, 총 16개.
-
-### 4.3 카메라 접근 좌표
+접근 곡면:
 
 $$
-m=\tan(-\theta_C),\quad e_c=e_x-mh,\quad v_c=v_{rel,x}-mv_z.
+m=\tan(-\theta_C),\qquad e_c=e_x-mh,\qquad
+v_c=v_{rel,x}-mv_z.
 $$
 
-목표는 패드 직상방이 아니라 전방 하향 카메라 광축과 일치하는 접근 곡면.
-
-## 5. R-GAT과 readout
-
-관계별 선형 사상과 관계 embedding을 사용하는 typed attention:
+age 기반 연속 confidence:
 
 $$
-q_{ij}^{(r)}=\operatorname{LReLU}(a_r^T[W_rh_i\Vert W_rh_j\Vert e_r]),
+c_G=\max(0,1-0.5\tau_G),\qquad
+c_D=\max(0,1-0.5\tau_D).
 $$
 
-$$
-\alpha_{ij}^{(r)}=\operatorname{softmax}_{(i,r)\in\mathcal N(j)}q_{ij}^{(r)},
-\qquad z_j=\sum_{(i,r)\in\mathcal N(j)}\alpha_{ij}^{(r)}W_rh_i.
-$$
+노드 특징은 $[primary,signed,secondary,validity,age,typeId]^\top$이며 최종 $[-1,1]$로 제한한다.
 
-노드 hidden 16, 관계 embedding 4, graph embedding 16. 노드 정체성을 유지하는 factorized grouped readout:
+| 노드 | 최종 물리 특징의 핵심 |
+|---|---|
+| RelativePosition | $c_G[\tfrac12(e_c^2+h^2),e_c,h]$ |
+| RelativeVelocity | $c_G[\tfrac12(v_c^2+v_{rel,x}^2),v_c,v_{rel,x}]$ |
+| PadVelocity | $c_G[\hat v_{G,x}^2,\hat v_{G,x},0]$ |
+| VerticalMotion | $c_D[v_z^2,v_z,0]$ |
+| Attitude | $c_D[\tfrac12(\sin^2\theta+\dot\theta^2),\sin\theta,\dot\theta]$ |
+| VisionQuality | $[I_G,1-\tau_G,\cos\theta,1,\tau_G]$ |
+| NavigationQuality | $[I_D,1-\tau_D,0,1,\tau_D]$ |
 
-$$
-g=\tanh\left(b_g+\sum_{k=1}^{7}(W_ch_k)\odot w_k\right).
-$$
+물리 노드에는 품질 스칼라를 반복 삽입하지 않고 전용 품질 노드와 `conditions` 관계를 사용한다. 제곱 에너지는 `abs`/`max`의 비미분 모서리를 없애며, confidence는 graph 입력을 연속적으로 약화할 뿐 행동을 차단하거나 재작성하지 않는다.
 
-raw observation bypass, additive relation residual, descent gate, inference-time guard 없음. Actor/Critic은 독립 encoder 사용.
+## 5. 관계와 R-GAT
 
-## 6. 네트워크와 파라미터
-
-| 모델 | Actor | Critic | 전체 |
-|---|---:|---:|---:|
-| PPO | 3,076 | 3,025 | 6,101 |
-| R-GAT PPO | 3,207 | 2,894 | 6,101 |
-
-- PPO: 12–48–48–2 Actor, 12–48–48–1 Critic
-- R-GAT PPO: 16–38–37–2 Actor, 16–35–34–1 Critic
-- R-GAT encoder: Actor/Critic 각각 1,040개
-
-## 7. 공통 reward_v5
+- 노드: 7개
+- 특징: 노드당 6채널
+- 관계: `informs`, `conditions`, `couples`, `self`
+- 간선: 의미 간선 9개 + 자기 간선 7개 = 16개
+- hidden/relation/graph dimension: 16/4/16
+- readout: `grouped_factorized`
 
 $$
-e_x^*=mh,
+\ell_{ji}^{(r)}=\operatorname{LReLU}_{0.2}
+\left(a_r^\top[W_rx_j\Vert W_rx_i\Vert e_r]\right),
 $$
 
 $$
-v_{rel,x}^*=mv_z-0.35(e_x-mh),\qquad
-v_z^*=-\min(0.4,0.8h).
+\alpha_{ji}^{(r)}=
+\frac{\exp\ell_{ji}^{(r)}}{\sum_{(k\to i,r')}\exp\ell_{ki}^{(r')}+10^{-9}}.
 $$
 
-goal·수평 속도·수직 속도 potential 가중치 4/4/4. 원거리 오차의 gradient 보존을 위해 수평 running goal cost에 pseudo-Huber 사용. view cost 1, control cost 0.25, readiness 변화 보상 8. 종료 보상 SUCCESS +25, TASK_TIMEOUT −12, 위험 접촉 및 envelope failure −40.
+각 노드를 분리해 유지하는 readout:
 
-## 8. 학습
+$$
+U_k=W_ch_k,\qquad
+g_t=\tanh\left(b_g+\sum_{k=1}^{7}U_k\odot w_k\right)
+\in\mathbb R^{16}.
+$$
 
-- PPO update 750회
-- update당 6 episode, 총 4,500 episode
-- PPO epoch 8, minibatch 256
-- Actor/Critic learning rate 2e-4/5e-4
-- R-GAT encoder learning rate 1e-4
-- entropy weight 0.004, initial log std −1.0
-- 입력 running normalization 비활성
-- validation 25 update 간격
-- 4–8 m 전체 과업으로 확장되는 공통 performance curriculum
-- 학습 전용 reference-driver descent prefix, 정책 transition 제외, 평가 미사용
-- behavior cloning·masked-node pretraining·relation-only adaptation 미사용
+| 망 | 일반 PPO | v3.19 |
+|---|---|---|
+| Actor | 12–48–48–2 | R-GAT–16–38–37–2 |
+| Critic | 12–48–48–1 | R-GAT–16–35–34–1 |
+| 전체 파라미터 | 6,101 | 6,101 |
 
-## 9. 평가와 지표
+Actor와 Critic encoder는 독립이다.
 
-- validation seeds 2001–2200 중 100개
-- held-out test seeds 3001–3200 중 100개
-- checkpoint 선택에 test split 미사용
-- 임무: 착륙·unsafe·timeout·return
-- 일관성: `C_valid`, `D_obs`, `J_policy`
-- 효율: 파라미터 수·Actor inference time
+## 6. 학습
 
-`C_valid`: 독립 물리 판정기의 허용 행동 집합에 정책 명령이 속하는 비율. `D_obs`: 동일 외생 궤적에서 센서 잡음 배율 변화에 따른 행동 거리. `J_policy`: 정상 외생 구간의 요청 명령 변화율 RMS.
+| 항목 | 값 |
+|---|---:|
+| PPO update × episode | 750 × 6 = 4,500 |
+| epoch/minibatch | 8/256 |
+| Actor/Critic/R-GAT LR | 2e−4/5e−4/1e−4 |
+| clip/GAE λ | 0.2/0.95 |
+| entropy/gradient norm | 0.004/1.0 |
+| v3.19 temporal consistency weight | 0.03 |
 
-## 10. 최종 결과
+temporal consistency는 on-policy 연속 decision의 결정론적 `tanh(mean)` 차이를 raw-state proximity로 가중한다. PPO 학습 손실에만 작용하며 추론 시 메모리·재귀 상태·후처리를 추가하지 않는다.
 
-| 지표 | PPO | R-GAT PPO |
+공통 성능 curriculum, episode 난수 흐름과 training-only descent-prefix를 사용한다. prefix 구간은 PPO transition에서 제외하며 평가에는 사용하지 않는다. checkpoint는 validation으로만 고르고 held-out test seed는 선택에 쓰지 않는다.
+
+## 7. 최종 평가
+
+| 평가 | 일반 PPO | v3.19 |
 |---|---:|---:|
-| 착륙 | 95% | 96% |
-| unsafe | 0% | 1% |
-| timeout | 5% | 3% |
-| return | 31.8186 | 32.3719 |
-| 공칭 `C_valid` | 77.3288% | 80.7987% |
-| 공칭 `D_obs` P95 | 0.074238 | 0.095983 |
-| pooled `J_policy` | 4.0996 | 6.6914 |
-| 파라미터 | 6,101 | 6,101 |
-| inference | 0.035257 ms | 0.169261 ms |
+| Held-out 착륙, n=100 | 95% | **98%** |
+| Held-out unsafe | 0% | 0% |
+| Held-out timeout | 5% | **2%** |
+| Held-out return | 31.8186 | **33.4215** |
+| Validation 착륙, 20×20 | 93.50% | **98.75%** |
+| Validation 평균 위치 분산 | 4.116811 | **0.009430 m²** |
+| V2015 착륙, n=1,000 | 70.2% | **100.0%** |
+| V2015 평균 위치 분산 | 66.732568 | **0.002233 m²** |
 
-제안 모델은 착륙률, return, `C_valid` 개선. `D_obs`, `J_policy`, unsafe는 일반 PPO 대비 열세. 단일 학습 seed 결과이므로 통계적·안전성 우월 결론 제외.
+Held-out는 일반화 임무 성능, validation 20×20은 여러 물리 조건의 반복 분산, V2015는 고정된 어려운 조건의 sensor-noise 스트레스 시험이다.
 
-## 11. 검증 상태
+## 8. 최종 시각화 계약
 
-- self-test 13/13 통과
-- 표준 smoke pipeline 통과
-- S1 양 정책 `SUCCESS`
-- Simulink 등가성: replay reward/observation 차이 0, driver 차이 0, 폐루프 최대 reward 차이 $9.89\times10^{-6}$, 종료 사유 동일
+`run_trajMC`의 왼쪽 패널은 월드 절대 궤적 $(x_D,z_D)$이다. 가로축 수치는 실제 m를 유지하고 `horizontalDisplayScale=0.15`로 표시 비율만 압축한다. 패드는 실제 폭 직사각형으로 표시한다. 분산 수치는 움직이는 패드 기준 오차를 측정해야 하므로 pad-relative frame에서 계산한다.
 
-## 12. 결과 파일
-
-- 문서·발표 그림: `docs/assets/paper/latest_parameter_matched/`
-- MATLAB FIG 포함
-- 로컬 원시 MAT·checkpoint 묶음: `results/latest_parameter_matched/`
-- PPT 제작 지시서: `docs/refactor/PPT_AGENT_PROMPT_KO.md`
+최종 수치와 플롯: [VALIDATION_KO.md](VALIDATION_KO.md), [latest_parameter_matched](assets/paper/latest_parameter_matched/README.md).
