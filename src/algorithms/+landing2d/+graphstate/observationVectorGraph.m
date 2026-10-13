@@ -23,11 +23,25 @@ aimSlope = tan(-c.experiment.sensor.cameraPitchOffset);
 crossTrack = ex-aimSlope*h;
 closureError = rvx-aimSlope*vz;
 N=schema.nNodes; X=zeros(schema.inDim,N);
-put(1,max(abs(crossTrack),abs(h)),crossTrack,h,visionUpdated,visionAge);
-put(2,abs(closureError),closureError,rvx,visionUpdated,visionAge);
-put(3,abs(ugvVx),ugvVx,0,visionUpdated,visionAge);
-put(4,abs(vz),vz,h,navValid,navAge);
-put(5,max(abs(st),abs(rate)),st,rate,navValid,navAge);
+% Physical nodes contain physical evidence only. Reliability appears once in
+% the dedicated quality nodes and reaches the state nodes through the typed
+% `conditions` edges; repeating validity/age in every physical node made the
+% readout unnecessarily sensitive to the same quality scalar several times.
+% Smooth squared energy replaces abs/max magnitude channels. The physical
+% evidence is continuously reliability-weighted by the registered normalized
+% measurement age. This is estimator-style confidence weighting, not a
+% control guard: it changes no action, reward, termination, or policy branch.
+ageWeight=c.graphState.reliabilityAgeWeight;
+visionConfidence=max(0,1-ageWeight*visionAge);
+navigationConfidence=max(0,1-ageWeight*navAge);
+put(1,visionConfidence*0.5*(crossTrack^2+h^2), ...
+    visionConfidence*crossTrack,visionConfidence*h,0,0);
+put(2,visionConfidence*0.5*(closureError^2+rvx^2), ...
+    visionConfidence*closureError,visionConfidence*rvx,0,0);
+put(3,visionConfidence*ugvVx^2,visionConfidence*ugvVx,0,0,0);
+put(4,navigationConfidence*vz^2,navigationConfidence*vz,0,0,0);
+put(5,navigationConfidence*0.5*(st^2+rate^2), ...
+    navigationConfidence*st,navigationConfidence*rate,0,0);
 put(6,visionUpdated,1-visionAge,ct,1,visionAge);
 put(7,navValid,1-navAge,0,1,navAge);
 X=min(max(X,-1),1);

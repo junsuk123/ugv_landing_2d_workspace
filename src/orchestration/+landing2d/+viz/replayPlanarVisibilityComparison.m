@@ -1,7 +1,7 @@
 function [fig,tabs,layouts] = replayPlanarVisibilityComparison(runs,c,options)
 % REPLAYPLANARVISIBILITYCOMPARISON  V2 paired trajectories of the compared methods and R-GAT state.
 % Supports unequal terminal times, body-fixed-camera FOV footprints, fixed
-% world bounds, a Monte Carlo mean/covariance summary, and optional replay.
+% world bounds, a held-out robustness summary, and optional replay.
 % 3D option: x-z panels show the side view, and an extra last tab shows the
 % pad-relative 3D trajectories of every paired evaluation episode.
 if nargin < 3, options=struct(); end
@@ -73,7 +73,7 @@ for viewIndex=1:numel(caseIndices)
         'fov',hFov,'info',infoText,'xLimits',xLimits,'zLimits',zLimits);
 end
 
-tabs(end)=uitab(group,'Title','Monte Carlo summary','BackgroundColor','w');
+tabs(end)=uitab(group,'Title','Held-out robustness','BackgroundColor','w');
 layouts(end)=tiledlayout(tabs(end),2,3,'TileSpacing','compact','Padding','compact');
 plotMonteCarloMean(nexttile(layouts(end),1,[1,2]),runs,c);
 plotRates(nexttile(layouts(end),3),runs);
@@ -207,7 +207,7 @@ for k=1:3
 end
 end
 
-function plotMonteCarloMean(ax,runs,c)
+function plotMonteCarloMean(ax,runs,~)
 hold(ax,'on'); grid(ax,'on'); box(ax,'on');
 q=linspace(0,1,100); theta=linspace(0,2*pi,40);
 commonSuccess=true(1,numel(runs(1).results));
@@ -220,7 +220,7 @@ if numel(selected)<2
         'Units','normalized','HorizontalAlignment','center');
     xlabel(ax,'Drone - pad horizontal position [m]');
     ylabel(ax,'Height above pad [m]');
-    title(ax,'Common-success pad-relative trajectories');
+    title(ax,'Held-out common-success robustness trajectories');
     return;
 end
 for i=1:numel(runs)
@@ -247,8 +247,8 @@ end
 yline(ax,0,':','HandleVisibility','off');
 xline(ax,0,':','HandleVisibility','off');
 xlabel(ax,'Drone - pad horizontal position [m]'); ylabel(ax,'Height above pad [m]');
-title(ax,sprintf(['Common-success pad-relative mean and 1\\sigma covariance ' ...
-    '(%d/%d paired seeds; normalized episode progress)'], ...
+title(ax,sprintf(['Held-out robustness: scenario, events, and sensor noise vary ' ...
+    '(%d/%d paired common successes; normalized progress)'], ...
     numel(selected),numel(commonSuccess)));
 legend(ax,'Location','best','Interpreter','none','Box','off');
 end

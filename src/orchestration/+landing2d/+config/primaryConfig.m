@@ -135,7 +135,9 @@ cfg.graphState.policyFile = 'ppo_context_planar_visibility_v2.mat';
 % packet-based graph (landing2d.config.applySpatialDimension).
 cfg.graphState.observationSource = 'commonObservation';
 % Node-feature version of that graph (landing2d.graphstate.observationGraph).
-% Every node feature is a deterministic function of the registered vector.
+% Every node feature is a deterministic function of the registered vector;
+% sensor quality is represented once by its ontology nodes and propagated by
+% typed conditions edges rather than copied into every physical node.
 cfg.graphState.observationFeatures = 'minimal_sensor_v1';
 % Parameter-matched graph-only proposal: Actor and Critic receive only the
 % grouped typed R-GAT embedding built from the same common observation as
@@ -158,7 +160,8 @@ cfg.graphState.pretrain.enabled = false;
 % Training-only smoothing of consecutive deterministic actor means. It uses
 % PPO's on-policy episodes (no validation/test data), adds no parameters or
 % policy memory, and leaves reward/action/termination unchanged.
-cfg.graphState.temporalPolicyConsistencyWeight = 0.01;
+cfg.graphState.temporalPolicyConsistencyWeight = 0.03;
+cfg.graphState.reliabilityAgeWeight = 0.5;
 cfg.scratchBaseline = true;
 % Evaluation-only consistency settings (noise scales, fixed probes, command
 % logs). Top-level, so they are outside the training signature and the task
