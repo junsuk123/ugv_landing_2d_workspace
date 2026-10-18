@@ -157,7 +157,7 @@ $H = (1+\tanh(\mathrm{RGAT}_{mod}(X)))\odot\tanh(\mathrm{RGAT}_{prop}(X)+W_0X+b_
 
 모든 지표는 rollout이 끝난 뒤 평가 전용 참값으로 계산한다(`landing2d.evaluation.episodeMetrics`). 온톨로지 노드·attention·보상은 지표에 쓰지 않는다.
 
-**추종 오차는 aim error** $e_{aim}=e_x-mh$, $m=\tan(-\theta_C)$다(`landing2d.evaluation.aimError`). $\theta_C=-30°$는 카메라 장착 피치이고, $m$은 공통 보상(`computeReward`, `REWARD_KO.md`의 $e_x^*=mh$)과 TOSM crossTrack 특징이 쓰는 기울기와 같다. 공통 보상이 추종하는 카메라 광축 기준점에서의 수평 오차이며, 착지 시 $e_x$와 같아진다. 고고도에서 $e_x\approx mh$($h=6$ m에서 3.46 m)는 설계된 접근 자세다. 그래서 $e_x$ 자체를 오차로 쓰지 않는다.
+**추종 오차는 aim error** $e_{aim}=e_x-mh$, $m=\tan(-\theta_C)$다(`landing2d.evaluation.aimError`). $\theta_C=-30°$는 카메라 장착 피치이고, $m$은 공통 보상(`computeReward`, `REWARD_KO.md`의 $e_x^*=mh$)이 쓰는 기울기다. TOSM N3 특징 `normalizedCrossTrack`도 같은 $m$을 쓰지만 정규화 좌표에 적용하므로 $e_{aim}$과 같은 값이 아니다(`TOSM7_ONTOLOGY_KO.md`). 공통 보상이 추종하는 카메라 광축 기준점에서의 수평 오차이며, 착지 시 $e_x$와 같아진다. 고고도에서 $e_x\approx mh$($h=6$ m에서 3.46 m)는 설계된 접근 자세다. 그래서 $e_x$ 자체를 오차로 쓰지 않는다.
 
 > **2026-10-18 수정.** 이전 평가 코드는 $e_x-h\tan\theta_C$로 계산해 부호가 반대였다(광축 기준점에서 0이 아니라 $2mh$). 그 이전에 생성된 `AimErrorRMS_m`, `WindowAimErrorRMS_m`, `WindowMaxAbsAimError_m`과 aim error 그림은 무효이며 재평가해야 한다. 학습·보상·관측은 이 오류와 무관하다.
 
@@ -264,7 +264,7 @@ run_scenario('S4')           % 통제 사례 하나의 궤적 보기 (학습된 
 ```
 
 - 새 환경에서 비교 결과를 믿기 전에 learnability 점검이 통과해야 한다. 이것은 네 번째 비교군이 아니라 과제의 학습 가능성 점검이다.
-- **2026-10-18 점검 결과: 통과하지 못함.** 일반 PPO(시드 1)는 쉬운 조건(CV·정상·속도 일치)에서도 착륙률 0%였다. 초기 위험 접촉 뒤 약 50 update부터 공중 정지 정책(timeout 100%, return −8.6)으로 수렴해 700 update 동안 벗어나지 못했다. 본 실험에서도 PPO는 시드 1–4에서 validation 0%였다. 따라서 R-GAT 계열 대 PPO의 차이는 현재 "표현의 효과"로 해석하지 않는다. 가능한 원인으로, R-GAT 입력에는 보상의 추종 목표인 aim error(`crossTrack`)와 착지 한계 비율이 파생 특징으로 들어가지만 일반 PPO는 포화 스케일된 관측에서 이를 직접 계산해야 한다는 점이 있다(검증 전 가설). 관계 의미의 효과는 TOSM 대 Shuffled(같은 특징·같은 구조)로만 판단한다.
+- **2026-10-18 점검 결과: 통과하지 못함.** 일반 PPO(시드 1)는 쉬운 조건(CV·정상·속도 일치)에서도 착륙률 0%였다. 초기 위험 접촉 뒤 약 50 update부터 공중 정지 정책(timeout 100%, return −8.6)으로 수렴해 700 update 동안 벗어나지 못했다. 본 실험에서도 PPO는 시드 1–4에서 validation 0%였다. 따라서 R-GAT 계열 대 PPO의 차이는 현재 "표현의 효과"로 해석하지 않는다. 가능한 원인으로, R-GAT 입력에는 보상과 같은 기울기 $m$을 쓴 cross-track 특징(`normalizedCrossTrack`)과 착지 한계 비율이 파생 특징으로 들어가지만 일반 PPO는 포화 스케일된 관측에서 이런 결합을 직접 학습해야 한다는 점이 있다(검증 전 가설). 단 cross-track 특징은 정규화 좌표에서 계산되어 미터 단위 aim error $e_x-mh$와 같지 않고 광축 기준점에서도 0이 아니다($h=6$ m에서 0.29, 2026-10-19 확인, `VARIABLE_NAMING_AUDIT.md` F5). 그래서 "R-GAT가 aim error를 직접 입력으로 받는다"고 쓰지 않는다. 착지 한계 비율은 역정규화한 물리 값으로 계산하므로 접지 한계를 그대로 나타낸다. 관계 의미의 효과는 TOSM 대 Shuffled(같은 특징·같은 구조)로만 판단한다.
 - `run`은 학습 서명이 맞는 체크포인트를 재사용한다. 중간에 멈춰도 다시 실행하면 이어서 진행한다. 모두 다시 학습하려면 `retrain = true`를 준다.
 
 ## 8. 출력

@@ -4,7 +4,7 @@
 
 - 기준 커밋: `59af798` (`main`). 작업 브랜치: `naming-incsl-terms`
 - 대상: 추적 중인 MATLAB 파일 170개 전부. 디스크에는 174개가 있는데, 나머지 4개는 gitignore된 `results/optimization/`의 미추적 스크립트라 수정하지 않았다
-- 결과: 34개 파일, 약 155개 식별자 변경(P0 145 · P1 7 · P2 3). 보류 16건(§4)
+- 결과: 34개 파일, 약 155개 식별자 변경(P0 145 · P1 7 · P2 3). 같은 날 2차 결정(§9)에서 스키마 라벨 6개와 evidence 필드 1개를 더 바꾸고 문서 서술 2곳을 바로잡았다. 보류 12건(§4)
 
 ## 1. 기준과 방법
 
@@ -30,7 +30,7 @@
 | F2 | 정책 입력(`S`, `state`, `X`)이 환경 상태로 읽혔다. 같은 파일 안에서 `state`가 물리 상태, Adam 상태(`policyState`), 정책 입력을 모두 뜻했다. `ppoTrain`의 `X`는 일반 PPO에서 12차원 $o_t$인데, NOTATION의 $X_t$는 노드 특징이다. | T15-0035(관측) vs T15-0129(상태), T15-0083·T15-0025(옵티마이저) | `policyInput`, `policyOptimizerState` 등 |
 | F3 | `relationForward`의 입력 이름이 `H`였다. 그러나 `encoderForward`와 문서에서 `H`는 출력 노드 상태이고, 입력은 노드 특징 $X_t$다. | T16-0022(노드 특징=입력) vs T15-0113(노드 임베딩=출력) | 입력 `X`, 역전파 출력 `dX` |
 | F4 | attention 단계 이름이 불분명했다. `raw`는 leaky ReLU 이전, `score`는 이후(softmax 입력), `alpha`는 softmax 정규화 계수다. | T15-0250(로짓=softmax 입력), T15-0326(어텐션 계수=softmax 정규화, '어텐션 점수'는 정규화 전) | `attentionPreActivation` → `attentionScore` → `alpha`. 사양서 제안 `attentionLogits`는 DB 정의와 맞지 않아 쓰지 않았다 |
-| F5 | **N3 `crossTrack` 특징은 미터 단위 aim error $e_x-mh$가 아니다.** 정규화된 $o_t$ 성분의 결합 $s_x(e_x)-m\,s_h(h)$이고, 축마다 척도(3 m, 8 m)가 달라 광축 기준점에서도 0이 아니다. 예: $h=6$ m, $e_x=mh=3.46$ m에서 $0.536-0.577\times0.429=0.288$. | T19-0164(횡방향 오차) | 지역 변수 `normalizedCrossTrack`과 주석. 스키마 라벨·문서 주장은 연구 판단이 필요해 보류(§4 D7, §7 E1) |
+| F5 | **N3 `crossTrack` 특징은 미터 단위 aim error $e_x-mh$가 아니다.** 정규화된 $o_t$ 성분의 결합 $s_x(e_x)-m\,s_h(h)$이고, 축마다 척도(3 m, 8 m)가 달라 광축 기준점에서도 0이 아니다. 예: $h=6$ m, $e_x=mh=3.46$ m에서 $0.536-0.577\times0.429=0.288$. | T19-0164(횡방향 오차) | 지역 변수 `normalizedCrossTrack`과 주석. 2차 결정(§9)에서 스키마 라벨·evidence 필드도 바꾸고 EXPERIMENT_DESIGN의 서술을 바로잡았다 |
 | F6 | MATLAB 내장 함수를 가리는 변수가 있었다: `norm`·`get`(observationVectorGraph), `det`(detectMarkers), `gamma`(computeAdvantage), `log`(rolloutEpisodeV2), `text`(plotTrajectories). | 공학 권고 | 모두 이름 변경 |
 | F7 | `captureRate`는 결정마다 마커 측정 갱신(`visionUpdated`)이 있었던 비율이다. 카메라 촬영률이 아니다. | T03-0001(측정 갱신) | 지역 변수 `markerUpdateRate`, `markerUpdateCount`. 저장 필드는 보류(§4 D2) |
 | F8 | `schema.riskNodes`는 LandingCondition 노드를 가리킨다. 이 노드는 위험 예측도 guard도 아니다(AGENTS.md 계약). | 공학 권고 | `landingConditionNodes`로 변경. 읽는 코드가 없음을 확인했다(§6) |
@@ -137,10 +137,10 @@
 | D4 | `history.nodeMean` / `info.nodeMean` → `firstNodeFeatureMean` | 노드별 첫 특징의 평균. 저장됨 | D2와 같은 방식 |
 | D5 | `result.visible` → `visionUpdated` (`rollout_result_v2`, `results.mat` factorial.display) | 저장 결과·그림 입력 | 결과 스키마 버전 변경 필요 |
 | D6 | `results.mat` `factorial.display.*.command` → `requestedAcceleration` | 저장 결과. plotCaseTimeSeries가 읽는다 | 결과 재생성 시 함께 변경 |
-| D7 | 스키마 라벨 `'crossTrack'`, `semanticEvidence.crossTrack` → `normalizedCrossTrack` | F5. 문서의 "TOSM crossTrack 특징" 서술(§7 E1)과 함께 정해야 한다 | 계산에는 영향 없음. 라벨만 바꾸면 하위 호환 |
-| D8 | `typeId` → `nodeIndexCode` (값 = node/N) | TOSM7 문서와 논문 표기에 쓰인 이름 | 문서와 함께 변경 |
-| D9 | `schema.goalNode`, `T.goalNode` (= LandingCondition, 읽는 코드 없음) | topology에 복사되어 모든 체크포인트의 spec.T에 저장됨 | 삭제 또는 개명은 topology 변경과 함께 |
-| D10 | LandingCondition 라벨 `positionRatio` 등 → `boundedPositionRatio` 등 | 값은 $r/(1+r)$이지 $r$가 아니다 | 메타데이터. D7과 함께 |
+| D7 | ~~스키마 라벨 `'crossTrack'`, `semanticEvidence.crossTrack` → `normalizedCrossTrack`~~ | **해결(§9)** | — |
+| D8 | `typeId` (값 = node/N) | **유지 결정(§9).** 의미를 주석과 TOSM7 문서에 명시했다 | — |
+| D9 | `schema.goalNode`, `T.goalNode` (= LandingCondition, 읽는 코드 없음) | **유지 결정(§9).** 주석으로 레거시 별칭임을 명시했다 | — |
+| D10 | ~~LandingCondition 라벨 `positionRatio` 등 → `boundedPositionRatio` 등~~ | **해결(§9)** | — |
 | D11 | 노드 이름 `VisionQuality` 등, 관계 이름 | 그래프 해시에 들어가 R-GAT 체크포인트 검증(`verifyCheckpointGraph`)이 실패한다. VisionQuality는 마커 갱신 여부·경과시간일 뿐 보정된 품질이 아니다(문서가 이미 그렇게 명시) | 바꾸지 않음 |
 | D12 | 방법 ID, `stateRepresentation` 값, 설정 필드(`bearingNoiseStd`, `confidenceFloor`, `perturbation.*Dropout*` 등) | 학습 서명. 바꾸면 모든 체크포인트가 무효 | 바꾸지 않음 |
 | D13 | "dropout" 용어 | F10 | 문서에서는 "마커 검출 누락"으로 쓰기를 권장 |
@@ -183,10 +183,26 @@
 
 ## 7. 별도 보고: 기존 결함 (이번 작업에서 고치지 않음)
 
-- **E1. crossTrack 특징의 의미(F5).** EXPERIMENT_DESIGN_KO.md §7의 learnability 가설은 "R-GAT 입력에는 보상의 추종 목표인 aim error(`crossTrack`)가 … 파생 특징으로 들어가지만"이라고 쓴다. 실제 특징은 정규화 좌표의 결합이라 aim error와 같지 않고, 기준점에서 0도 아니다. 가설 문장을 고칠지는 연구 판단이므로 손대지 않았다. 문서 §5의 "같은 기울기 m을 쓴다"는 서술은 맞다.
+- **E1. crossTrack 특징의 의미(F5). → 해결(§9).** EXPERIMENT_DESIGN_KO.md §7의 learnability 가설은 "R-GAT 입력에는 보상의 추종 목표인 aim error(`crossTrack`)가 … 파생 특징으로 들어가지만"이라고 썼다. 실제 특징은 정규화 좌표의 결합이라 aim error와 같지 않고, 기준점에서 0도 아니다.
 - **E2. 실행 불가 보조 코드.** `+consistency`(15개 파일), `+livetest`(7개), `+unlink`(8개), `.codex-build/*.m`(2개)는 run·run_check·run_scenario에서 호출되지 않는다. 이들은 존재하지 않는 함수 12개를 호출한다: `landing2d.paper.*` 3개, `probe.buildBank`, `rl.probeActions`, `rl.normalizeAgent`, `util.resolvedConfig`, `viz.graphLayout`, `metrics.{admissibleActions, behaviorValidity, validityContext, trajectorySpatialStatistics}`. 없는 설정 필드(`c.consistency`, `registry.ablations`)도 쓴다. `livetest/infer.m`은 `encoderForward`(현재 4개 인자)를 6개 인자로, `policyAction`을 6개, `valueForward`를 3개 인자로 호출한다. 보관할지 삭제할지는 결정이 필요하다. AGENTS.md 소스 구조에도 이 패키지들이 없다.
 - **E3. `.vscode/tasks.json`.** JSON 문법 오류가 있다("Temporary Git status" 객체가 Smoke 작업 중간에 끼어 있음). 또 runPipeline이 거부하는 옛 옵션(`executionMode`, `spatialDimension`, `generatePaper`, `showLiveDashboard`)을 쓴다.
 - **E4. 옛 차원 주석.** reset.m(104행), replaySensing.m(11행), selfTest.m checkCommonObservation(445행)이 관측을 "24-D"로 적는다. 현재는 12차원이다.
 - **E5. 사용되지 않는 인자.** `computeReward(…,previousNorm)`의 마지막 인자는 쓰이지 않는다(계약 파일이라 손대지 않음).
 - **E6. 한글 문서 표기.** COMMON_OBSERVATION_KO.md 등은 `visionUpdated`를 "영상 보정 여부"라고 쓴다. DB 원칙(update → 갱신, T03-0001)에 따르면 "영상 측정 갱신 여부"가 맞다.
 - **E7. bearing.** DB의 방위각(T08-0064)은 수평면 각이다. 이 코드의 bearing은 x–z 평면에서 광축으로부터 잰 각이다. 이름은 카메라 관례대로 유지했고, 처음 나올 때 정의를 밝히기를 권한다.
+
+## 9. 2차 결정 (2026-10-19, 사용자 위임)
+
+§4의 라벨 보류 항목과 F5 서술은 사용자가 판단을 위임했다. 다음과 같이 정했다.
+
+| 항목 | 결정 | 근거 |
+|---|---|---|
+| N3 라벨 `crossTrack`, `semanticEvidence.crossTrack` | `normalizedCrossTrack`으로 변경 | F5. 라벨은 읽는 코드가 없고 evidence는 저장되지 않는 일시 구조체다(selfTest는 `.bearing`, `.landingCondition`만 읽는다) |
+| N7 라벨 `positionRatio`, `relativeSpeedRatio`, `descentSpeedRatio`, `pitchRatio`, `pitchRateRatio` | `bounded*`로 변경 | 값은 $r/(1+r)$이지 비율 $r$가 아니다 |
+| `typeId` | 유지 | TOSM7 문서·Notion·논문에 쓰이는 이름이고 바꿔도 계산상 이득이 없다. 값 node/N이 노드 식별 코드이며 `nodeClasses`의 클래스 번호가 아니라는 점을 주석과 TOSM7 문서에 적었다 |
+| `goalNode` | 유지 | 모든 체크포인트의 topology에 저장되어 있고 읽는 코드가 없다. 레거시 별칭이라는 주석을 달았다 |
+| EXPERIMENT_DESIGN_KO.md §5 aim error 문단 | "TOSM crossTrack 특징이 쓰는 기울기와 같다" → 같은 $m$을 쓰지만 정규화 좌표에 적용하므로 $e_{aim}$과 같은 값이 아님 | 사실 정정. 결론에는 영향 없음 |
+| EXPERIMENT_DESIGN_KO.md §7 learnability 가설 | 가설로 유지하고 사실과 다른 부분만 정정: 특징은 보상과 같은 기울기의 cross-track이지만 aim error 자체가 아니다($h=6$ m 기준점에서 0.29). 착지 한계 비율은 물리 값으로 계산되므로 그대로 둔다 | "R-GAT가 aim error를 직접 받는다"는 서술은 논문에 쓰지 않는다 |
+| aimError.m 주석 | 같은 정정 | — |
+
+검증(실제 MATLAB R2025b): `run_check` 14/14 PASS, smoke 통과(contrast 출력 줄 변경 전과 동일). 변경 전 기준과의 수치 회귀는 21,780개 값을 비교했고 차이 20건은 모두 의도한 메타데이터다(M2·M3 각각 `riskNodes`→`landingConditionNodes`와 `nodeFeatureNames` 셀 {7,13,14,17,21,24,28,35}). semantic evidence 값, 노드 특징, 그래프 해시, 학습 서명을 포함한 그 밖의 값은 비트 단위로 같다.

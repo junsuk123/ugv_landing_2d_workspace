@@ -3,7 +3,8 @@ function e = aimError(xPad,xDrone,height,c)
 %   e = landing2d.evaluation.aimError(xPad,xDrone,height,c)
 % e_aim = e_x - m h with e_x = x_pad - x_drone, h = max(height above pad, 0)
 % and m = tan(-cameraPitchOffset), the slope of landing2d.rl.computeReward
-% (docs/REWARD_KO.md, e_x^* = m h) and of the TOSM crossTrack feature. The
+% (docs/REWARD_KO.md, e_x^* = m h); the TOSM normalizedCrossTrack feature
+% applies the same m to normalized coordinates, so it is not e_aim. The
 % camera is mounted pitched back (cameraPitchOffset < 0), so the designed
 % approach keeps the drone m h behind the pad and e_aim = 0 there; at
 % touchdown (h = 0) e_aim = e_x. Evaluation and figures only.

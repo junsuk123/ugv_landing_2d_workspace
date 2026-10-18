@@ -89,25 +89,32 @@ schema.nRelations=numel(schema.relationNames);
 schema.src=src; schema.dst=dst; schema.rel=rel;
 % Six channels: five node-specific features plus the node identity code.
 % nodeFeatureNames lists the meaning of f1..f5 for every node (descriptive
-% labels; no computation, hash or signature reads them). N3: crossTrack is
-% the normalized-coordinate cross-track and geometryQuadratic is
-% 0.5*(crossTrack^2+h^2) of the normalized values; N6: normalizedBearing is
-% bearing/(FOV/2) (landing2d.graphstate.observationVectorGraph).
+% labels; no computation, hash or signature reads them). N3:
+% normalizedCrossTrack is the cross-track of the normalized o_t coordinates
+% (not the metric aim error) and geometryQuadratic is
+% 0.5*(normalizedCrossTrack^2+h^2) of the normalized values; N6:
+% normalizedBearing is bearing/(FOV/2); N7: bounded* are r/(1+r) of the
+% touchdown-limit ratios r (landing2d.graphstate.observationVectorGraph).
+% typeId is the node identity code node/N (one value per node, not the
+% nodeClasses entry).
 schema.featureNames={'f1','f2','f3','f4','f5','typeId'};
 schema.inDim=numel(schema.featureNames);
 schema.nodeFeatureNames={ ...
     'visionUpdated','visionAge','','','',''; ...
     'ugv_vx','ugv_vx^2','','','',''; ...
-    'relative_x','relative_height','crossTrack','geometryQuadratic','',''; ...
+    'relative_x','relative_height','normalizedCrossTrack','geometryQuadratic','',''; ...
     'relative_vx','relative_vx^2','','','',''; ...
     'drone_vz','drone_sinTheta','drone_pitchRate','navigationValid','navigationAge',''; ...
     'fovMargin','normalizedBearing','','','',''; ...
-    'positionRatio','relativeSpeedRatio','descentSpeedRatio','pitchRatio','pitchRateRatio',''};
+    'boundedPositionRatio','boundedRelativeSpeedRatio','boundedDescentSpeedRatio', ...
+    'boundedPitchRatio','boundedPitchRateRatio',''};
 schema.nodeFeatureNames(:,end)={'typeId'};
 schema.neutralValue=zeros(1,schema.nNodes);
 % The LandingCondition node (descriptive situation feature, never a guard,
 % risk prediction or approval).
 schema.landingConditionNodes=find(strcmp(schema.nodeNames,'LandingCondition'));
+% goalNode: legacy alias copied into the topology (and so into every saved
+% checkpoint); nothing reads it.
 schema.goalNode=schema.landingConditionNodes;
 schema.actionNodes=[];
 % Identity readout keeps every node identifiable (no raw observation bypass).
