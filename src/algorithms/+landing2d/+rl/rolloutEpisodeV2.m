@@ -5,48 +5,32 @@ function [result,traj] = rolloutEpisodeV2(agent,c,seed,opts)
 % traj.requestedAcceleration is tanh(command) times the axis limits before the
 % supervisor; traj.appliedAccelerationIntervalMean is the decision-interval
 % average of the supervisor-applied command (not a high-rate command).
-% opts.commandLog = true adds result.commandLog (landing2d.rl.rolloutEpisodeV2
+% result.contact is the evaluation-only pre-impact state of a contact
+% termination (xError, relativeVx, relativeVz, pitch, pitchRate; empty struct
+% otherwise). opts.commandLog = true adds result.commandLog (landing2d.rl.rolloutEpisodeV2
 % local buildCommandLog): policy input/output, decision context, per-physics-
 % step applied commands and supervisor reasons, evaluation-only truth (actual
 % body acceleration, perception error) and the exogenous manifest, kept in
 % separate sections. opts.run / opts.configHash identify the policy and the
-% resolved configuration; opts.sensorNoiseScale scales planar sensor noise.
-% opts.descentPrefix (training curriculum only) = struct('handoverHeight',h,
-% 'maxTime',T): the causal reference driver flies the episode start until the
-% height above the pad is at most h (or T seconds pass); the policy acts from
-% there and the prefix decisions are not policy transitions.
+% resolved configuration; opts.sensorNoiseScale scales planar sensor noise;
+% opts.scenario / opts.sensorEvents replace the sampled ones (fixed cases).
 if nargin < 4, opts = struct(); end
 opts = defaults(opts,struct('deterministic',false,'collect',true, ...
     'rs',[],'maxDecisions',Inf,'traceGraph',false, ...
-    'scenarioHeightRange',[],'scenario',[],'sensorEvents',[], ...
+    'scenario',[],'sensorEvents',[], ...
     'sensorNoiseScale',[],'commandLog',false,'commandLogStates',false, ...
-    'run',struct(),'configHash','','descentPrefix',[]));
+    'run',struct(),'configHash',''));
 if isempty(opts.rs)
     opts.rs = RandStream('threefry','Seed',c.experiment.scenario.baseSeed+ ...
         c.experiment.randomStreams.policyOffset+double(seed));
 end
 resetOptions = struct();
-if ~isempty(opts.scenarioHeightRange)
-    resetOptions.scenarioHeightRange = opts.scenarioHeightRange;
-end
 if ~isempty(opts.scenario), resetOptions.scenario = opts.scenario; end
 if ~isempty(opts.sensorEvents), resetOptions.sensorEvents = opts.sensorEvents; end
 if ~isempty(opts.sensorNoiseScale), resetOptions.sensorNoiseScale = opts.sensorNoiseScale; end
 [env,observation,resetInfo] = landing2d.environment.reset(c,seed,resetOptions);
 manifest = struct();
 if opts.commandLog, manifest = landing2d.environment.exogenousManifest(env); end
-prefixDecisions = 0;
-if ~isempty(opts.descentPrefix)
-    assert(~isempty(env.commonObservation),'landing2d:DescentPrefix', ...
-        'The descent prefix needs the planar common observation.');
-    while ~env.episodeStatus.terminated && env.time < opts.descentPrefix.maxTime ...
-            && env.physicalState.z-env.pad.z > opts.descentPrefix.handoverHeight
-        a = landing2d.probe.referenceDriver(env.commonObservation, ...
-            env.observationContext,c,[],0);
-        [env,observation] = landing2d.environment.step(env,a);
-        prefixDecisions = prefixDecisions+1;
-    end
-end
 capacity = min(ceil(env.scenario.deadline/c.experiment.policyDt)+1, ...
     opts.maxDecisions);
 if ~isfinite(capacity), capacity = ceil(env.scenario.deadline/c.experiment.policyDt)+1; end
@@ -58,10 +42,6 @@ traj = struct('time',zeros(1,capacity),'observation',zeros(c.rl.observationDim,c
     'requestedAcceleration',zeros(c.rl.actionDim,capacity), ...
     'appliedAccelerationIntervalMean',zeros(c.rl.actionDim,capacity), ...
     'logProbability',zeros(1,capacity),'value',zeros(1,capacity), ...
-    'baseMean',zeros(c.rl.actionDim,capacity), ...
-    'relationResidual',zeros(c.rl.actionDim,capacity), ...
-    'descentEligibility',ones(1,capacity), ...
-    'verticalGateActive',false(1,capacity), ...
     'reward',zeros(1,capacity),'rewardComponents',{cell(1,capacity)}, ...
     'terminated',false(1,capacity),'truncated',false(1,capacity), ...
     'discount',zeros(1,capacity),'dt',zeros(1,capacity), ...
@@ -80,7 +60,7 @@ while ~env.episodeStatus.terminated && traj.count < capacity
     landingInhibited = env.episodeStatus.landingInhibited;
     decisionStatus = env.episodeStatus;
     decisionTime = env.time;
-    [u,logProbability,mu,policyDetail] = landing2d.rl.policyAction(agent,state,opts.rs, ...
+    [u,logProbability,mu] = landing2d.rl.policyAction(agent,state,opts.rs, ...
         opts.deterministic);
     aNorm = tanh(u);
     value = landing2d.rl.valueForward(agent,state);
@@ -102,10 +82,6 @@ while ~env.episodeStatus.terminated && traj.count < capacity
     end
     traj.logProbability(k) = logProbability;
     traj.value(k) = value;
-    traj.baseMean(:,k) = policyDetail.baseMean;
-    traj.relationResidual(:,k) = policyDetail.relationResidual;
-    traj.descentEligibility(k) = policyDetail.descentEligibility;
-    traj.verticalGateActive(k) = policyDetail.verticalGateActive;
     traj.reward(k) = reward;
     traj.rewardComponents{k} = stepInfo.rewardComponents;
     traj.terminated(k) = terminated;
@@ -129,11 +105,9 @@ else
 end
 n = traj.count;
 matrixFields = {'observation','state','nextObservation','command','actorMean', ...
-    'normalizedAction','requestedAcceleration','appliedAccelerationIntervalMean', ...
-    'baseMean','relationResidual'};
+    'normalizedAction','requestedAcceleration','appliedAccelerationIntervalMean'};
 rowFields = {'time','logProbability','value','reward','terminated','truncated', ...
-    'discount','dt','safetyIntervened','landingInhibited','descentEligibility', ...
-    'verticalGateActive'};
+    'discount','dt','safetyIntervened','landingInhibited'};
 for i = 1:numel(matrixFields), traj.(matrixFields{i}) = traj.(matrixFields{i})(:,1:n); end
 for i = 1:numel(rowFields), traj.(rowFields{i}) = traj.(rowFields{i})(1:n); end
 traj.rewardComponents = traj.rewardComponents(1:n);
@@ -150,14 +124,8 @@ result = struct('schemaVersion','rollout_result_v2','seed',seed, ...
     'visible',log.visible(1:n+1),'supervisor',log.supervisor(1:n+1), ...
     'terminalReason',env.episodeStatus.terminalReason, ...
     'landingTime',terminalTime(env,'SUCCESS'),'failureTime',failureTime(env), ...
-    'resetInfo',resetInfo,'policyDiagnostics',policyDiagnostics(traj), ...
-    'prefixDecisions',prefixDecisions,'commandLog',[]);
-if isfield(log,'yDrone')
-    % 3D option: lateral/roll trajectory alongside the planar fields.
-    for name={'yDrone','vyDrone','roll','rollRate','yPad','vyPad'}
-        result.(name{1})=log.(name{1})(1:n+1);
-    end
-end
+    'contact',env.episodeStatus.contact, ...
+    'resetInfo',resetInfo,'commandLog',[]);
 if opts.commandLog
     result.commandLog = buildCommandLog(traj,decisionLog,log,result,manifest,env,c, ...
         seed,opts,agent.encoderSpec.mode);
@@ -205,7 +173,6 @@ end
 [~,reasonNames] = landing2d.control.supervisorReasonCode({});
 limits = landing2d.environment.actionLimits(c);
 axisNames = {'a_x','a_z'};
-if numel(limits) == 3, axisNames = {'a_x','a_y','a_z'}; end
 identity = struct('schemaVersion','command_log_v1','seed',seed,'run',opts.run, ...
     'configHash',opts.configHash,'stateRepresentation',mode, ...
     'deterministic',opts.deterministic,'sensorNoiseScale',env.provenance.noiseScale, ...
@@ -259,29 +226,12 @@ for i = 1:m
 end
 end
 
-function d=policyDiagnostics(traj)
-if traj.count==0
-    blank=zeros(size(traj.relationResidual,1),1);
-    d=struct('meanAbsRelationResidual',blank, ...
-        'terminalRelationResidual',blank, ...
-        'meanDescentEligibility',1,'verticalGateFraction',0);
-    return;
-end
-d=struct('meanAbsRelationResidual',mean(abs(traj.relationResidual),2), ...
-    'terminalRelationResidual',traj.relationResidual(:,end), ...
-    'meanDescentEligibility',mean(traj.descentEligibility), ...
-    'verticalGateFraction',mean(traj.verticalGateActive));
-end
-
 function state = policyState(observation,env,c,mode)
-% Baseline: the environment observation (planar: registered 12-D vector).
-% Graph arms: the context graph of the same causal observation.
+% Plain PPO: the 12-D common observation. R-GAT arms: the TOSM graph of it.
 if strcmp(mode,'baseline')
     state = observation;
-elseif ismember(mode,{'context_flat','context_node_pool','context_gat','context_rgat'})
-    state = landing2d.graphstate.environmentGraph(env,c,observation);
 else
-    error('landing2d:V2StateMode','V2 rollout does not accept legacy graph mode %s.',mode);
+    state = landing2d.graphstate.environmentGraph(env,c,observation);
 end
 end
 
@@ -293,9 +243,6 @@ end
 function log = initializeLog(n,env)
 fields = {'time','xDrone','zDrone','vxDrone','vzDrone','theta','pitchRate', ...
     'xPad','vxPad','visible','supervisor'};
-if isfield(env.physicalState,'y')
-    fields = [fields,{'yDrone','vyDrone','roll','rollRate','yPad','vyPad'}];
-end
 for i = 1:numel(fields), log.(fields{i}) = zeros(1,n); end
 log = appendLog(log,1,env,struct('supervisorIntervened',false));
 end
@@ -307,21 +254,11 @@ log.vzDrone(k)=env.physicalState.vz; log.theta(k)=env.physicalState.theta;
 log.pitchRate(k)=env.physicalState.pitchRate; log.xPad(k)=env.pad.x;
 log.vxPad(k)=env.pad.vx; log.visible(k)=visionAvailable(env);
 log.supervisor(k)=info.supervisorIntervened;
-if isfield(log,'yDrone')
-    s=env.physicalState;
-    log.yDrone(k)=s.y; log.vyDrone(k)=s.vy; log.roll(k)=s.roll;
-    log.rollRate(k)=s.rollRate; log.yPad(k)=env.pad.y; log.vyPad(k)=env.pad.vy;
-end
 end
 
 function visible = visionAvailable(env)
-% Measured visibility of the perception the policy and supervisor use: the
-% planar marker-camera vision update, otherwise the tracker detection (3D).
-if isfield(env,'commonObservation') && ~isempty(env.commonObservation)
-    visible = env.commonObservation.ugv.visionUpdated;
-else
-    visible = env.measurement.detected;
-end
+% Measured visibility of the marker-camera perception used by the policy.
+visible = env.commonObservation.ugv.visionUpdated;
 end
 
 function t = terminalTime(env,reason)

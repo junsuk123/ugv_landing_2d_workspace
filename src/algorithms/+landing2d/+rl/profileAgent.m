@@ -1,7 +1,7 @@
 function profile = profileAgent(agent,c,seed,repetitions)
 % PROFILEAGENT  Small deterministic inference profile (not a hard realtime proof).
 % Observation time: vectorizing the policy observation (planar: the 12-D common
-% observation vector, 3D: the causal packet). Graph time: building the context
+% observation vector). Graph time: building the context
 % graph from the same causal observation.
 if nargin<3, seed=1; end
 if nargin<4, repetitions=50; end
@@ -54,12 +54,8 @@ profile=struct('observationMs',observationMs,'graphMs',graphMs, ...
     'parameterCount',countNumeric(agent.policy)+countNumeric(agent.value));
 end
 
-function x=policyObservation(env,c)
-if isfield(env,'commonObservation') && ~isempty(env.commonObservation)
-    x=landing2d.observation.toVector(env.commonObservation,env.observationContext);
-else
-    x=landing2d.sensing.normalizePacket(env.packet,c);
-end
+function x=policyObservation(env,~)
+x=landing2d.observation.toVector(env.commonObservation,env.observationContext);
 end
 
 function n=countNumeric(x)

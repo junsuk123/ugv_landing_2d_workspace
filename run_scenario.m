@@ -1,16 +1,16 @@
-function output = run_scenario(scenarioId,options)
-% RUN_SCENARIO  Evaluate one fixed final-policy scenario: S1, S2, or S3.
-%   run_scenario('S3',struct('spatialDimension',3))   % 3D option checkpoints
-if nargin < 1 || isempty(scenarioId), scenarioId='S3'; end
-if nargin < 2, options=struct(); end
-root=fileparts(mfilename('fullpath'));
-sourceRoots={fullfile(root,'src','orchestration'), ...
-    fullfile(root,'src','simulations'),fullfile(root,'src','algorithms')};
-for i=1:numel(sourceRoots)
-    if ~contains([path pathsep],[sourceRoots{i} pathsep])
-        addpath(sourceRoots{i});
-    end
+function output = run_scenario(caseId,options)
+% RUN_SCENARIO  Fly one controlled case with trained checkpoints and plot it.
+%   run_scenario('S4')   % S1 CV+clean, S2 CV+dropout, S3 CA+clean, S4 CA+dropout
+%   run_scenario('S4',struct('trainSeeds',1:5,'replicates',5))
+% Needs the checkpoints written by run. A look at trajectories only; the study
+% numbers come from run (results/evaluation).
+if nargin < 1 || isempty(caseId), caseId = 'S4'; end
+if nargin < 2, options = struct(); end
+root = fileparts(mfilename('fullpath'));
+for name = {'orchestration','simulations','algorithms'}
+    folder = fullfile(root,'src',name{1});
+    if ~contains([path pathsep],[folder pathsep]), addpath(folder); end
 end
-output=landing2d.orchestration.runScenario(scenarioId,options);
-if nargout==0, assignin('base','landingScenario',output); end
+output = landing2d.orchestration.runScenario(caseId,options);
+if nargout == 0, clear output; end
 end

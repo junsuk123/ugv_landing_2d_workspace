@@ -1,135 +1,31 @@
 function [g,cache] = encoderForward(params,spec,S,head)
-% ENCODERFORWARD  상태 표현을 R-GAT Actor/Critic 입력으로 변환.
-%
-%   S : [stateDim x B]   펴 놓은 노드 특징 행렬 X_t (baseline이면 관측 벡터)
-%   g : [graphDim x B]   그래프 수준 표현 g_t
-%
-% 중간 결과 H_t는 [hiddenDim x nNodes x B]이며 모든 노드가 읽기에 들어갑니다.
-% decision_nodes readout에서는 Actor가 PolicyNode, Critic이 ValueNode의
-% 임베딩을 직접 읽습니다. mean/meanmax는 제거 실험용 전역 pooling입니다.
-if nargin < 4 || isempty(head)
-    head = 'policy';
-end
-if ismember(spec.mode,{'baseline','semantic_flat','context_flat'})
+% ENCODERFORWARD  State representation -> Actor/Critic input.
+%   S : [stateDim x B]  12-D o_t (baseline) or the flattened node features X_t
+%   g : [graphDim x B]  input of the policy/value MLP
+% context_rgat: H = tanh(RGAT(X) + W0 X + b0) per node, then the grouped
+% factorized readout g = tanh(sum_k (Wc H_k) .* Wn(:,k) + bg). HEAD ('policy'
+% or 'value') is informational: Actor and Critic have separate encoders.
+if nargin < 4 || isempty(head), head = 'policy'; end %#ok<NASGU>
+if strcmp(spec.mode,'baseline')
     g = S;
     cache = struct('mode',spec.mode);
     return;
 end
-B = size(S,2);
-N = spec.nNodes;
-dh = spec.hiddenDim;
-graphState=S;
-if strcmp(spec.readout,'observation_plus_groups')
-    rawObservation=S(1:spec.rawDim,:);
-    graphState=S(spec.rawDim+1:end,:);
+B = size(S,2); N = spec.nNodes; dh = spec.hiddenDim;
+X = reshape(S,spec.inDim,N,B);
+Xf = reshape(X,spec.inDim,N*B);
+[Z1,cache1] = landing2d.rgat.relationForward(X,params.W1,params.a1, ...
+    params.E1,spec.T,[],spec.attentionMode);
+local = reshape(params.W0*Xf+params.b0,dh,N,B);
+H = tanh(reshape(Z1,dh,N,B)+local);
+K = spec.groupCount;
+grouped = zeros(dh,K,B);
+channel = zeros(spec.graphDim,K,B);
+for b = 1:B
+    grouped(:,:,b) = H(:,:,b)*spec.groupMatrix';
+    channel(:,:,b) = params.Wc*grouped(:,:,b);
 end
-X = reshape(graphState,spec.inDim,N,B);
-cache = struct('mode',spec.mode,'B',B,'N',N,'dh',dh);
-switch spec.mode
-    case {'node_pool','context_node_pool'}
-        Xf = reshape(X,spec.inDim,N*B);
-        H = tanh(reshape(params.Wn*Xf+params.bn,dh,N,B));
-        cache.Xf = Xf;
-    case {'gat','ontology_rgat'}
-        [Z1,cache1] = landing2d.rgat.relationForward(X,params.W1,params.a1, ...
-            params.E1,spec.T);
-        H1 = tanh(reshape(Z1,dh,N,B));
-        [Z2,cache2] = landing2d.rgat.relationForward(H1,params.W2,params.a2, ...
-            params.E2,spec.T);
-        H = tanh(reshape(Z2,dh,N,B)+H1);
-        cache.cache1 = cache1;
-        cache.cache2 = cache2;
-        cache.H1 = H1;
-    case {'context_gat','context_rgat'}
-        Xf = reshape(X,spec.inDim,N*B);
-        [Z1,cache1] = landing2d.rgat.relationForward(X,params.W1,params.a1, ...
-            params.E1,spec.T);
-        local = reshape(params.W0*Xf+params.b0,dh,N,B);
-        H = tanh(reshape(Z1,dh,N,B)+local);
-        cache.cache1 = cache1;
-        cache.Xf = Xf;
-    otherwise
-        error('landing2d:UnknownStateRepresentation', ...
-            'encoderForward does not handle stateRepresentation %s.',spec.mode);
-end
-cache.H = H;
-
-% ---- 의사결정 노드 직접 읽기 또는 제거 실험용 전역 pooling.
-hMean = reshape(mean(H,2),dh,B);
-switch spec.readout
-    case 'decision_nodes'
-        switch head
-            case 'policy'
-                node = spec.policyNode;
-            case 'value'
-                node = spec.valueNode;
-            otherwise
-                error('landing2d:DecisionHead', ...
-                    'Decision head must be policy or value, not %s.',head);
-        end
-        g = reshape(H(:,node,:),dh,B);
-        cache.readoutNode = node;
-        cache.head = head;
-        cache.g = g;
-    case 'meanmax'
-        [maxValue,argMax] = max(H,[],2);
-        hMax = reshape(maxValue,dh,B);
-        readout = [hMean;hMax];
-        g = tanh(params.Wg*readout+params.bg);
-        cache.readout = readout;
-        cache.argMax = reshape(argMax,dh,B);
-        cache.g = g;
-    case 'mean'
-        g = hMean;
-    case 'grouped'
-        K = spec.groupCount;
-        grouped = zeros(dh,K,B);
-        for b = 1:B
-            grouped(:,:,b) = H(:,:,b)*spec.groupMatrix';
-        end
-        readout = reshape(grouped,dh*K,B);
-        g = tanh(params.Wg*readout+params.bg);
-        cache.readout = readout;
-        cache.g = g;
-    case 'grouped_factorized'
-        K = spec.groupCount;
-        grouped = zeros(dh,K,B);
-        channel = zeros(spec.graphDim,K,B);
-        for b = 1:B
-            grouped(:,:,b) = H(:,:,b)*spec.groupMatrix';
-            channel(:,:,b) = params.Wc*grouped(:,:,b);
-        end
-        pre = reshape(sum(channel.*params.Wn,2),spec.graphDim,B)+params.bg;
-        g = tanh(pre);
-        cache.grouped = grouped;
-        cache.channel = channel;
-        cache.g = g;
-    case 'raw_plus_groups'
-        K = spec.groupCount;
-        grouped = zeros(dh,K,B);
-        for b = 1:B
-            grouped(:,:,b) = H(:,:,b)*spec.groupMatrix';
-        end
-        readout = reshape(grouped,dh*K,B);
-        relationContext = tanh(params.Wg*readout+params.bg);
-        g = [S;relationContext];
-        cache.readout = readout;
-        cache.relationContext = relationContext;
-        cache.g = g;
-    case 'observation_plus_groups'
-        K = spec.groupCount;
-        grouped = zeros(dh,K,B);
-        for b = 1:B
-            grouped(:,:,b) = H(:,:,b)*spec.groupMatrix';
-        end
-        readout = reshape(grouped,dh*K,B);
-        relationContext = tanh(params.Wg*readout+params.bg);
-        g = [rawObservation;relationContext];
-        cache.readout = readout;
-        cache.relationContext = relationContext;
-        cache.rawObservation = rawObservation;
-        cache.g = g;
-    otherwise
-        error('landing2d:UnknownReadout','Unknown readout: %s',spec.readout);
-end
+g = tanh(reshape(sum(channel.*params.Wn,2),spec.graphDim,B)+params.bg);
+cache = struct('mode',spec.mode,'B',B,'N',N,'dh',dh,'cache1',cache1, ...
+    'Xf',Xf,'H',H,'grouped',grouped,'channel',channel,'g',g);
 end

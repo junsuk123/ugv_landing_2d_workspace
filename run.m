@@ -1,16 +1,23 @@
 function output = run(options)
-% RUN  Complete scratch-training, validation, and visualization pipeline.
-%   run(struct('spatialDimension',3))   % 3D option (lateral y + roll), results/spatial3d
-%   run(struct('latestOntology',true))  % latest saved ontology evidence only
-if nargin < 1, options=struct(); end
-root=fileparts(mfilename('fullpath'));
-sourceRoots={fullfile(root,'src','orchestration'), ...
-    fullfile(root,'src','simulations'),fullfile(root,'src','algorithms')};
-for i=1:numel(sourceRoots)
-    if ~contains([path pathsep],[sourceRoots{i} pathsep])
-        addpath(sourceRoots{i});
-    end
+% RUN  Full study: self-test -> train -> evaluate -> figures (relational_policy_v1).
+%   run                                   % 3 methods x training seeds 1-5
+%   run(struct('trainSeeds',1:10))        % larger seed plan
+%   run(struct('smoke',true))             % bounded integration run (no result)
+%   run(struct('sections',{{'factorial','probes'}}))   % selected evaluations
+% Compatible checkpoints in results/checkpoints are reused (an interrupted run
+% resumes); pass retrain=true to train everything again.
+% Outputs: results/checkpoints, results/evaluation (CSV + results.mat),
+% results/figures (PNG). See docs/EXPERIMENT_DESIGN_KO.md for the design.
+if nargin < 1, options = struct(); end
+addSources();
+output = landing2d.orchestration.runPipeline(options);
+if nargout == 0, assignin('base','landingStudy',output); clear output; end
 end
-output=landing2d.orchestration.runPipeline(options);
-if nargout==0, assignin('base','landingStudy',output); end
+
+function addSources()
+root = fileparts(mfilename('fullpath'));
+for name = {'orchestration','simulations','algorithms'}
+    folder = fullfile(root,'src',name{1});
+    if ~contains([path pathsep],[folder pathsep]), addpath(folder); end
+end
 end

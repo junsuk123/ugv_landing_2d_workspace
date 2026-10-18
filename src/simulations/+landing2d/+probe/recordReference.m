@@ -15,7 +15,7 @@ function record = recordReference(c,seed,options)
 %   driverMeanAction         같은 관측에서 잡음 없는 구동기 행동 (판정기 기준용, 평가 전용)
 % OPTIONS: driverNoise, randomOffset (구동기 잡음 난수열), maxDecisions.
 if nargin < 3, options = struct(); end
-probe = c.consistency.probe;
+probe = c.evaluation.probe;
 defaults = struct('driverNoise',probe.driverNoise,'randomOffset',probe.randomOffset, ...
     'maxDecisions',Inf);
 names = fieldnames(options);

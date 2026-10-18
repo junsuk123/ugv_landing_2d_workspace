@@ -1,6 +1,6 @@
 function [code,names] = supervisorReasonCode(reasons)
 % SUPERVISORREASONCODE  Safety-supervisor reason -> uint8 log code (0 = no reason).
-% landing2d.control.safetySupervisor reports at most one reason per call; the
+% The planar direct policy has no supervisor (no reason is ever reported); the
 % code indexes NAMES. Logging only; it never changes the applied command.
 names = {'recovery_backup','descent_inhibited','vertical_stopping_margin'};
 code = uint8(0);

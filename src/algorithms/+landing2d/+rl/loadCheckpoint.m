@@ -17,7 +17,7 @@ if ~landing2d.rl.signatureMatches(saved.signature,c)
          'environment configuration: %s\nRun with retrain=true ' ...
          'before final evaluation.'],file);
 end
-agent = landing2d.rl.normalizeAgent(saved.agent,c.rl);
+agent = saved.agent;
 landing2d.rl.verifyCheckpointGraph(agent,c);
 if isfield(saved,'info')
     info = saved.info;

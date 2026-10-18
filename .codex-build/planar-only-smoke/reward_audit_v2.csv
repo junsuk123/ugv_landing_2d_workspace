@@ -1,0 +1,11 @@
+Fixture,Duration_s,Terminal,DiscountedReturn
+safe efficient landing,10,SUCCESS,21.6130079266918
+safe delayed landing,40,SUCCESS,13.6916532781503
+stable near-pad hover until deadline,70,TASK_TIMEOUT,-4.67389317796191
+unnecessary loss then abort,20,SAFE_ABORT,-11.8354145725649
+appropriate abort,5,SAFE_ABORT,-14.162685135374
+fast impact,2,UNSAFE_CONTACT,-39.0021748417516
+late impact,60,UNSAFE_CONTACT,-18.2808665057655
+prohibited blind contact,12,UNAUTHORIZED_CONTACT,-34.0697794963903
+oscillatory approach,55,TASK_TIMEOUT,-6.68907082942955
+recoverable short loss then landing,25,SUCCESS,17.2012504615932

@@ -1,0 +1,440 @@
+Dept. of Intelligent Mechatronics Engineering, Sejong University
+SEMINAR – RESEARCH
+REAL-TIME SMOOTHING FILTER & 3D OBJECT TRACKING
+ADVISE PROFESSOR : JIN WOO SONG
+PRESENTER : JOO HAN LEE
+2024.11.11
+
+Intelligent Navigation and Control Systems Laboratory (iNCSL)
+CONTENTS
+• Real-time Constrained Smoothing Filter
+• Introduction
+• Methodology
+• Results and analysis
+• 3D Multi Object Tracking
+• Introduction
+• Environments
+• Research process
+• Future works
+2
+
+3
+REAL-TIME CONSTRAINED
+SMOOTHING FILTER
+• Introduction
+• Methodology
+• Results and analysis
+
+Intelligent Navigation and Control Systems Laboratory (iNCSL)
+INTRODUCTION
+• Research background
+• State estimation of system is important
+• Smoothing filter (SF)
+• Higher state estimation accuracy compared to a regular Kalman filter
+• Limitation: Difficult to implement in real time
+• Real-time smoothing filter (RSF)
+• Window formation method (via selection of appropriate window length)
+• Limitation: Due to formal and structural limitations, there is no gain in the 
+accuracy of current state estimation
+• Propose: Real-time constrained smoothing filter (RCSF)
+• Target: break the limitation of RSF in aspect of filter equation
+• Process
+• Define a prior information for the backward filter
+• Form constraints based on the prior information
+4
+
+Intelligent Navigation and Control Systems Laboratory (iNCSL)
+LIMITATION OF THE RSF
+• Performance of the real-time estimation
+• When we apply the RSF in current time 𝑖 = 𝑘
+• This means that we cannot get compensation from the backward filter at the 
+current time
+• Cause of limitation: assumptions for prior information 𝐏𝑏,𝑘
+− = ∞, 𝛿ෝ𝒙𝑏,𝑘
+− = 0
+5
+Forward filterForward filter
+Backward filterBackward filter
+𝛿ෝ𝒙𝑓,𝑘
++ , 𝐏𝑓,𝑘
++
+𝑃𝑏,𝑘
+𝑝𝑟 = ∞
+ℳ𝑘
+𝑝𝑟 = 𝑃𝑏,𝑘
+𝑝𝑟 −1
+= 0
+𝛿𝑢𝑘
+𝑝𝑟 = ℳ𝑘
+𝑝𝑟𝛿𝑥𝑏,𝑘
+𝑝𝑟 = 0
+𝐾𝑏,𝑘 = ℳ𝑘
+𝑝𝑟𝑄 ℳ𝑘
+𝑝𝑟𝑄 + 𝐼
+−1
+𝛿 ො𝑢𝑘
+− = 𝐹𝑘
+𝑇 𝐼 − 𝐾𝑏,𝑘 𝛿 ො𝑢k
+pr
+ℳ𝑘
+− = 𝐹𝑘
+𝑇 𝐼 − 𝐾𝑏,𝑘 ℳ𝑘
+𝑝𝑟𝐹𝑘
+𝟎
+𝟎 = 𝟎
+= 𝟎
+= 𝟎
+<Prior information> <Propagation>
+𝟎 𝟎
+<Update>
+FusionFusion
+𝐏𝑠,𝑘 = 𝐏𝑓,𝑘
++ −1
++ 𝓜𝑘
+−
+−1
+𝛿ෝ𝒙𝑠,𝑘 = 𝛿ෝ𝒙𝑓,𝑘
++ + 𝐏𝑠,𝑘𝛿ෝ𝒖𝑘
+−
+𝟎
+𝟎
+= 𝐏𝒇,𝒌
++
+= 𝜹ෝ𝒙𝒇,𝒌
++
+METHODOLOGY
+
+Intelligent Navigation and Control Systems Laboratory (iNCSL)
+CONCEPT
+6
+Forward filter
+✓ The forward filter is the same as the Kalman filter
+✓ Kalman filter is an optimal filter that minimizes the error covariance of the system state 
+information
+< Theoretic method to estimate the optimal minimum error covariance >
+• We can get the optimal solution when
+the Kalman filter is converged until infinity
+⋯0 1 2 3 ∞
+= the endpoint of the forward filter
+Filter is converged
+From this optimal perspectiveBackward filter
+✓ The backward filter is started from the endpoint 
+of the forward filter
+= the start point of the backward filter
+Optimal
+⋯0 ∞
+Optimal
+Filter is converged
+Execution range of the smoothing filter
+⋯0 ∞
+Forward
+filter
+Backward
+filter
+METHODOLOGY
+
+Intelligent Navigation and Control Systems Laboratory (iNCSL)
+DEFINITION OF THE PRIOR INFORMATION
+• Calculate an optimal information matrix ℳ𝑜𝑝𝑡
+− = 𝑃𝑏,𝑜𝑝𝑡
+− −1
+• Forming a “discrete-time backward Riccati equation”
+• If we solve the discrete-time backward Riccati equation by using any 
+numerical method, we can get the optimal information matrix 𝓜0
+− = 𝓜𝑜𝑝𝑡
+−
+7
+METHODOLOGY
+𝛿𝒙𝑏,𝑘−1 = 𝐅𝑘−1
+−1 𝛿𝒙𝑏,𝑘 + 𝐅𝑘−1
+−1 𝝎𝑘
+𝛿𝒚𝑘−1 = 𝐇𝑘−1𝛿𝒙𝑏,𝑘−1 + 𝒗𝑘−1
+𝐊𝑏,𝑘−1 = 𝓜𝑘
++𝐐 𝓜𝑘
++𝐐 + 𝐈 −1
+𝓜𝑘−1
+− = 𝐅𝑘−1
+𝑇 𝐈 − 𝐊𝑏,𝑘−1 𝓜𝑘
++𝐅𝑘−1
+𝓜𝑘−1
++ = 𝓜𝑘−1
+− + 𝐇𝑘−1
+𝑇 𝐑−1𝐇𝑘−1
+Discrete-time system and 
+measurement model
+Time Propagation
+Measurement update
+𝓜𝑘−1
+− = 𝐅𝑘−1
+𝑇 𝓜𝑘
++𝐅𝑘−1 − 𝐅𝑘−1
+𝑇 𝐊𝑏,𝑘−1𝓜𝑘
++𝐅𝑘−1
+= 𝐅𝑘−1
+𝑇 𝓜𝑘
++𝐅𝑘−1 − 𝐅𝑘−1
+𝑇 𝓜𝑘
++𝐐 𝓜𝑘
++𝐐 + 𝐈 −1𝓜𝑘
++𝐅𝑘−1
+𝓜𝑘−1
+− = 𝐅𝑘−1
+𝑇 𝓜𝑘
+− + 𝐇𝑇𝐑−1𝐇 𝐅𝑘−1
+−𝐅𝑘−1
+𝑇 𝓜𝑘
+− + 𝐇𝑇𝐑−1𝐇 𝐐
+𝓜𝑘
+− + 𝐇𝑇𝐑−1𝐇 𝐐 + 𝐈 −1 𝓜𝑘
+− + 𝐇𝑇𝐑−1𝐇 𝐅𝑘−1
+= 𝐅𝑘−1
+𝑇 𝓜𝑘
+−𝐅𝑘−1 + 𝐅𝑘−1
+𝑇 𝐇𝑇𝐑−1𝐇𝐅𝑘−1
+−𝐅𝑘−1
+𝑇 𝓜𝑘
+− 𝓜𝑘
+− + 𝐇𝑇𝐑−1𝐇 + 𝐐−1 −1𝓜𝑘
+−𝐅𝑘−1
+−𝐅𝑘−1
+𝑇 𝓜𝑘
+− 𝓜𝑘
+− + 𝐇𝑇𝐑−1𝐇 + 𝐐−1 −1𝐇𝑇𝐑−1𝐇𝐅𝑘−1
+−𝐅𝑘−1
+𝑇 𝐇𝑇𝐑−1𝐇 𝓜𝑘
+− + 𝐇𝑇𝐑−1𝐇 + 𝐐−1 −1𝓜𝑘
+−𝐅𝑘−1
+−𝐅𝑘−1
+𝑇 𝐇𝑇𝐑−1𝐇 𝓜𝑘
+− + 𝐇𝑇𝐑−1𝐇 + 𝐐−1 −1𝐇𝑇𝐑−1𝐇𝐅𝑘−1
+
+Intelligent Navigation and Control Systems Laboratory (iNCSL)
+CONSTRAINTS FOR THE BACKWARD FILTER
+• Forming the constraints at the current time 𝑖 = 𝑘
+• Define the prior information  by taking a weighed average of the information of 
+the forward filter and the optimal information of the backward filter
+8
+METHODOLOGY
+Information of the forward filter
+✓ Immediately after the measurement outage area ends,
+both 𝛿ෝ𝒙𝑖
+− and 𝛿𝒚𝑖 are inaccurate
+✓ Thus, we use both information by taking the weighted 
+average method
+𝐏𝑓,𝑖,𝑛𝑒𝑤 = 𝐏𝑓,𝑖
+− −1
++ 𝐏𝑓,𝑖
++ −1 −1
+𝛿ෝ𝒙𝑓,𝑖,𝑛𝑒𝑤 = 𝐏𝑓,𝑖
+− −1
+𝐏𝑓,𝑖
+− −1
++ 𝐏𝑓,𝑖
++ −1 −1
+𝛿ෝ𝒙𝑓,𝑖
+−
++ 𝐏𝑓,𝑖
++ −1
+𝐏𝑓,𝑖
+− −1
++ 𝐏𝑓,𝑖
++ −1 −1
+𝛿ෝ𝒙𝑓,𝑖
++
+Defining the prior information of the backward filter
+✓ It is necessary to define the prior information that 
+reflects information about the current time
+✓ Thus, we define the prior information by taking a 
+weighted average of 𝐏𝑓,𝑖,𝑛𝑒𝑤 and 𝓜𝑜𝑝𝑡
+−
+𝓗𝑖
+− −1 = 𝐏𝑏,𝑖,𝑛𝑒𝑤
+−
+= 𝐏𝑓,𝑖,𝑛𝑒𝑤
+−1
++ 𝓜𝑜𝑝𝑡
+−
+−1
+𝛿ෝ𝒙𝑏,𝑖,𝑛𝑒𝑤
+− = 𝐏𝑓,𝑖,𝑛𝑒𝑤
+−1
+𝓜𝑜𝑝𝑡
+− + 𝐏𝑓,𝑖,𝑛𝑒𝑤
+−1 −1
+𝛿ෝ𝒙𝑓,𝑖,𝑛𝑒𝑤
++𝓜𝑜𝑝𝑡
+− 𝓜𝑜𝑝𝑡
+− + 𝐏𝑓,𝑖,𝑛𝑒𝑤
+−1 −1
+𝛿ෝ𝒙𝑏,𝑜𝑝𝑡
+−
+= 𝐏𝑓,𝑖,𝑛𝑒𝑤
+−1
+𝓜𝑜𝑝𝑡
+− + 𝐏𝑓,𝑖,𝑛𝑒𝑤
+−1 −1
+𝛿ෝ𝒙𝑓,𝑖,𝑛𝑒𝑤
+Prior information matrix : 𝓗𝑖
+−
+Prior information state : 𝛿ෝ𝜶𝑖
+− = 𝓗𝑖
+−𝛿ෝ𝒙𝑏,𝑖,𝑛𝑒𝑤
+−
+
+Intelligent Navigation and Control Systems Laboratory (iNCSL)
+DESIGN A NA VIGATIONSYSTEM
+• To analyze the results of the RCSF, design a 3D GPS/DR navigation system
+9
+RESULTS AND ANALYSIS
+< Structure of RCSF-based navigation system >
+
+Intelligent Navigation and Control Systems Laboratory (iNCSL)
+EXECUTION TIME ANALYSIS
+• Assess practical feasibility of the RCSF-based navigation system
+• Execution time VS. Length of window : compare {𝑁 = 25, 50, 75, 100 s}
+• Execution time VS. System complexity : compare 2D(4th) with 3D(9th) system
+10
+RESULTS AND ANALYSIS
+< Execution time according to the length of window and system complexity >
+
+Intelligent Navigation and Control Systems Laboratory (iNCSL)
+EXPERIMENTAL RESULTS
+11
+RESULTS AND ANALYSIS
+“GPS outage area”
+< Results of the RCSF-based 3D GPS/DR navigation (KITTI#2) >
+< Results of the RCSF-based 3D GPS/DR navigation (KITTI#1) >
+
+Intelligent Navigation and Control Systems Laboratory (iNCSL)
+EXPERIMENTAL RESULTS
+12
+RESULTS AND ANALYSIS
+< Error in the real-time state estimation of the RCSF-based 3D GPS/DR navigation (Left: #1, Right: #2) >
+Applied Filter RMSE (KITTI #1) RMSE (KITTI #2)
+Position [m] Attitude [°] Position [m] Attitude [°]
+AEKF 2.3509 5.5221 2.2795 4.3850
+ARSF 2.3503 5.5455 2.2774 4.3914
+ARCSF 2.2503 2.8550 2.2439 2.6936
+< Position and attitude RMSE of the 3D GPS/DR navigation system >
+
+13
+3D MULTI OBJECT TRACKING
+• Introduction
+• Environments
+• Research process
+• Future works
+
+Intelligent Navigation and Control Systems Laboratory (iNCSL)
+INTRODUCTION
+• Research background
+• Sensor project (UV ARC)
+• Target 1: Sensor fusion algorithm – LiDAR, RADAR, and Stereo camera
+• Target 2: Detection and Recognition + Tracking
+14
+[1] Sensor Project (UVARC), 2024
+< Result of detection and recognition
+[1]
+>
+▶ Limitation
+✓ Detection results (bounding box) are discontinuous
+- Two or more objects overlap
+- Insufficient data
+▶ Research target
+✓ Intermediate fusion
+- (LiDAR or RADAR) with camera sensor
+✓ Filter-based Seamless 3D multi-object tracking
+- Interacting multiple model (IMM) filter
+- Particle filter
+- Random finite set filter
+
+Intelligent Navigation and Control Systems Laboratory (iNCSL)
+ENVIRONMENTS
+• Oxford Radar Robotcar dataset
+15
+Stereo camera
+Point Grey Bumblebee XB3 trinocular 
+stereo camera
+1280x960x3
+16Hz
+Global shutter / 3.8mm lens
+66°(HFoV), 12cm baseline
+3D LiDAR
+Velodyne HDL-32E 3D LIDAR
+360°(HFoV)x41.3°(VFoV)
+20Hz
+32 planes
+100m range (max.)
+2cm range resolution
+2D RADAR
+Navtech CTS350-X Millimetre-Wave 
+FMCW radar
+4Hz
+400 measurements per rotation
+163m range (max.)
+4.38cm range resolution
+1.8° beamwidth
+
+Intelligent Navigation and Control Systems Laboratory (iNCSL)
+EARLY FUSION PROCESS
+• Calibration-based fusion method
+16
+𝒑′ 𝑢′, 𝑣′ =
+𝑢′
+𝑣′
+𝑤′
+=
+𝑓𝑥 0 𝑐𝑥
+0 𝑓𝑦 𝑐𝑦
+0 0 1
+𝐈3×3
+𝟎1×3
+𝑇 𝐑𝐿
+𝐶 𝑻𝐿
+𝐶
+𝟎1×3 1
+𝑥𝐿
+𝑦𝐿
+𝑧𝐿
+1
+𝒑 𝑢, 𝑣 =
+𝑢
+𝑣
+1
+= 𝑢′
+𝑤′
+𝑣′
+𝑤′ 1
+𝑇
+Formula about {point-cloud to image} calibration
+< Process of calibration-based fusion >
+RESEARCH PROCESS
+
+Intelligent Navigation and Control Systems Laboratory (iNCSL)
+EARLY FUSION RESULTS
+17
+RESEARCH PROCESS
+
+
+Intelligent Navigation and Control Systems Laboratory (iNCSL)
+SIMPLE DETECTION RESULT – YOLO
+18
+RESEARCH PROCESS
+
+
+Intelligent Navigation and Control Systems Laboratory (iNCSL)
+FUTURE WORKS
+• Investigate prior studies
+• AI-based 3D multi-object tracking
+• Model-based 3D multi-object tracking
+• Evaluation technique of tracking – MOTA, MOTP, etc..
+• Next studies
+• YOLO method-based detection → Bounding box
+• Intermediate fusion – YOLO + LiDAR & Radar raw
+• Filter-based multi-object tracking
+• Interacting multiple model (IMM) filter
+• Particle filter
+• Etc.
+19
+
+20
+Q & A

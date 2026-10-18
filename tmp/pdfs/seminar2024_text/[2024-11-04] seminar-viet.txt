@@ -1,0 +1,171 @@
+CREVE: An Acceleration-based Constraint 
+Approach for Robust Radar Ego-Velocity 
+Estimation
+Online at: https://arxiv.org/abs/2409.16847 
+Hoang Viet Do, Bo Sung Ko, and Jin Woo Song
+
+
+Introduction (1/3) – FMCW Radar
+2
+S. Jung, W. Yang, and A. Kim, “Co-ral: Complementary radar-leg odometry with 4-dof optimization and rolling 
+contact,” in 2024 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)., to be published.
+FMCW Radar
+C. Doer and G. F. Trommer, "Radar Inertial Odometry With Online Calibration," 2020 European Navigation 
+Conference (ENC), Dresden, Germany, 2020, pp. 1-10, doi: 10.23919/ENC48637.2020.9317343.
+• mmWave FMCW Radar has gained significant attention.
+⚬ Low cost, compact size, and all-weather operation.
+
+
+Introduction (2/3) – Application 
+• Promising alternative to LiDAR and Camera for SLAM.
+⚬ LiDAR and Camera are often limited by poor lighting, illumination,
+and environment factors.
+3
+J. Zhang, H. Zhuge, Z. Wu, G. Peng, M. Wen, Y. Liu, and D. Wang, “4dradarslam: A 4d imaging 
+radar slam system for large-scale environments based on pose graph optimization,” in 2023 
+IEEE International Conference on Robotics and Automation (ICRA), 2023, pp. 8333-8340.
+
+
+Introduction (3/3) – Radar Point Cloud
+4
+C. Doer and G. F. Trommer, “Radar visual inertial odometry and radar thermal inertial odometry: Robust 
+navigation even in challenging visual conditions,” in 2021 IEEE/RSJ International Conference on 
+Intelligent Robots and Systems (IROS), 2021, pp. 331–338.
+• Radar point clouds are known to be noisy and sparse due to
+ghost targets and multipath signals.
+⚬ Typical commercial radar provides 4D point cloud (range, bearing and 
+Doppler velocity). 𝑃 = 𝑝𝑥𝑟 𝑝𝑦𝑟 𝑝𝑧𝑟 𝑣𝐷
+
+
+Prior Works (1/3) – REVE (Traditional)
+5
+• Relationship between 3D body velocity 𝑣𝑘
+𝑟, target Doppler velocity 
+𝑣𝐷 and target normalized 3D position ҧ𝑝.
+• REVE ≜ RANSAC/LSQ.
+⚬ Using least square (LSQ), we can estimate Ƹ𝑣𝑘
+𝑟.
+⚬ Combining with RANSAC, an outlier-robustness estimate can be obtained.
+C. Doer and G. F. Trommer, “An ekf based approach to radar inertial odometry,” in 2020 IEEE International 
+Conference on Multisensor Fusion and Integration for Intelligent Systems (MFI), 2020, pp. 152–159.
+LSQ Solution:
+
+Prior Works (2/3) – DeREVE
+6
+• REVE has been said to be sensitive and provide inaccurate ego-
+velocity estimation in z–axis.
+• DeREVE ≜ Decoupled REVE.
+⚬ Cascade RANSAC/LSQ.
+⚬ First, RANSAC/LSQ for only 𝑥 − 𝑦 plane → Inlier set with 𝑥′ and ො𝑣𝑥𝑦𝑟 .
+⚬ Second, RANSAC/LSQ for 𝑥′ − z plane with previous ො𝑣𝑥𝑟 → ො𝑣𝑥′𝑧
+𝑟 .
+⚬ Last, refinement using only LSQ to get 3D ego-velocity ො𝑣𝑘
+𝑟.
+S. Jung, W. Yang, and A. Kim, “Co-ral: Complementary radar-leg odometry with 4-dof optimization and rolling 
+contact,” in 2024 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)., to be published.
+Expensive
+
+Prior Works (3/3) – RAVE
+7
+• Using a set (window) of 𝑁 previous estimated ego-velocity.
+⚬ If the difference between the current estimate and the average norm of 
+velocity estimates in the window is bigger than a pre-defined threshold, 
+then reject the current estimate.
+V. -J. Štironja, L. Petrović, J. Peršić, I. Marković and I. Petrović, "RAVE: A Framework for Radar Ego-
+Velocity Estimation," 2024 IEEE International Conference on Multisensor Fusion and Integration for 
+Intelligent Systems (MFI), Pilsen, Czech Republic, 2024, pp. 1-6.
+Reduce 
+number of 
+measurement
+
+Methodology (1/5) – Overview
+8
+• We propose an acceleration-based Constraint method for robust 
+Radar Ego- Velocity Estimation, termed CREVE.
+⚬ Accelerometer bias estimation.
+⚬ Parameter adaptation rule for adjusting inequality constraint range.
+
+Methodology (2/5) – Constraint
+9
+• Given the rotation matrix and accelerometer bias estimation ෠𝑏𝑎 
+at time instance 𝑘, the estimated acceleration expressed in the 
+radar frame ො𝑎𝑓
+𝑟 can be calculated as
+• Based on the above equation, we formulate the following linear 
+programming (LP) problem
+
+Experiments (3/5) – Constraint
+10
+• Our idea visualization using real–world dataset, we used 𝛾 =
+5 5 4 ⊤.
+
+
+Methodology (4/5) – Bias Estimation
+11
+• The relationship between the estimated body velocity expressed 
+in navigation frame ො𝑣𝑏
+𝑛 and the constrained ego-velocity ෤𝑣𝑏
+𝑛 can 
+be established as1
+• We also can have
+1Do, Hoang Viet, et al. "DeRO: Dead Reckoning Based on Radar Odometry With Accelerometers Aided for 
+Robot Localization." arXiv preprint arXiv:2403.05136 (2024).
+
+Methodology (5/5) – Bias Estimation
+12
+• Since accelerometer bias varies slowly over time, we intentionally 
+apply a low-pass filter to smooth the outcomes (0.01 Hz).
+
+
+Experiments (1/5) – Sensor Platform
+13
+2C. Doer and G. F. Trommer, “Radar visual inertial odometry and radar thermal inertial 
+odometry: Robust navigation even in challenging visual conditions,” in 2021 IEEE/RSJ 
+International Conference on Intelligent Robots and Systems (IROS), 2021, pp. 331–338.
+• To validate the proposed method, we used the renowned open-
+source IRS datasets2 .
+⚬ 4D FMCW radar TI IWR6843AOP (10Hz) and an IMU ADIS16448 (400Hz).
+
+Experiments (2/5) – Estimation
+14
+• DeREVE displays some random peaks in its estimates.
+• Conversely, RAVE consistently rejects anomalies, resulting in a 
+discontinuous estimation.
+
+
+Experiments (3/5) – RMSE
+15
+• Compared to the conventional approach (REVE), the proposed 
+method reduces the RMSE by approximately 36% in the x–axis, 
+51% in the y–axis, and 37% in the z–direction, on average.
+
+
+Experiments (4/5) – ATE 
+16
+• Using evo toolboxes for ATE (Umeyama alignment) computation 
+and analysis.
+M. Grupp, “evo: Python package for the evaluation of odometry and slam.” 
+https://github.com/MichaelGrupp/evo, 2017.
+
+Experiments (5/5) – ATE 
+17
+• The proposed method reduces the ATE by approximately 53%, 84%, 
+and 35% compared to REVE, DeREVE, and RAVE, respectively.
+[32] Z. Zhang and D. Scaramuzza, “A tutorial on quantitative trajectory evaluation for visual(-inertial) 
+odometry,” in 2018 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS).
+
+Conclusion
+18
+• We conduct a comprehensive analysis against three existing 
+state-of-the-art methods using the real-world dataset.
+• We propose
+⚬ A practical bias estimation to enhance acceleration estimation from the 
+accelerometer.
+⚬ An adaptive parameter rule is designed to improve ego- velocity estimation 
+accuracy.
+⚬ An acceleration-based Constraint method for robust Radar Ego-Velocity 
+Estimation (CREVE). This framework functions as a submodule within a radar-
+inertial odometry system.
+
+Thank 
+you!

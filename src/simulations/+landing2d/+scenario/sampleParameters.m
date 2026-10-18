@@ -1,57 +1,40 @@
 function p = sampleParameters(scenario,seed)
-% SAMPLEPARAMETERS  Reproducible continuous CV-CA-CV pad scenario.
-% Only independent quantities are sampled. v3 and spatial lengths are derived.
+% SAMPLEPARAMETERS  Reproducible CV / CV-CA-CV pad scenario and initial relative motion.
+% Motion factor: with scenario.constantVelocityProbability the UGV keeps v1
+% for the whole episode (a2 = 0); otherwise it accelerates by a2 during
+% [T1, T1+T2). T1 and T2 are drawn in both cases so the random-number use does
+% not depend on the factor. Initial relative motion: dv (drone speed minus
+% UGV speed, 0 unless mismatched) and dx (offset of the start position from
+% the camera-aim point, applied and FOV-checked in landing2d.environment.reset).
+% v3 and segment lengths are derived; infeasible draws are rejected.
 if isa(seed,'RandStream')
     rs = seed;
 else
     rs = RandStream('threefry','Seed',double(seed));
 end
 for attempt = 1:scenario.maxRejections
-    if strcmp(scenario.parameterization,'duration')
-        p.v1 = pick(scenario.v1Range,rs);
-        p.a2 = pick(scenario.a2Range,rs);
-        p.T1 = pick(scenario.T1Range,rs);
-        p.T2 = pick(scenario.T2Range,rs);
-        p.T3 = pick(scenario.T3Range,rs);
-        p.v3 = p.v1+p.a2*p.T2;
-        p.L1 = p.v1*p.T1;
-        p.L2 = p.v1*p.T2+0.5*p.a2*p.T2^2;
-        p.L3 = p.v3*p.T3;
-    elseif strcmp(scenario.parameterization,'distance')
-        required = {'L1Range','L2Range','L3Range'};
-        assert(all(isfield(scenario,required)), ...
-            'landing2d:DistanceScenarioConfig','Distance ranges are required.');
-        p.v1 = pick(scenario.v1Range,rs);
-        p.a2 = pick(scenario.a2Range,rs);
-        p.L1 = pick(scenario.L1Range,rs);
-        p.L2 = pick(scenario.L2Range,rs);
-        p.L3 = pick(scenario.L3Range,rs);
-        p.T1 = p.L1/p.v1;
-        p.v3 = sqrt(p.v1^2+2*p.a2*p.L2);
-        p.T2 = 2*p.L2/(p.v1+p.v3);
-        p.T3 = p.L3/p.v3;
-    else
-        error('landing2d:ScenarioParameterization', ...
-            'Unknown parameterization %s.',scenario.parameterization);
-    end
+    p.v1 = pick(scenario.v1Range,rs);
+    constantVelocity = rand(rs) < scenario.constantVelocityProbability;
+    a2 = pick(scenario.a2Range,rs);
+    p.a2 = a2*~constantVelocity;
+    p.T1 = pick(scenario.T1Range,rs);
+    p.T2 = pick(scenario.T2Range,rs);
+    p.T3 = pick(scenario.T3Range,rs);
+    p.v3 = p.v1+p.a2*p.T2;
+    p.L1 = p.v1*p.T1;
+    p.L2 = p.v1*p.T2+0.5*p.a2*p.T2^2;
+    p.L3 = p.v3*p.T3;
     p.height = pick(scenario.heightRange,rs);
+    mismatch = rand(rs) < scenario.initialSpeedMismatchProbability;
+    p.initialSpeedOffset = pick(scenario.initialSpeedOffsetRange,rs)*mismatch;
+    p.initialPositionOffset = pick(scenario.initialPositionOffsetRange,rs);
     p.x0 = scenario.x0;
     p.padHeight = scenario.padHeight;
     p.deadline = p.T1+p.T2+p.T3;
-    p.parameterization = scenario.parameterization;
+    p.parameterization = 'duration';
     p.seed = seedValue(seed);
     p.attempt = attempt;
-    peakSpeed = p.v3;
-    if isfield(scenario,'lateralV1Range')
-        % 3D option: lateral CV-CA-CV sharing T1/T2. Drawn after every planar
-        % quantity so the planar draws keep their order within an attempt.
-        p.vy1 = pick(scenario.lateralV1Range,rs);
-        p.ay2 = pick(scenario.lateralA2Range,rs);
-        p.vy3 = p.vy1+p.ay2*p.T2;
-        p.y0 = scenario.y0;
-        peakSpeed = hypot(p.v3,p.vy3);
-    end
-    p.feasibleSpeed = peakSpeed <= scenario.sustainedDroneSpeed-scenario.speedMargin;
+    p.feasibleSpeed = p.v3 <= scenario.sustainedDroneSpeed-scenario.speedMargin;
     if p.deadline <= 70 && p.feasibleSpeed
         p.rejectionReason = '';
         return;

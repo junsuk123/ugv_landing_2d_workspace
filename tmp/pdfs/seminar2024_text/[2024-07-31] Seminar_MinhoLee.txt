@@ -1,0 +1,301 @@
+School of Intelligent Mechatronics Engineering,
+Dept. of Convergence for Intelligent Drone, Sejong University
+SERVAYON ‘MMWAVE RADAR’
+WEEKLY SEMINAR – MIN HO LEE
+ADVISE PROFESSOR : JIN WOO SONG
+2024.07.31
+
+Intelligent Navigation & Control Systems Lab.
+CONTENTS
+• Background
+• Basic Principle
+• Range and Velocity determination
+• What is the ‘mmWave’ Radar?
+• Features of mmWave
+• CW / FMCW
+• Challenges of Radar system
+• Noise (Clutter), Multipath and Motion Distortion
+• Radar Filtering Method
+• mmWave Radar for Navigation
+• Localization, Mapping
+• Summary
+2
+
+Intelligent Navigation & Control Systems Lab.
+BACKGROUND
+• Traditionally, robotics systems have relied on light-based sensors, such as cameras and lidar, for building 
+a representation of their environments.
+• Unfortunately, cameras and lidars are not functional when encountering illuminationally or structurally 
+degenerate cases.
+• Despite successive efforts on calibration, they suffer degradation in a harsh environment.
+• Since at least 2005, mmWave radar has been deployed in vehicles for assisted cruise control and 
+automatic braking systems. Also robotics researchers began utilizing radar in broader contexts.
+• It makes Increased interest for radar in robotics.
+• Benefits of radar can be alternative and complementary sensor.
+• To correctly use radar-based systems and understand the measurements, It is essential to understand 
+principle of radar.
+Table 1. Basic sensor information of various exteroceptive sensors commonly used in robotics [1]
+[1] Harlow, Kyle, et al. "A new wave in robotics: Survey on recent mmwave radar applications in robotics." arXiv
+preprint arXiv:2305.01135 (2023). 3
+
+Intelligent Navigation & Control Systems Lab.
+BASIC PRINCIPLE
+• Radar measurement of range, or distance, is made possible because of the properties of radiated 
+electromagnetic (EM) energy.
+• Electromagnetic waves
+• Electromagnetic energy travels through air at a constant speed, at approximately the speed of light 
+(𝑐0 = 3 ∙ 108 𝑚/𝑠)
+• This constant speed allows the determination of the distance between the reflecting objects and the radar.
+• If reflected waves are received, that means an obstacle is in the propagation direction. Thus the direction (in 
+azimuth and elevation) of the reflecting objects can be measured.
+Transmit
+Reflection
+t
+Signal
+𝑡𝑅𝑒𝑐𝑒𝑖𝑣𝑒
+𝑅 = 𝑐0 ∙ 𝑡𝑅𝑒𝑐𝑒𝑖𝑣𝑒
+2
+𝝓
+Tx
+Rx 1
+Rx 2
+𝝀/𝟐
+𝝓
+𝝓 + ∆𝝓
+Fig 1. Range determination principle
+Fig 2. Direction determination principle
+4
+
+Intelligent Navigation & Control Systems Lab.
+• Doppler-Effect is the apparent change in frequency when object moves either toward or away from the 
+receiver, or when the receiver moves either toward or away from the object.
+• This principle is used for speed measuring and moving target indication.
+• The velocity of the object is calculated using the wavelength of an electromagnetic wave from the radar 
+antenna to the object.
+• If the receiver and object both are moving, the velocity of the target is not only related to target but also 
+receiver. Therefore, the velocity is relative.
+• So, if both direction and velocity of the radar and object are the same, relative velocity is zero.
+BASIC PRINCIPLE
+static
+Move to receiver
+Away from receiver
+Receive
+Transmit
+𝜆𝑟
+𝜆𝑡
+∆𝜆𝑟
+𝑣𝑑 = 𝑐0
+𝜆𝑡 − 𝜆𝑟
+𝜆𝑡
+𝑜𝑟 𝑐0𝑓𝑑
+2𝑓𝑡
+𝑓𝑡
+𝑓𝑟
+𝑓𝑑 = 𝑓𝑡 − 𝑓𝑟
+5
+
+Intelligent Navigation & Control Systems Lab.
+WHAT IS THE ‘MMWAVE’ RADAR?
+• ‘mmWave’ means that electromagnetic wavelengths are between 1 and 10mm with frequencies ranging 
+from 30 to 300GHz [1].
+• Applications such as automotive systems using 76-81 GHz and commercial mmWave radar operate in this 
+frequency.
+• Short wavelengths make the size of the radar system small and return high-resolution measurements.
+• Two types of mmWave radar are commonly used.
+• Radar can generate various types of data format which depends on the antenna types.
+• SoC (System On Chip) Radar
+• Combine the processing unit into a limited number of chips mounted directly patch antennas, 
+or antenna placed directly into a printed circuit board.
+• Its accuracy and resolutions are dependent on the specific antenna array employed, 
+and the manufacturer-specific processing used to correlate measurements across the antenna.
+• Imaging Radar
+• It, Sometimes called ‘scanning radar’,  is composed of a physically rotating radar sensor.
+• Imaging radar provides a highly accurate polar image of their surroundings by measuring 
+target ranges around in a series of angles.
+• But, It does not provide ‘Doppler Velocity’ of the returned targets.
+Fig 3. TI SoC Radar
+Fig 4. Navtech Scanning Radar
+6
+
+Intelligent Navigation & Control Systems Lab.
+FEATURES OF MMWAVE
+• CW (Continuous Wave) Radar transmits high-frequency signals continuously. 
+• CW radar transmitting an unmodulated power can measure the speed only by using the Doppler-Effect.
+• It cannot differentiate between two or more reflecting objects.
+• In contrast, FMCW (Frequency Modulated Continuous Wave) Radar radiates continuous transmission 
+power with modulated operating frequency.
+• The differences in phase or frequency between the transmitted and the received signal can be calculated.
+• FMCW radar can measure simultaneously target range and its relative velocity.
+• Ability to measure very small ranges to the target and high accuracy of range measurement.
+t
+Frequency
+𝑓𝑡
+t
+Frequency
+𝑓𝑟
+𝑓𝑑
+t
+Frequency
+𝑓0
+𝑓0 + 𝐵
+t
+Frequency
+𝑓𝑟
+𝑓𝑑
+Fig 5. CW shapes with transmit/ received frequency in time domain
+Fig 6. FMCW shapes with transmit/received frequency in time domain
+7
+
+Intelligent Navigation & Control Systems Lab.
+CHALLENGES OF RADAR SYSTEM
+• Radar returns are produced from nearly all surfaces when illuminated by radar. Therefore, there are 
+unwanted signals returned that involve true objects.
+• These unwanted signals are generally described as Noise or Clutter.
+• The definition of clutter depends on the function of the radar.
+• Clutter may caused by man-made objects such as buildings and radar countermeasures objects. Other 
+causes include natural objects such as terrain features, sea, birds, turbulence, etc.
+• Another spurious return called Multipath is derived from detection paths differing for one objects
+• Transmitted rays can reach the receiver directly, However, other rays reach the antenna after being reflected 
+from the ground, after hitting a wall, or others.
+• Both clutter and multipath returns degrade the ability of radar
+Fig 7. Illustration of multipath caused by variety components
+8
+
+Intelligent Navigation & Control Systems Lab.
+CHALLENGES OF RADAR SYSTEM
+• Motion distortion is an inherent characteristic of scanning sensors including lidar and radar.
+• Since the imaging radar generates every single polar image from one rotation, the actual vehicle poses at 
+the first ray and the last ray are different if the vehicle is in motion.
+• The gap between the first and last ray is nonnegligible when the sensor has a low frequency or the vehicle 
+moves at high speed.
+• This makes it difficult to accurately detect the position or shape of targets.
+First Ray
+Last Ray
+Move Fast!
+9
+Fig 8. occurred motion distortion in polar image 
+
+Intelligent Navigation & Control Systems Lab.
+RADAR FILTERING METHOD - NOISE
+• A common method to detect target returns against a background of noise, clutter, and interference is 
+CFAR (Constant False Alarm Rate) detector. 
+• Measurements exceeding the threshold are associated with returns from a target, and measurements 
+below the threshold are associated with noise or other interference.
+• If the threshold is too low, CFAR tends to generate the wrong false alarm.
+• If the threshold is too high, CFAR may fail to detect actual targets.
+• Although a constant threshold may work well in noiseless environments, it is difficult to use in noisy 
+environments.
+• A method that is adaptive to the environment is required !!
+Increasing Noise
+10
+Fig 9. CFAR result using a constant threshold 
+
+Intelligent Navigation & Control Systems Lab.
+RADAR FILTERING METHOD - NOISE
+• CA(Cell-Averaging) CFAR can be used in various environments where the noise level changes.
+• The threshold level is calculated by averaging the noise level around the cell window.
+• In a noise environment, very weak echo signals may be lost rather than in the case of a fixed threshold.
+• CA-CFAR also has limitations in that performance is guaranteed only in uniformed noise environments.
+• GO(Greatest-of) CFAR, LO(Least-Of) and others also adaptive method. It depends on what targets want to detect
+𝑋1 𝑋2 𝑋3 … 𝑋𝑁
+Test Cell
+Guard Cell Window Cell
+𝑇ℎ𝑟𝑒𝑠ℎ𝑜𝑙𝑑 = 𝛼
+𝑁 ෍
+𝑖=1
+𝑁
+𝑋𝑖
+Increasing Noise
+11
+Fig 10. CFAR result using a CA threshold (𝛼 = 5, guard = 1, window = 10)
+
+Intelligent Navigation & Control Systems Lab.
+• Dynamic object filtering helps radar systems distinguish between actual targets and non-target objects.
+• Moving objects such as aircraft in flight, and vehicles are dynamic objects that reflect radar signals
+• The Doppler-Velocity profile is a commonly used and Intuitive way to differentiate static/dynamic objects
+• Doppler-Velocity value depends on not only the direction between radar and objects but also object speed.
+• If the azimuth between the target and radar is bigger, the doppler-velocity value is smaller. But dynamic objects 
+deviate from this rule.
+• Apply Curve-Fitting to profile, such as the RANSAC algorithm, which makes It easier to distinguish between 
+dynamic and static objects from the returned targets.
+• It is only applicable in environments mostly composed of static objects.
+RADAR FILTERING METHOD – DYNAMIC OBJECT
+𝑣𝑑
+𝑣𝑐𝑎𝑟
+𝑣𝑥
+𝑣𝑦
+𝝓
+𝑣𝑚𝑎𝑛 Static
+Dynamic
+𝑣𝑑
+𝜙
+𝑣𝑑
+𝜙
+RANSAC – Curve Fitting
+Doppler-Velocity Profile
+12Fig 11. Dynamic object filtering result
+
+Intelligent Navigation & Control Systems Lab.
+RADAR FILTERING METHOD – VELOCITY
+• The Doppler velocity obtained from the radar, quite literally, the Doppler velocity.
+• If radar is mounted to the vehicle, doppler velocity is not the actual vehicle velocity.
+• In the field of navigation, what is needed when using radar is the speed of the vehicle.
+• From the velocity profile, one can derive the velocity equation of the vehicle.
+• Even though dynamic objects are distinguished, there still exists Doppler-velocity for many static objects.
+• This doppler-velocity measurement may involve noise and interference.
+• The most commonly used estimation algorithm ‘Least-Squares’ method to estimate the vehicle velocity 
+from Doppler velocity.
+• The limitation of this method is that its accuracy depends on the performance of the radar.
+−𝑣𝑑 = 𝑣𝑥 cos 𝜙 + 𝑣𝑦 sin 𝜙
+−𝒗𝑑 =
+cos 𝜙1 sin 𝜙1
+cos 𝜙2 sin 𝜙2
+⋮ ⋮
+cos 𝜙𝑛 sin 𝜙𝑛
+𝑣𝑥
+𝑣𝑦
+13
+Fig 12. Velocity Estimation result (UMRR 11–type 132 and TI IWR6843ISK)
+𝑣𝑑
+𝑣𝑥
+𝑣𝑦
+𝝓
+Static
+
+Intelligent Navigation & Control Systems Lab.
+MMWAVE RADAR FOR NAVIGATION - LOCALIZATION
+• Tightly-coupled EKF-Based Radar-Inertial Odometry [2]
+• IMU is a core sensor used for the system state propagation, Updates are performed with radar measurement.
+• Using stochastic cloning of past robot poses for formulating an update equation.
+• Matching 3D points across sparse, noisy radar scans in full 6DoF motion allowing correspondence generation for 
+point-distance-based updates with a single past radar pose.
+• Using both distance from radar scans and velocity, Accomplish accurate 6D pose and 3D velocity estimation 
+of the mobile platform.
+14
+[2] Michalczyk, Jan, Roland Jung, and Stephan Weiss. "Tightly -coupled ekf-based radar-inertial odometry." 2022 
+IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS) . IEEE, 2022.
+
+Intelligent Navigation & Control Systems Lab.
+MMWAVE RADAR FOR NAVIGATION - MAPPING
+• Radar SLAM : A Robust SLAM System for All Weather Conditions [3]
+• Extensive experiments on extreme weather conditions (Snow, Fog/Rain, Night).
+• Robust data association and outlier rejection mechanism for radar-based feature tracking by leveraging radar 
+geometry.
+• Fomulating motion compensation model to reduce motion distortion induced by a low scanning rate.
+• Without additional sensors, the scanning radar alone can be used to perform localization and mapping
+• Radar has Superiority and promising potential and It can be the primary sensor for long-term localization 
+and navigation tasks.
+15[3] Hong, Ziyang, et al. "Radar SLAM: A robust SLAM system for all weather conditions." arXiv preprint arXiv:2104.05347 (2021).
+
+Intelligent Navigation & Control Systems Lab.
+SUMMARY
+• To properly utilize mmWave radar systems, I surveyed the basic principles of radar and filtering methods to 
+how they are applied in navigation systems.
+• mmWave radar has different characteristics compared to conventional pulse radar, and its use of short 
+wavelengths allows it to obtain precise measurements from various objects.
+• Radar has become a core robotics sensor in applications for operating in visually degraded environments. 
+As the reliability and accuracy of radar sensors increase and their prices decrease, the prevalence of these 
+sensors will continue to grow.
+16
+
+Q&A

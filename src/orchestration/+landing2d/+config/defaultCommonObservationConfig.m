@@ -6,7 +6,7 @@ function co = defaultCommonObservationConfig(padHeight)
 % 인지 경로: ArUco 코너 -> 평면 PnP(카메라 기준 패드 자세) -> 드론 측위·장착 관계로
 % 로컬 UGV 위치 관측 -> 등속 칼만 필터 -> UGV 위치·속도. 미검출 시 예측만 수행합니다.
 % PADHEIGHT(scenario.padHeight)는 UGV 기준점(패드 중심 아래 지면)에서 패드 상면까지의 높이입니다.
-% 평면 계약(spatialDimension=2) 전용입니다. 세 비교군의 정책 입력이고, 같은 UGV
+% 평면 전용 계약입니다. 세 비교군의 정책 입력이고, 같은 UGV
 % 추정이 안전 감독기·착륙 승인을 구동하므로 설정 전체가 task fingerprint·학습 서명에
 % 포함됩니다.
 co.schemaVersion = 'minimal_common_observation_v3';
@@ -58,7 +58,7 @@ co.ugv = struct('padOffset',[0;padHeight]);
 % 인지 기반 착륙 승인의 최종 하강 단계 (안전 감독기 설정, Gamma 아님).
 % 전방 아래 60도 카메라는 패드 위 약 0.3-0.45 m 아래에서 마커 코너를 영상에 담지
 % 못해 마지막 하강이 사각지대입니다. 최근 영상 보정(recentTrackGrace) 상태로 진입
-% 고도 이하에 들어오면 접촉까지 승인을 유지합니다(3차원 옵션의 최종 하강과 같은 규칙).
+% 고도 이하에 들어오면 접촉까지 승인을 유지합니다.
 % 최대 유지 시간은 prolongedLoss 이하입니다.
 co.finalDescent = struct( ...
     'enterHeight',0.5, ...  % 진입 고도 (패드 면 기준) [m]

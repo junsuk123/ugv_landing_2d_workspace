@@ -1,3 +1,0 @@
-Method,SuccessRate,UnsafeRate,TimeoutRate,MeanReturn,Checkpoint
-PPO,0.95,0,0.05,31.8186181963168,C:\Users\user\SynologyDrive\junsuk\학술대회\CICS2026\codes\ugv_landing_2d_workspace_refactor\results\checkpoints\ppo_s01.mat
-Ontology R-GAT PPO v3.19,0.98,0,0.02,33.4215488203591,C:\Users\user\SynologyDrive\junsuk\학술대회\CICS2026\codes\ugv_landing_2d_workspace_refactor\results\checkpoints\onto_rgat_ppo_s01.mat

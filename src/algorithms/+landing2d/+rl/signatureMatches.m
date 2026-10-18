@@ -4,7 +4,7 @@ function tf = signatureMatches(saved,c)
 % both sides: rl.parallelWorkers and rl.parallelEpisodes (episode random
 % streams are drawn before collection, so serial and parallel runs are
 % identical). The stored signature content itself is unchanged, so existing
-% checkpoints and the 3D signature hash stay valid.
+% checkpoints retain exact signature matching.
 tf = isequal(normalize(saved),normalize(landing2d.rl.trainingSignature(c)));
 end
 

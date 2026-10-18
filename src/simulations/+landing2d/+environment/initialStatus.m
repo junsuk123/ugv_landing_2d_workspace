@@ -1,6 +1,6 @@
 function status = initialStatus(actionCount)
 % INITIALSTATUS  Episode flags kept separate from physical and estimator state.
-% actionCount: 2 for [a_x,a_z] (default), 3 for the 3D option [a_x,a_y,a_z].
+% actionCount is two for the planar command [a_x,a_z].
 if nargin < 1, actionCount = 2; end
 status = struct('terminated',false,'truncated',false,'terminalReason','', ...
     'terminalRewardPaid',false,'landingInhibited',true, ...

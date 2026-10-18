@@ -1,95 +1,76 @@
 function output = runPipeline(options)
-% RUNPIPELINE  Final train -> validate -> visualize orchestration.
-if nargin < 1, options=struct(); end
-defaults=struct('executionMode','full','retrain',true, ...
-    'runSelfTest',true,'generatePaper',true,'figureVisible',true, ...
-    'saveResults',true,'showLiveDashboard',true, ...
-    'profileRepetitions',500,'trainingOptions',struct(), ...
-    'trainingBackend','matlab','spatialDimension',2,'latestOntology',false);
-options=parseOptions(options,defaults);
-
-% Fast visualization-only entry point. It rebuilds the parameter-matched
-% held-out result figure without training or evaluation.
-if options.latestOntology
-    [fig,summary]=landing2d.viz.plotParameterMatchedEvidence( ...
-        struct('visible',options.figureVisible));
-    output=struct('schemaVersion','parameter_matched_evidence_view_v1', ...
-        'generatedAt',datetime('now'),'summary',summary,'figure',fig);
-    fprintf('Latest parameter-matched evidence: %s\n',fullfile( ...
-        landing2d.orchestration.projectRoot(),'docs','assets','paper', ...
-        'latest_parameter_matched', ...
-        'parameter_matched_ontology_evidence.png'));
-    return;
+% RUNPIPELINE  Self-test -> train -> evaluate -> figures (relational_policy_v1).
+%   output = landing2d.orchestration.runPipeline(options)
+% options
+%   trainSeeds   training seeds of every method (default registry.trainSeeds.default
+%                = 1-5; smoke: 1). Method differences are reported over seeds.
+%   methods      registry ids (default ppo, onto_rgat_ppo, shuffled_rgat_ppo)
+%   retrain      true retrains compatible checkpoints too (default false; an
+%                incompatible or missing checkpoint is always retrained)
+%   sections     evaluation sections (default all, see runEvaluation)
+%   smoke        true: bounded integration run (1 PPO iteration, few episodes,
+%                nothing saved unless saveResults); not a result
+%   runSelfTest  default true
+%   saveResults  default true (false in smoke)
+%   figureVisible default false
+% Outputs under results/: checkpoints/, evaluation/ (CSV + results.mat),
+% figures/ (PNG). The test, stress and fixed-case seeds never select a
+% checkpoint; checkpoint selection uses the validation split during PPO.
+if nargin < 1, options = struct(); end
+registry = landing2d.config.methodRegistry();
+defaults = struct('trainSeeds',[],'methods',{{registry.methods.id}},'retrain',false, ...
+    'sections',{{'learning','heldout','factorial','generalization','probes'}}, ...
+    'smoke',false,'runSelfTest',true,'saveResults',[],'figureVisible',false);
+options = parseOptions(options,defaults);
+if isempty(options.trainSeeds)
+    options.trainSeeds = registry.trainSeeds.default;
+    if options.smoke, options.trainSeeds = 1; end
 end
+if isempty(options.saveResults), options.saveResults = ~options.smoke; end
 
-fprintf('\nUGV landing final pipeline\n');
-fprintf('  mode: %s | backend: %s | %dD | scratch retrain: %d | paper study: %d\n', ...
-    options.executionMode,options.trainingBackend,options.spatialDimension, ...
-    options.retrain,options.generatePaper);
-if options.runSelfTest
-    testReport=landing2d.orchestration.selfTest();
-else
-    testReport=table();
-end
+root = landing2d.orchestration.projectRoot();
+cfg = landing2d.config.primaryConfig(root);
+cfg.figureVisible = options.figureVisible;
+if options.smoke, cfg = landing2d.orchestration.smokeConfig(cfg); end
+landing2d.config.validateConfig(cfg);
+fprintf(['\nUGV landing 2D | relational_policy_v1 | %s | methods %s | training ' ...
+    'seeds %s\n'],ternary(options.smoke,'smoke','full'),strjoin(options.methods,', '), ...
+    mat2str(options.trainSeeds));
 
-trainingOptions=options.trainingOptions;
-trainingOptions.executionMode=options.executionMode;
-trainingOptions.rlRetrain=options.retrain;
-trainingOptions.figureVisible=options.figureVisible;
-trainingOptions.saveResults=options.saveResults;
-trainingOptions.showLiveDashboard=options.showLiveDashboard;
-trainingOptions.trainingBackend=options.trainingBackend;
-% 3차원 옵션은 cfg.outputDir이 results/spatial3d가 되어 논문 평가도 그 체크포인트를 읽습니다.
-trainingOptions.spatialDimension=options.spatialDimension;
-% simulink 백엔드는 cfg.outputDir이 results/simulink가 되어 논문 평가도 그
-% 체크포인트를 읽습니다.
-[comparison,summaryTable,cfg]=landing2d.orchestration.trainEvaluate( ...
-    trainingOptions);
+tests = table();
+if options.runSelfTest, tests = landing2d.orchestration.selfTest(); end
 
-study=[]; figures=struct();
-if options.generatePaper
-    paperOptions=struct('checkpointDir',cfg.outputDir, ...
-        'outputDir',fullfile(cfg.outputDir,'paper'), ...
-        'saveResults',options.saveResults,'saveFigures',options.saveResults, ...
-        'figureVisible',options.figureVisible,'exportPdf',false, ...
-        'profileRepetitions',options.profileRepetitions, ...
-        'spatialDimension',options.spatialDimension);
-    [study,figures]=landing2d.orchestration.runStudy(paperOptions);
-end
-output=struct('schemaVersion','landing2d_final_pipeline_v1', ...
-    'generatedAt',datetime('now'),'config',cfg,'tests',testReport, ...
-    'comparison',comparison,'summary',summaryTable, ...
-    'paperStudy',study,'figures',figures);
-fprintf('Final pipeline complete: %s\n',cfg.outputDir);
+runs = landing2d.orchestration.trainRuns(cfg,struct('methods',{options.methods}, ...
+    'trainSeeds',options.trainSeeds,'retrain',options.retrain,'smoke',options.smoke));
+
+outputDir = '';
+if options.saveResults, outputDir = fullfile(cfg.outputDir,'evaluation'); end
+results = landing2d.orchestration.runEvaluation(runs,cfg, ...
+    struct('sections',{options.sections},'outputDir',outputDir));
+
+figureDir = '';
+if options.saveResults, figureDir = fullfile(cfg.outputDir,'figures'); end
+figures = landing2d.viz.plotResults(results,cfg,struct('outputDir',figureDir, ...
+    'visible',options.figureVisible));
+landing2d.orchestration.printHeadline(results);
+output = struct('config',cfg,'tests',tests,'results',results,'figures',figures);
 end
 
-function options=parseOptions(options,defaults)
-assert(isstruct(options) && isscalar(options), ...
-    'landing2d:InvalidOptions','options must be a scalar struct.');
-unknown=setdiff(fieldnames(options),fieldnames(defaults));
-assert(isempty(unknown),'landing2d:UnknownOption', ...
-    'Unknown run option: %s',strjoin(unknown,', '));
-keys=fieldnames(defaults);
-for i=1:numel(keys)
-    if ~isfield(options,keys{i}), options.(keys{i})=defaults.(keys{i}); end
+function options = parseOptions(options,defaults)
+assert(isstruct(options) && isscalar(options),'landing2d:InvalidOptions', ...
+    'options must be a scalar struct.');
+unknown = setdiff(fieldnames(options),fieldnames(defaults));
+assert(isempty(unknown),'landing2d:UnknownOption','Unknown run option: %s', ...
+    strjoin(unknown,', '));
+names = fieldnames(defaults);
+for i = 1:numel(names)
+    if ~isfield(options,names{i}), options.(names{i}) = defaults.(names{i}); end
 end
-options.executionMode=char(options.executionMode);
-assert(ismember(options.executionMode,{'full','smoke'}), ...
-    'landing2d:ExecutionMode','executionMode must be full or smoke.');
-options.trainingBackend=char(options.trainingBackend);
-assert(ismember(options.trainingBackend,{'matlab','simulink'}), ...
-    'landing2d:TrainingBackend','trainingBackend must be matlab or simulink.');
-for key={'retrain','runSelfTest','generatePaper','figureVisible', ...
-        'saveResults','showLiveDashboard','latestOntology'}
-    options.(key{1})=logical(options.(key{1}));
+options.methods = cellstr(options.methods);
+options.sections = cellstr(options.sections);
+options.smoke = logical(options.smoke);
 end
-validateattributes(options.profileRepetitions,{'numeric'}, ...
-    {'scalar','integer','positive'});
-assert(isscalar(options.spatialDimension) && ismember(options.spatialDimension,[2,3]), ...
-    'landing2d:SpatialDimension','spatialDimension must be 2 or 3.');
-assert(options.spatialDimension==2 || strcmp(options.trainingBackend,'matlab'), ...
-    'landing2d:SpatialBackend', ...
-    'spatialDimension=3 supports trainingBackend=''matlab'' only.');
-assert(isstruct(options.trainingOptions) && isscalar(options.trainingOptions), ...
-    'landing2d:TrainingOptions','trainingOptions must be a scalar struct.');
+
+function out = ternary(condition,a,b)
+if condition, out = a; else, out = b; end
 end

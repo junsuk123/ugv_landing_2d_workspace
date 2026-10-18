@@ -1,3 +1,0 @@
-MethodId,LandingPct,UnsafePct,TimeoutPct,MeanReturn,ParameterCount,InferenceMs
-ppo,95,0,5,31.8186181963168,6101,0.0698942
-onto_rgat_ppo,98,0,2,33.4215488203591,6101,0.4539676

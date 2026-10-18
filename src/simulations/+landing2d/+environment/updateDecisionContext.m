@@ -3,9 +3,7 @@ function status = updateDecisionContext(status,track,t,c,state)
 % STATE (optional) is the synchronized own state. It enables the
 % final-descent phase where configured: entering the low-altitude band with a
 % recent confident detection keeps landing authorized until contact, while
-% the pad leaves the camera view near touchdown. The 3D option configures it
-% in experiment.spatial (downward cone camera); the planar marker-camera
-% supervisor configures it in experiment.commonObservation.finalDescent.
+% the pad leaves the camera view near touchdown.
 s = c.experiment.safety;
 recent = track.initialized && track.timeSinceLastDetection <= s.recentTrackGrace;
 confident = track.lastConfidence >= s.minimumTrackConfidence;
@@ -32,13 +30,7 @@ end
 function band = finalDescentBand(c)
 e = c.experiment;
 band = [];
-if landing2d.environment.isSpatial(c)
-    if isfield(e.spatial,'finalDescentHeight')
-        band = struct('enterHeight',e.spatial.finalDescentHeight, ...
-            'exitHeight',e.spatial.finalDescentExitHeight, ...
-            'maxDuration',e.spatial.finalDescentMaxDuration);
-    end
-elseif isfield(e,'commonObservation') && isfield(e.commonObservation,'finalDescent')
+if isfield(e,'commonObservation') && isfield(e.commonObservation,'finalDescent')
     band = e.commonObservation.finalDescent;
 end
 end

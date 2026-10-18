@@ -1,63 +1,47 @@
-function output = runScenario(scenarioId,options)
-% RUNSCENARIO  Minimal final-checkpoint comparison for one fixed scenario.
-% backend='simulink'은 같은 시나리오를 Simulink 모델(RL Agent 블록)에서 돌리고,
-% figureVisible이 참이면 모델과 Scope를 엽니다. checkpointDir로 Simulink 학습
-% 체크포인트(results/simulink)를 지정할 수 있습니다.
-if nargin < 2, options=struct(); end
-supplied=options;
-root=landing2d.orchestration.projectRoot();
-defaults=struct('figureVisible',true,'saveResults',false, ...
-    'profileRepetitions',100,'backend','matlab', ...
-    'checkpointDir',fullfile(root,'results'),'spatialDimension',2);
-options=parseOptions(options,defaults);
-assert(isscalar(options.spatialDimension) && ismember(options.spatialDimension,[2,3]), ...
-    'landing2d:SpatialDimension','spatialDimension must be 2 or 3.');
-resultsRoot=fullfile(root,'results');
-if options.spatialDimension==3
-    % 3차원 체크포인트·그림은 results/spatial3d 아래에서 읽고 씁니다.
-    assert(strcmp(options.backend,'matlab'),'landing2d:SpatialBackend', ...
-        'spatialDimension=3 supports backend=''matlab'' only.');
-    resultsRoot=fullfile(resultsRoot, ...
-        landing2d.config.defaultSpatialConfig().outputSubdir);
-    if ~isfield(supplied,'checkpointDir'), options.checkpointDir=resultsRoot; end
+function output = runScenario(caseId,options)
+% RUNSCENARIO  Fly one controlled factorial case (S1-S4) with trained checkpoints.
+%   output = landing2d.orchestration.runScenario('S4')
+%   output = landing2d.orchestration.runScenario('S4',struct('trainSeeds',1:5,'replicates',5))
+% options.trainSeeds  checkpoints to load (default 1, a quick look)
+% options.replicates  noise replicates (default 1)
+% options.methods     registry ids (default all)
+% options.visible     show the figure (default true)
+% A look at trajectories only; the study numbers come from run.
+if nargin < 1 || isempty(caseId), caseId = 'S4'; end
+if nargin < 2, options = struct(); end
+registry = landing2d.config.methodRegistry();
+defaults = struct('trainSeeds',1,'replicates',1,'methods',{{registry.methods.id}}, ...
+    'visible',true);
+names = fieldnames(defaults);
+unknown = setdiff(fieldnames(options),names);
+assert(isempty(unknown),'landing2d:UnknownOption','Unknown option: %s',strjoin(unknown,', '));
+for i = 1:numel(names)
+    if ~isfield(options,names{i}), options.(names{i}) = defaults.(names{i}); end
 end
-scenarioId=upper(string(scenarioId));
-assert(isscalar(scenarioId) && ismember(scenarioId,["S1","S2","S3"]), ...
-    'landing2d:ScenarioId','scenarioId must be S1, S2, or S3.');
-if strcmp(options.backend,'simulink')
-    % checkpointDir를 주지 않으면 Simulink 학습 결과(results/simulink)를 우선합니다.
-    simulinkOptions=struct('open',options.figureVisible);
-    if isfield(supplied,'checkpointDir')
-        simulinkOptions.checkpointDir=options.checkpointDir;
+cfg = landing2d.config.primaryConfig(landing2d.orchestration.projectRoot());
+specs = landing2d.evaluation.factorialCases(cfg);
+caseId = upper(char(caseId));
+spec = specs(strcmp({specs.id},caseId));
+assert(~isempty(spec),'landing2d:ScenarioId','caseId must be S1, S2, S3 or S4.');
+runs = landing2d.orchestration.loadRuns(cfg,struct('methods',{cellstr(options.methods)}, ...
+    'trainSeeds',options.trainSeeds));
+seeds = landing2d.evaluation.replicateSeeds(cfg,cfg.evaluation.factorial.seed,options.replicates);
+case1 = struct('scenario',spec.scenario,'sensorEvents',spec.sensorEvents, ...
+    'eventWindow',spec.eventWindow,'sensorNoiseScale',[]);
+rows = {}; shown = struct('methodId',{},'case',{},'results',{});
+for r = 1:numel(runs)
+    identity = struct('Case',string(caseId),'Replicate',num2cell(1:numel(seeds)));
+    keep = repmat(runs(r).trainSeed==options.trainSeeds(1),1,numel(seeds));
+    [rows{end+1},kept] = landing2d.evaluation.rolloutSet(runs(r),runs(r).config,seeds, ...
+        repmat(case1,1,numel(seeds)),identity,keep); %#ok<AGROW>
+    if any(keep)
+        shown(end+1) = struct('methodId',runs(r).id,'case',caseId,'results',{kept}); %#ok<AGROW>
     end
-    output=landing2d.simulink.runScenario(char(scenarioId),simulinkOptions);
-    return;
 end
-outputDir=fullfile(resultsRoot,'scenario');
-studyOptions=struct('checkpointDir',options.checkpointDir, ...
-    'spatialDimension',options.spatialDimension, ...
-    'outputDir',outputDir,'saveResults',options.saveResults, ...
-    'saveFigures',options.saveResults,'figureVisible',options.figureVisible, ...
-    'exportPdf',false,'profileRepetitions',options.profileRepetitions, ...
-    'scenarioIds',{{char(scenarioId)}},'figureSet',{{'trajectories'}});
-[study,figures]=landing2d.orchestration.runStudy(studyOptions);
-output=struct('scenario',scenarioId,'study',study,'figures',figures);
-end
-
-function options=parseOptions(options,defaults)
-assert(isstruct(options) && isscalar(options), ...
-    'landing2d:InvalidOptions','options must be a scalar struct.');
-unknown=setdiff(fieldnames(options),fieldnames(defaults));
-assert(isempty(unknown),'landing2d:UnknownOption', ...
-    'Unknown scenario option: %s',strjoin(unknown,', '));
-keys=fieldnames(defaults);
-for i=1:numel(keys)
-    if ~isfield(options,keys{i}), options.(keys{i})=defaults.(keys{i}); end
-end
-options.figureVisible=logical(options.figureVisible);
-options.saveResults=logical(options.saveResults);
-options.backend=char(options.backend);
-assert(ismember(options.backend,{'matlab','simulink'}), ...
-    'landing2d:ScenarioBackend','backend must be matlab or simulink.');
-options.checkpointDir=char(options.checkpointDir);
+episodes = struct2table([rows{:}]);
+disp(episodes(:,{'MethodId','TrainSeed','Replicate','TerminalReason', ...
+    'WindowAimErrorRMS_m','WindowCommandRateRMS_mps3','UnsuitableDescent_s'}));
+view = struct('cases',spec,'display',shown,'displaySeed',options.trainSeeds(1));
+fig = landing2d.viz.plotTrajectories(view,cfg,options.visible);
+output = struct('case',spec,'episodes',episodes,'figure',fig);
 end

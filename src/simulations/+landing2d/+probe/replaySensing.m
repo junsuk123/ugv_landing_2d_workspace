@@ -4,7 +4,7 @@ function rep = replaySensing(record,c,scale)
 % 융합 측위를 다시 만들고, UGV 상태추정기(PnP·KF)·공통 관측·결정 문맥을 결정 순서대로
 % 재계산합니다. 환경 step의 인지 경로와 같은 함수·같은 순서이므로 SCALE = 1이면 환경이
 % 실제로 만든 관측·결정 문맥과 비트 단위로 같아야 합니다(selfTest probe-replay,
-% landing2d.probe.buildBank). 오차는 측정 단계에만 들어가므로 위치·속도·가속 추세와
+% landing2d.evaluation.buildProbeSet). 오차는 측정 단계에만 들어가므로 위치·속도·가속 추세와
 % 파생 그래프 특징 사이에 모순되는 독립 잡음이 생기지 않습니다.
 % 출력 (결정 시점 k = 0..n, 열 k+1):
 %   O                공통 관측 구조체 (그래프 특징 재계산용)

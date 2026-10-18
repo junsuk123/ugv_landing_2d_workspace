@@ -1,6 +1,6 @@
 function [env,observation,reward,terminated,truncated,info] = step(env,aNorm)
 % STEP  Hold one two-axis policy action until next decision or earliest event.
-% The 3D option holds a three-axis action [a_x,a_y,a_z] with the same timing.
+% The planar action is [a_x,a_z].
 % info.physics logs every physics substep: the supervisor-applied command,
 % the supervisor reason code, and the realized body acceleration of the
 % lagged dynamics (evaluation truth; it is not the commanded acceleration).
@@ -9,7 +9,6 @@ function [env,observation,reward,terminated,truncated,info] = step(env,aNorm)
 assert(~env.episodeStatus.terminated && ~env.episodeStatus.truncated, ...
     'landing2d:StepAfterTerminal','Policy/environment work after terminal is forbidden.');
 c = env.config; e = c.experiment;
-spatial = landing2d.environment.isSpatial(c);
 limits = landing2d.environment.actionLimits(c);
 validateattributes(aNorm,{'numeric'},{'real','finite','vector','numel',numel(limits)});
 aNorm = min(max(aNorm(:),-1),1);
@@ -46,35 +45,18 @@ while elapsed < e.policyDt-1e-12 && ~event.occurred
     dt = min([e.physicsDt,e.policyDt-elapsed,env.scenario.deadline-env.time]);
     previous = env.physicalState;
     padPrevious = env.pad;
-    if perception
-        supervisorInput = landing2d.environment.perceptionView(env.commonObservation, ...
-            previous,env.episodeStatus,env.time,env.scenario,c);
-    else
-        supervisorInput = landing2d.sensing.buildPacket(previous,env.observationMemory, ...
-            env.measurement,env.episodeStatus,env.scenario,env.time,c);
-    end
-    if isfield(e,'actionApplication') ...
-            && strcmp(e.actionApplication,'direct_policy_v1')
-        applied = requested;
-        supervisor = struct('intervened',false,'reasons',{{}}, ...
-            'stoppingHeight',NaN,'availableVerticalBrake',NaN);
-    else
-        [applied,supervisor] = landing2d.control.safetySupervisor( ...
-            requested,previous,supervisorInput,c);
-    end
+    % Direct policy (direct_policy_v1): the requested command is applied; no
+    % supervisor, landing authorization or SAFE_ABORT guard rewrites it.
+    applied = requested;
+    supervisor = struct('intervened',false,'reasons',{{}});
     supervisorIntervened = supervisorIntervened || supervisor.intervened;
     supervisorReasons = union(supervisorReasons,supervisor.reasons,'stable');
     pitchDisturbance = 0;
     if env.time >= env.sensorEvents.pitchStart && env.time < env.sensorEvents.pitchEnd
         pitchDisturbance = env.sensorEvents.pitchRate*dt;
     end
-    if spatial
-        [current,dynamicsInfo] = landing2d.dynamics.stepSpatial( ...
-            previous,applied,dt,e.dynamics,pitchDisturbance);
-    else
-        [current,dynamicsInfo] = landing2d.dynamics.stepPlanar( ...
-            previous,applied,dt,e.dynamics,pitchDisturbance);
-    end
+    [current,dynamicsInfo] = landing2d.dynamics.stepPlanar( ...
+        previous,applied,dt,e.dynamics,pitchDisturbance);
     nextTime = env.time+dt;
     padCurrent = landing2d.scenario.padState(env.scenario,nextTime);
     % Contact/hard-boundary events are resolved before creating a measurement
@@ -167,7 +149,7 @@ packet = landing2d.sensing.buildPacket(env.physicalState, ...
     env.observationMemory,env.measurement,env.episodeStatus, ...
     env.scenario,env.time,c);
 % Policy observation: the normalized 12-D common observation in the planar
-% contract; the normalized causal packet otherwise (3D option, old configs).
+% contract.
 if perception
     observation = landing2d.observation.toVector(env.commonObservation, ...
         env.observationContext);
@@ -184,10 +166,6 @@ truth = struct('ex',env.pad.x-env.physicalState.x, ...
     'relativeVx',env.pad.vx-env.physicalState.vx, ...
     'vz',env.physicalState.vz,'theta',env.physicalState.theta, ...
     'pitchRate',env.physicalState.pitchRate);
-if spatial
-    previousTruth = addLateralTruth(previousTruth,decisionStartState,decisionStartPad);
-    truth = addLateralTruth(truth,env.physicalState,env.pad);
-end
 [reward,rewardComponents] = landing2d.rl.computeReward(previousTruth,truth, ...
     env.measurement,aNorm,elapsed,event,c,previousNormalizedAction);
 if event.occurred
@@ -216,16 +194,7 @@ end
 function out=interpolatePhysical(a,b,q)
 out=a;
 names={'x','z','vx','vz','theta','pitchRate','collectiveThrust'};
-if isfield(a,'y'), names=[names,{'y','vy','roll','rollRate'}]; end
 for i=1:numel(names)
     name=names{i}; out.(name)=a.(name)+q*(b.(name)-a.(name));
 end
-end
-
-function truth=addLateralTruth(truth,state,pad)
-% Reward-only truth (never a policy input), 3D option.
-truth.ey=pad.y-state.y;
-truth.relativeVy=pad.vy-state.vy;
-truth.roll=state.roll;
-truth.rollRate=state.rollRate;
 end

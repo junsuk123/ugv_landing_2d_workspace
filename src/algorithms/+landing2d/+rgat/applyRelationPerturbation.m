@@ -35,6 +35,13 @@ if isfield(gs,'relationPerturbation')
     schema.rel = rel;
     semantic = size(schema.edgeTable,1);
     schema.edgeTable(:,3) = schema.relationNames(rel(1:semantic))';
+    if isfield(schema,'edgePurpose')
+        canonicalPurpose=schema.edgePurpose;
+        for e=1:semantic
+            schema.edgePurpose{e}=sprintf('SHUFFLED relation %s; canonical purpose: %s', ...
+                schema.relationNames{rel(e)},canonicalPurpose{e});
+        end
+    end
     schema.relationPerturbation = struct('type',p.type,'graphSeed',p.graphSeed);
     schema.variant = [schema.variant,'_relation_shuffle'];
     T = landing2d.rgat.topology(schema);

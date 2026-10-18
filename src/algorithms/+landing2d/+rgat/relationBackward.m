@@ -1,6 +1,8 @@
 function [dH,grads] = relationBackward(dZ,cache)
 % RELATIONBACKWARD  relationForward의 역전파. 직접 구현한 기울기입니다.
 % 정확성은 tests/test_rgat_gradients.m에서 중앙 차분과 비교해 확인합니다.
+assert(~isfield(cache,'diagnosticEdgeKeep'),'landing2d:DiagnosticInferenceOnly', ...
+    'Live edge interventions are inference-only; backpropagation is forbidden.');
 T = cache.T;
 dout = cache.dout;
 din = cache.din;
@@ -26,29 +28,42 @@ dScore = cache.alpha.*(dAlpha-weightedSum(T.dst,:));
 % 5. leaky ReLU
 dRaw = dScore.*(0.6+0.4*sign(cache.raw));
 % 6. 간선 점수 -> 노드/관계 축
-dAall = T.Msrc*dRaw;
-dBall = T.Mdst*dRaw;
 dRelationScore = sum(T.Mrel*dRaw,2);
-
-dan = reshape(dAall,R,N*B);
-dbn = reshape(dBall,R,N*B);
 grads.W = zeros(size(cache.W));
 grads.a = zeros(size(cache.a));
 grads.E = zeros(size(cache.E));
 dHf = zeros(din,N*B);
-for r = 1:R
-    HWr = cache.HW(:,:,r);
-    dHWr = reshape(dHWall(:,(r-1)*N+(1:N),:),dout,N*B);
-    % 7. 주의 점수의 출발/도착 반쪽
-    grads.a(1,1:dout,r) = dan(r,:)*HWr';
-    grads.a(1,dout+1:2*dout,r) = dbn(r,:)*HWr';
-    dHWr = dHWr+cache.a(1,1:dout,r)'*dan(r,:)+cache.a(1,dout+1:2*dout,r)'*dbn(r,:);
-    % 8. 관계 임베딩 항
-    grads.a(1,2*dout+1:end,r) = dRelationScore(r)*cache.E(:,r)';
-    grads.E(:,r) = dRelationScore(r)*cache.a(1,2*dout+1:end,r)';
-    % 9. 관계별 선형 사영
-    grads.W(:,:,r) = dHWr*cache.Hf';
-    dHf = dHf+cache.W(:,:,r)'*dHWr;
+if strcmp(cache.attentionMode,'input_dependent_v1')
+    dAall = T.Msrc*dRaw;
+    dBall = T.Mdst*dRaw;
+    dan = reshape(dAall,R,N*B);
+    dbn = reshape(dBall,R,N*B);
+    for r = 1:R
+        HWr = cache.HW(:,:,r);
+        dHWr = reshape(dHWall(:,(r-1)*N+(1:N),:),dout,N*B);
+        % 7. 주의 점수의 출발/도착 반쪽
+        grads.a(1,1:dout,r) = dan(r,:)*HWr';
+        grads.a(1,dout+1:2*dout,r) = dbn(r,:)*HWr';
+        dHWr = dHWr+cache.a(1,1:dout,r)'*dan(r,:) ...
+            +cache.a(1,dout+1:2*dout,r)'*dbn(r,:);
+        % 8. 관계 임베딩 항
+        grads.a(1,2*dout+1:end,r) = dRelationScore(r)*cache.E(:,r)';
+        grads.E(:,r) = dRelationScore(r)*cache.a(1,2*dout+1:end,r)';
+        % 9. 관계별 선형 사영
+        grads.W(:,:,r) = dHWr*cache.Hf';
+        dHf = dHf+cache.W(:,:,r)'*dHWr;
+    end
+else
+    for r = 1:R
+        dHWr = reshape(dHWall(:,(r-1)*N+(1:N),:),dout,N*B);
+        % beta_r = mean(a_state_r) + a_relation_r * E_r. No gradient
+        % reaches H through alpha because fixed_relation_v1 is input-free.
+        grads.a(1,1:2*dout,r) = dRelationScore(r)/(2*dout);
+        grads.a(1,2*dout+1:end,r) = dRelationScore(r)*cache.E(:,r)';
+        grads.E(:,r) = dRelationScore(r)*cache.a(1,2*dout+1:end,r)';
+        grads.W(:,:,r) = dHWr*cache.Hf';
+        dHf = dHf+cache.W(:,:,r)'*dHWr;
+    end
 end
 dH = reshape(dHf,din,N,B);
 end

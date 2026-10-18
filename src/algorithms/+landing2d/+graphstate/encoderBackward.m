@@ -1,84 +1,31 @@
 function [grads,dS] = encoderBackward(params,spec,cache,dG)
-% ENCODERBACKWARD Backpropagate an Actor/Critic loss through graph readout.
-if ismember(spec.mode,{'baseline','semantic_flat','context_flat'})
+% ENCODERBACKWARD  Backpropagate an Actor/Critic loss through the encoder.
+%   [grads,dS] = landing2d.graphstate.encoderBackward(params,spec,cache,dG)
+% Baseline: identity (no parameters). context_rgat: grouped factorized
+% readout -> node nonlinearity -> R-GAT layer (relationBackward) + local W0.
+if strcmp(spec.mode,'baseline')
     grads = struct(); dS = dG; return;
 end
 B = cache.B; N = cache.N; dh = cache.dh;
+preOutput = dG.*(1-cache.g.^2);
 grads = struct();
-switch spec.readout
-    case 'decision_nodes'
-        dH = zeros(dh,N,B);
-        dH(:,cache.readoutNode,:) = reshape(dG,dh,1,B);
-    case 'meanmax'
-        preOutput = dG.*(1-cache.g.^2);
-        grads.Wg = preOutput*cache.readout';
-        grads.bg = sum(preOutput,2);
-        dReadout = params.Wg'*preOutput;
-        dMean = dReadout(1:dh,:);
-        dMax = dReadout(dh+1:end,:);
-        dH = repmat(reshape(dMean/N,dh,1,B),1,N,1);
-        rowIndex = repmat((1:dh)',1,B);
-        batchIndex = repmat(1:B,dh,1);
-        linear = sub2ind([dh,N,B],rowIndex,cache.argMax,batchIndex);
-        dH(linear) = dH(linear)+dMax;
-    case 'mean'
-        dH = repmat(reshape(dG/N,dh,1,B),1,N,1);
-    case 'grouped'
-        preOutput = dG.*(1-cache.g.^2);
-        grads.Wg = preOutput*cache.readout';
-        grads.bg = sum(preOutput,2);
-        dGrouped = reshape(params.Wg'*preOutput,dh,spec.groupCount,B);
-        dH = zeros(dh,N,B);
-        for b = 1:B
-            dH(:,:,b) = dGrouped(:,:,b)*spec.groupMatrix;
-        end
-        directDS = zeros(spec.stateDim,B);
-    case 'grouped_factorized'
-        preOutput = dG.*(1-cache.g.^2);
-        grads.Wc = zeros(size(params.Wc));
-        grads.Wn = zeros(size(params.Wn));
-        grads.bg = sum(preOutput,2);
-        dGrouped = zeros(dh,spec.groupCount,B);
-        for b = 1:B
-            weighted = preOutput(:,b).*params.Wn;
-            grads.Wc = grads.Wc+weighted*cache.grouped(:,:,b)';
-            grads.Wn = grads.Wn+preOutput(:,b).*cache.channel(:,:,b);
-            dGrouped(:,:,b) = params.Wc'*weighted;
-        end
-        dH = zeros(dh,N,B);
-        for b = 1:B
-            dH(:,:,b) = dGrouped(:,:,b)*spec.groupMatrix;
-        end
-    case 'raw_plus_groups'
-        directDS = dG(1:spec.stateDim,:);
-        dContext = dG(spec.stateDim+1:end,:);
-        preOutput = dContext.*(1-cache.relationContext.^2);
-        grads.Wg = preOutput*cache.readout';
-        grads.bg = sum(preOutput,2);
-        dGrouped = reshape(params.Wg'*preOutput,dh,spec.groupCount,B);
-        dH = zeros(dh,N,B);
-        for b = 1:B
-            dH(:,:,b) = dGrouped(:,:,b)*spec.groupMatrix;
-        end
-    case 'observation_plus_groups'
-        directRaw = dG(1:spec.rawDim,:);
-        dContext = dG(spec.rawDim+1:end,:);
-        preOutput = dContext.*(1-cache.relationContext.^2);
-        grads.Wg = preOutput*cache.readout';
-        grads.bg = sum(preOutput,2);
-        dGrouped = reshape(params.Wg'*preOutput,dh,spec.groupCount,B);
-        dH = zeros(dh,N,B);
-        for b = 1:B
-            dH(:,:,b) = dGrouped(:,:,b)*spec.groupMatrix;
-        end
-    otherwise
-        error('landing2d:UnknownReadout','Unknown readout: %s',spec.readout);
+grads.Wc = zeros(size(params.Wc));
+grads.Wn = zeros(size(params.Wn));
+grads.bg = sum(preOutput,2);
+dH = zeros(dh,N,B);
+for b = 1:B
+    weighted = preOutput(:,b).*params.Wn;
+    grads.Wc = grads.Wc+weighted*cache.grouped(:,:,b)';
+    grads.Wn = grads.Wn+preOutput(:,b).*cache.channel(:,:,b);
+    dH(:,:,b) = (params.Wc'*weighted)*spec.groupMatrix;
 end
-[backboneGrads,dS] = landing2d.graphstate.encoderNodeBackward( ...
-    params,spec,cache,dH);
-if exist('directDS','var'), dS = dS+directDS; end
-if exist('directRaw','var'), dS = [directRaw;dS]; end
-names = fieldnames(backboneGrads);
-for i = 1:numel(names), grads.(names{i}) = backboneGrads.(names{i}); end
+preH = dH.*(1-cache.H.^2);
+[dXRelation,g1] = landing2d.rgat.relationBackward(preH,cache.cache1);
+flat = reshape(preH,dh,N*B);
+grads.W1 = g1.W; grads.a1 = g1.a; grads.E1 = g1.E;
+grads.W0 = flat*cache.Xf';
+grads.b0 = sum(flat,2);
+dX = dXRelation+reshape(params.W0'*flat,spec.inDim,N,B);
+dS = reshape(dX,spec.inDim*N,B);
 grads = orderfields(grads,params);
 end

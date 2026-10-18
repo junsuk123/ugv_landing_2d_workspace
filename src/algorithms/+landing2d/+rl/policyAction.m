@@ -1,38 +1,16 @@
-function [u,logProbability,mu,detail] = policyAction(agent,S,rs,deterministic)
-% POLICYACTION  상태 하나에 대한 행동 표본과 log 확률.
-%
-% S는 정책이 받는 상태입니다. 기준 모델에서는 landing2d.rl.observation의 관측
-% 벡터이고, 제안 모델에서는 펴 놓은 온톨로지 그래프 X_t입니다. 어느 쪽이든
-% 부호기를 지나 PolicyNode 임베딩이 되고, 그 다음은 두 모델이 같습니다.
-% 행동의 정의와 한계는 바뀌지 않습니다(landing2d.rl.actionFromCommand).
-g = landing2d.graphstate.encoderForward(agent.policy.encoder, ...
-    agent.encoderSpec,S,'policy');
-if isfield(agent.policy,'relation')
-    raw = g(1:agent.encoderSpec.rawDim,:);
-    context = g(agent.encoderSpec.rawDim+1:end,:);
-    baseMean = landing2d.rl.mlpForward(agent.policy.mean, ...
-        landing2d.rl.mlpInput(agent,raw));
-    [relationResidual,~,relationDetail] = ...
-        landing2d.rl.relationPolicyResidual(agent.policy.relation.W, ...
-        agent.encoderSpec,raw,context);
-    mu = baseMean+relationResidual;
-else
-    baseMean = landing2d.rl.mlpForward(agent.policy.mean, ...
-        landing2d.rl.mlpInput(agent,g));
-    relationResidual = zeros(size(baseMean));
-    relationDetail = struct('descentEligibility',ones(1,size(baseMean,2)), ...
-        'verticalGateActive',false(1,size(baseMean,2)));
-    mu = baseMean;
-end
+function [u,logProbability,mu] = policyAction(agent,S,rs,deterministic)
+% POLICYACTION  Gaussian policy action for state(s) S and its log probability.
+%   [u,logp,mu] = landing2d.rl.policyAction(agent,S,rs,deterministic)
+% S is the 12-D o_t (plain PPO) or the flattened TOSM node features of the
+% same o_t (R-GAT arms); after the encoder both share the same MLP head. mu is
+% the pre-tanh actor mean; the environment applies limits .* tanh(u).
+g = landing2d.graphstate.encoderForward(agent.policy.encoder,agent.encoderSpec,S,'policy');
+mu = landing2d.rl.mlpForward(agent.policy.mean,g);
 sigma = exp(agent.policy.logStd);
 if deterministic
     u = mu;
 else
     u = mu+sigma.*randn(rs,size(mu));
 end
-logProbability = sum(-0.5*((u-mu)./sigma).^2-agent.policy.logStd ...
-    -0.5*log(2*pi));
-detail = struct('baseMean',baseMean,'relationResidual',relationResidual, ...
-    'descentEligibility',relationDetail.descentEligibility, ...
-    'verticalGateActive',relationDetail.verticalGateActive);
+logProbability = sum(-0.5*((u-mu)./sigma).^2-agent.policy.logStd-0.5*log(2*pi));
 end

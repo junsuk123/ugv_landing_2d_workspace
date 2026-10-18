@@ -1,7 +1,5 @@
-function track = initialPadTrack(sensor,spatial)
+function track = initialPadTrack(sensor)
 % INITIALPADTRACK  Uncertain prior; deliberately contains no hidden pad truth.
-% spatial=true adds the lateral (y) channel of the same estimator.
-if nargin < 2, spatial = false; end
 track = struct('initialized',false,'padX',0,'padVx',0,'padAx',0, ...
     'positionStd',sensor.initialPositionStd, ...
     'velocityStd',sensor.initialVelocityStd, ...
@@ -10,11 +8,4 @@ track = struct('initialized',false,'padX',0,'padVx',0,'padAx',0, ...
     'lastMeasurementPadX',NaN,'lastMeasuredVelocity',NaN, ...
     'lastVelocityTime',NaN,'timeSinceLastDetection',Inf, ...
     'lastConfidence',0,'lastBearing',0,'bearingValid',false);
-if spatial
-    track.padY = 0;
-    track.padVy = 0;
-    track.padAy = 0;
-    track.lastMeasurementPadY = NaN;
-    track.lastBearingY = 0;
-end
 end

@@ -21,8 +21,6 @@ if isfield(options,'scenarioHeightRange') && ~isempty(options.scenarioHeightRang
 end
 scenario = landing2d.scenario.sampleParameters(scenarioConfig,scenarioSeed);
 if isfield(options,'scenario'), scenario = options.scenario; end
-spatial = landing2d.environment.isSpatial(c);
-if spatial, scenario = withLateralMotion(scenario,c.experiment.scenario); end
 c.experiment.currentScenario = scenario;
 sensorStream = RandStream('threefry','Seed',sensorSeed);
 sensorEvents = landing2d.sensing.sampleEvents(c.experiment.sensor,scenario,sensorStream);
@@ -38,22 +36,26 @@ pad = landing2d.scenario.padState(scenario,0);
 % The drone starts where the pad center lies on the camera optical axis at
 % level attitude: x = x_pad + h*tan(cameraPitchOffset). The planar marker
 % camera looks 60 deg below forward, so the drone starts behind the pad; the
-% downward camera of the 3D option (offset 0) starts directly above it.
-startX = pad.x+scenario.height*tan(c.experiment.sensor.cameraPitchOffset);
-state = struct('x',startX,'z',scenario.padHeight+scenario.height, ...
-    'vx',pad.vx,'vz',0,'theta',0,'pitchRate',0, ...
+% marker camera starts behind the pad along its optical axis.
+% relational_policy_v1 adds the sampled initial relative motion: speed
+% offset dv and position offset dx from the camera-aim point. dx is kept only
+% if the pad stays in the level-attitude camera view; otherwise the aim point
+% itself is used (recorded in scenario.initialPositionOffsetApplied).
+[dv,dx] = initialOffsets(scenario);
+aimX = pad.x+scenario.height*tan(c.experiment.sensor.cameraPitchOffset);
+state = struct('x',aimX+dx,'z',scenario.padHeight+scenario.height, ...
+    'vx',pad.vx+dv,'vz',0,'theta',0,'pitchRate',0, ...
     'collectiveThrust',c.experiment.dynamics.mass* ...
         c.experiment.dynamics.gravity);
-if spatial
-    % 3D option: also directly above the pad with matched lateral velocity.
-    state.y = pad.y; state.vy = pad.vy; state.roll = 0; state.rollRate = 0;
+if dx ~= 0 && ~landing2d.sensing.projectPad(state,pad,c.experiment.sensor).visible
+    state.x = aimX; dx = 0;
 end
+scenario.initialPositionOffsetApplied = dx;
+c.experiment.currentScenario = scenario;
 if isfield(options,'physicalState'), state = options.physicalState; end
-assert(spatial == isfield(state,'y'),'landing2d:SpatialState', ...
-    'physicalState must match the configured spatial dimension.');
 status = landing2d.environment.initialStatus( ...
     numel(landing2d.environment.actionLimits(c)));
-perception = ~spatial && isfield(c.experiment,'commonObservation');
+perception = isfield(c.experiment,'commonObservation');
 noiseScale = 1;
 if isfield(options,'sensorNoiseScale') && ~isempty(options.sensorNoiseScale)
     noiseScale = options.sensorNoiseScale;
@@ -63,14 +65,13 @@ if isfield(options,'sensorNoiseScale') && ~isempty(options.sensorNoiseScale)
         'sensorNoiseScale requires the planar common observation (time-indexed noise).');
 end
 % Planar contract: tracker, marker and navigation noise all come from the
-% time-indexed table (column k+1 = decision k, k = 0 here). The 3D option
-% keeps its sequential sensor stream and its numbers.
+% time-indexed table (column k+1 = decision k, k = 0 here).
 noise = []; trackerNoise = sensorStream;
 if perception
     noise = landing2d.sensing.exogenousNoise(c,base,scenario.deadline,noiseScale);
     trackerNoise = noise.tracker(:,1,1);
 end
-track = landing2d.sensing.initialPadTrack(c.experiment.sensor,spatial);
+track = landing2d.sensing.initialPadTrack(c.experiment.sensor);
 measurement = landing2d.sensing.generateMeasurement(state,pad,0, ...
     c.experiment.sensor,trackerNoise,struct('dropout',false));
 [track,estimatorInfo] = landing2d.sensing.updatePadTrack(track,measurement, ...
@@ -78,7 +79,7 @@ measurement = landing2d.sensing.generateMeasurement(state,pad,0, ...
 % Common observation o_t = [G;D;H] and its static context Gamma (planar only).
 % The simulated detector and navigation are the only consumers of truth;
 % capture receives their outputs. The same marker-camera UGV estimate drives
-% landing authorization and the safety supervisor; the 3D option and
+% landing authorization and the safety supervisor;
 % configurations saved without the common observation keep the tracker-based
 % decision context.
 observationContext = [];
@@ -101,7 +102,7 @@ else
 end
 packet = landing2d.sensing.buildPacket(state,track,measurement,status,scenario,0,c);
 % Policy observation: the normalized 24-D common observation in the planar
-% contract; the normalized causal packet otherwise (3D option, old configs).
+% contract.
 if isempty(commonObservation)
     observation = landing2d.sensing.normalizePacket(packet,c);
 else
@@ -134,12 +135,11 @@ info = struct('packet',packet,'commonObservation',commonObservation, ...
     'provenance',provenance);
 end
 
-function scenario = withLateralMotion(scenario,scenarioConfig)
-% A supplied planar scenario runs in 3D with zero lateral pad motion.
-if ~isfield(scenario,'vy1'), scenario.vy1 = 0; end
-if ~isfield(scenario,'ay2'), scenario.ay2 = 0; end
-if ~isfield(scenario,'y0'), scenario.y0 = scenarioConfig.y0; end
-scenario.vy3 = scenario.vy1+scenario.ay2*scenario.T2;
+function [dv,dx] = initialOffsets(scenario)
+% Fixed cases built without the offsets start speed-matched on the aim point.
+dv = 0; dx = 0;
+if isfield(scenario,'initialSpeedOffset'), dv = double(scenario.initialSpeedOffset); end
+if isfield(scenario,'initialPositionOffset'), dx = double(scenario.initialPositionOffset); end
 end
 
 function events = validateSensorEvents(events,deadline)
@@ -155,7 +155,7 @@ for i = 1:numel(numericFields)
         numericFields{i});
 end
 events.dropoutKind = char(events.dropoutKind);
-assert(ismember(events.dropoutKind,{'clean','short','sustained'}), ...
+assert(ismember(events.dropoutKind,{'clean','mild','severe'}), ...
     'landing2d:SensorEvents','Unknown dropout kind %s.',events.dropoutKind);
 assert(events.dropoutEnd>=events.dropoutStart || ...
     (isinf(events.dropoutStart) && isinf(events.dropoutEnd)), ...

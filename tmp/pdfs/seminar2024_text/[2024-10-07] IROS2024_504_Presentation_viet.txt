@@ -1,0 +1,317 @@
+DeRO: Dead Reckoning Based 
+on Radar Odometry With 
+Accelerometers Aided for 
+Robot Localization
+Hoang Viet Do, Yong Hun Kim, 
+Joo Han Lee, Min Ho Lee, and Jin Woo Song*
+Sejong University, Seoul, Republic Of Korea
+
+
+Introduction (1/3)
+2
+Jung, Sangwoo, Wooseong Yang, and Ayoung Kim. "Co-RaL: Complementary Radar-
+Leg Odometry with 4-DoF Optimization and Rolling Contact." arXiv preprint 
+arXiv:2407.05820 (2024).
+FMCW Radar
+C. Doer and G. F. Trommer, "Radar Inertial Odometry With Online Calibration," 2020 
+European Navigation Conference (ENC), Dresden, Germany, 2020, pp. 1-10, doi: 
+10.23919/ENC48637.2020.9317343.
+• mmWave FMCW Radar has gained significant attention.
+⚬ Low cost, compact size, and all-weather operation.
+
+Introduction (2/3)
+• Promising alternative to LiDAR and Camera for SLAM.
+⚬ LiDAR and Camera are often limited by poor lighting, illumination,
+and environment factors.
+3
+J. Zhang, H. Zhuge, Z. Wu, G. Peng, M. Wen, Y. Liu, and D. Wang, “4dradarslam: A 4d imaging 
+radar slam system for large-scale environments based on pose graph optimization,” in 2023 
+IEEE International Conference on Robotics and Automation (ICRA), 2023, pp. 8333-8340.
+
+Introduction (3/3)
+4
+Hoang Viet Do, Bo Sung Ko, and Jin Woo Song. "CREVE: An Acceleration-based Constraint 
+Approach for Robust Radar Ego-Velocity Estimation." arXiv preprint arXiv:2409.16847 (2024).
+• Radar point clouds are known to be noisy and sparse due to
+ghost targets and multipath signals.
+⚬ Typical commercial radar provides 4D point cloud (range, bearing and 
+Doppler velocity).
+
+Traditional Approach
+• Extended Kalman Filter - Radar Inertial Odometry (EKF-RIO).
+⚬ Radar Doppler velocity is used as an auxiliary measurement for error
+correction.
+5
+Gyroscope
+Time Update Measurement 
+Update
+FMCW Radar
+Accelerometer
+Extended Kalman Filter
+C. Doer and G. F. Trommer, “An ekf based approach to radar inertial odometry,” in 
+2020 IEEE International Conference on Multisensor Fusion and Integration for Intelligent 
+Systems (MFI), 2020, pp. 152–159.
+EKF-RIO
+
+Dead Reckoning (1/2)
+• Dead Reckoning (DR) is widely-used solution for ground vehicles.
+⚬ Requires velocity sensor (e.g., odometer) to replace the accelerometer.
+6
+W. J. Park, J. W. Song, C. H. Kang, J. H. Lee, M. H. Seo, S. Y. Park, J. Y. Yeo, and C. 
+G. Park, “Mems 3d dr/gps integrated system for land vehicle application robust to gps 
+outages,” IEEE Access, vol. 7, pp. 73 336–73 348, 2019.
+
+Dead Reckoning (2/2)
+• DR technique is also used in vision-based navigation system.
+7
+J. H. Jung, J. Cha, J. Y. Chung, T. I. Kim, M. H. Seo, S. Y. Park, J. Y. Yeo, and C. G. Park, 
+“Monocular visual-inertial-wheel odometry using low-grade imu in urban areas,” IEEE 
+Transactions on Intelligent Transportation Systems, vol. 23, no. 2, pp. 925–938. 2022.
+
+Key Takeaways
+• Apply DR technique to radar-inertial navigation systems.
+⚬ Use radar measurements for time propagation and error correction.
+8
+DeRO
+Gyroscope
+Time Update Measurement 
+Update
+Accelerometer
+RIO
+Gyroscope
+Time Update Measurement 
+Update
+FMCW Radar
+Accelerometer FMCW Radar
+
+DeRO (1/6) – Overview
+• Radar Doppler velocity is used to calculate position (radar 
+mechanization).
+• Radar range and bearing are used for error correction.
+9
+FMCW Radar
+Time Update
+Measurement
+Update
+RANSAC/
+LSQ
+Signal Processing
+Gyroscope
+Mechanization
+Local  
+solution 𝑘
+Initial 
+guess 
+𝑘 − 𝑀𝑝𝑟𝑘−𝑀
+𝑟𝑘 , ො𝜎𝑝𝑟
+24D Point 
+cloud ො𝑣𝑟, ො𝜎𝑟2
+෠𝑏𝑔 Ƹ𝑠𝑟
+CorrectionGyroscope Radar
+Mechanization
+Registration
+Accelerometer
+Tilt angles
+Ƹ𝑝𝑓
+𝑟𝑘−𝑀
+Ƹ𝑝𝑓
+𝑟𝑘
+
+DeRO (2/6) – Radar Ego-Velocity Estimation
+• Given a set of at least three point clouds 𝑃𝑖 = 𝑝𝑥,𝑖
+𝑟 𝑝𝑦,𝑖
+𝑟 𝑝𝑧,𝑖
+𝑟 𝑣𝐷,𝑖 .
+⚬ Robust 3D radar ego-velocity can be estimated using RANSAC/LSQ.
+10
+−𝑣𝐷,1
+−𝑣𝐷,1
+⋮
+−𝑣𝐷,𝑁
+=
+𝑝𝑥,1
+𝑟 𝑝𝑦,1
+𝑟 𝑝𝑧,1
+𝑟
+𝑝𝑥,2
+𝑟 𝑝𝑦,2
+𝑟 𝑝𝑧,2
+𝑟
+⋮ ⋮ ⋮
+𝑝𝑥,𝑁
+𝑟 𝑝𝑦,𝑁
+𝑟 𝑝𝑧,𝑁
+𝑟
+𝑣𝑥𝑟
+𝑣𝑦𝑟
+𝑣𝑧𝑟
+𝑣𝑟 = 𝐶𝑏
+𝑟 𝐶𝑛𝑏𝑣𝑏
+𝑛 + 𝜔𝑏 × 𝑝𝑟𝑏
+• Relationship between radar ego-
+velocity and body frame velocity.
+
+DeRO (3/6) – Mechanization
+• DeRO: Integrate radar velocity once to obtain position.
+⚬ Requires radar-IMU extrinsic parameters.
+11
+ሶ𝑝𝑏
+𝑛 = 𝑣𝑏
+𝑛
+ሶ𝑣𝑏
+𝑛 = 𝐶𝑏
+𝑛𝑓𝑏 + 𝑔𝑛
+ሶ𝑞𝑏
+𝑛 = 1
+2 𝑞𝑏
+𝑛
+𝐿
+0
+𝜔𝑏
+ ቐ
+ሶ𝑝𝑏
+𝑛 = 𝐶𝑏
+𝑛 𝐶𝑏
+𝑟𝑣𝑟 − 𝜔𝑏 × 𝑝𝑟𝑏
+ሶ𝑞𝑏
+𝑛 = 1
+2 𝑞𝑏
+𝑛
+𝐿
+0
+𝜔𝑏
+ 
+RIO DeRO
+• RIO: Integrate acceleration twice to obtain position.
+⚬ Double integration.
+⚬ Requires gravitational force and accelerometer bias estimation.
+
+DeRO (4/6) – Point Cloud Registration
+• The relative distance between two radar scans 𝑝𝑟𝑘
+𝑟𝑘−1 can be 
+estimated using point cloud registration.
+12
+
+
+DeRO (5/6) – Stochastic Cloning EKF
+13
+RIO DeRO
+𝑥 = 𝑝𝑏,𝑘
+𝑛⊤
+𝑣𝑏,𝑘
+𝑛⊤
+𝑞𝑏,𝑘
+𝑛⊤
+𝑏𝑎,𝑘
+⊤ 𝑏𝑔,𝑘
+⊤  
+⊤ 𝑥 = 𝑥𝐷𝑅
+⊤ 𝑝𝑏,𝑘−𝑀
+𝑛⊤
+𝑞𝑏,𝑘−𝑀
+𝑛⊤ ⊤
+𝑥𝐷𝑅 = 𝑝𝑏,𝑘
+𝑛⊤
+𝑞𝑏,𝑘
+𝑛⊤
+𝑏𝑔,𝑘
+⊤ 𝑠𝑟,𝑘
+⊤ ⊤
+𝑦 = ො𝑣𝑟 − 𝑣𝑟
+𝑦 = Ƹ𝑝𝑟𝑘
+𝑟𝑘−𝑀 − 𝑝𝑟𝑘
+𝑟𝑘−𝑀
+𝑦𝑎 = ෠𝜙
+෠𝜃
+− 𝜙𝑎𝑐𝑐𝑒𝑙
+𝜃𝑎𝑐𝑐𝑒𝑙
+Cloning state 
+variable
+• Cloning 𝑀-step previous estimated state variable.
+• Two measurements:
+⚬ Relative distance and tilt angle.
+
+DeRO (6/6) – Tilt Angles
+• Use radar ego-velocity estimation to compensate for the 
+accelerometer’s acceleration for accurate tilt angle calculation.
+14
+መ𝑓𝑏 = 𝑓𝑏 − ෠𝑏𝑎 − መ𝐶𝑛𝑏 ( ො𝑣𝑏,𝑘
+𝑛 − ො𝑣𝑏,𝑘−1
+𝑛 )
+𝑇
+• Accelerometer bias is obtained from the pre-calibration 
+process.
+• For further robust estimation, we use an adaptive strategy
+to adjust the tilt angle noise covariance. 
+W. J. Park, J. W. Song, C. H. Kang, J. H. Lee, M. H. Seo, S. Y. Park, J. Y. Yeo, and C. 
+G. Park, “Mems 3d dr/gps integrated system for land vehicle application robust to gps 
+outages,” IEEE Access, vol. 7, pp. 73 336–73 348, 2019.
+൝↑ 𝑅𝑎𝑐𝑐𝑒𝑙 𝑖𝑓 መ𝑓𝑏 − 𝑔 > 𝛾
+↓ 𝑅𝑎𝑐𝑐𝑒𝑙 𝑜𝑡ℎ𝑒𝑟𝑤𝑖𝑠𝑒
+
+Experiments (1/6)
+15
+C. Doer and G. F. Trommer, “Yaw aided radar inertial odometry using manhattan 
+world assumptions,” in 2021 28th Saint Petersburg International Conference on 
+Integrated Navigation Systems (ICINS), 2021, pp. 1–9.
+• To verify the proposed algorithm, 5 open-source datasets is used.
+⚬ 4D mmWave FMCW radar – TI IWR6843AOP – 10 Hz.
+⚬ IMU – Analog Devices ADIS16448 – 400 Hz.
+
+Experiments (2/6)
+• DeRO is implemented in ROS 2 Foxy using C++.
+• We have open-sourced our implementation on GitHub.
+16
+DeRO on GitHub
+
+
+Experiments (3/6)
+• For evaluation, we use a widely-used toolbox.
+⚬ The estimated trajectory is aligned with the position-yaw option.
+⚬ Metric: Absolute Trajectory Error (ATE).
+17
+Z. Zhang and D. Scaramuzza, “A tutorial on quantitative trajectory evaluation for 
+visual(-inertial) odometry,” in 2018 IEEE/RSJ International Conference on Intelligent 
+Robots and Systems (IROS), 2018, pp. 7244–7251.
+
+Experiments (4/6)
+18
+[11] C. Doer and G. F. Trommer, “An ekf based approach to radar inertial 
+odometry,” in 2020 IEEE International Conference on Multisensor Fusion and 
+Integration for Intelligent Systems (MFI), 2020, pp. 152–159.
+• Overall, DeRO outperforms RIO.
+⚬ DeRO reduces the translation error by approximately 62% and the
+rotation error by 66%.
+
+Experiments (5/6)
+19
+M. Grupp, “evo: Python package for the evaluation of odometry and slam.” 
+https://github.com/MichaelGrupp/evo, 2017.
+1.18 m
+1.88 m
+0.09 m
+0.72 m
+Absolute error
+• Additionally, we perform evaluation using another toolbox.
+⚬ DeRO significantly improves the accuracy of z-axis position 
+estimation.
+
+Experiments (6/6)
+20
+• DeRO yields a smaller ATE across all categories.
+
+Conclusion
+21
+• We have proposed DeRO, a framework of dead reckoning 
+based on radar odometry with tilt angle measurements. 
+• Our Approach
+⚬ Avoid double integration of accelerometer in computing odometry.
+⚬ Compensate Doppler velocity scale factor error.
+• Rigorously evaluation using open-source dataset and toolbox.
+• Make our source code openly available for the benefit of the 
+research community.
+
+Thank you!
+Question & Answer
+Feel free to check our
+DeRO on GitHub repository!

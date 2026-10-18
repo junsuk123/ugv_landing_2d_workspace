@@ -1,48 +1,23 @@
 function signature = trainingSignature(c)
-% TRAININGSIGNATURE  저장된 정책을 그대로 쓸 수 있는지 판단하는 설정 지문.
-% 환경이나 학습 설정이 바뀌면 값이 달라지므로 다시 학습합니다.
-% 교사 시연을 만드는 유도 법칙이 바뀌면 모방 학습 결과가 달라지므로 함께 포함합니다.
-fields = {'dt','tEnd','segmentTimes','scenarioSpeeds','ugvAccelMax', ...
-    'padHeight','padHalfLength','initialHeight','maxHeight','cameraFovDeg', ...
-    'axMax','azMax','vxMax','vzMax','reacquireInnerRatio','reacquireHoldTime', ...
-    'touchdownHeight','touchdownSpeedX','touchdownSpeedZ','controller', ...
-    'pnGain','pnApproachSpeed','pnApproachGain','pnClosingGain', ...
-    'pnSpeedMatchGain','pnRecoveryGain','pnVerticalGain','pnHeightGain', ...
-    'pnMinClosing','pnMinRange', ...
-    'kpX','kdX','kpZ','kdZ','climbSpeed','descentSpeed','nearPadDescentGain', ...
-    'alignPositionTol','alignSpeedTol'};
-algorithmVersion=landing2d.rl.algorithmVersion();
-% Graph-only implementation revisions must not invalidate an unchanged
-% baseline PPO checkpoint. The widened parameter-matched R-GAT was trained
-% with v3.6. The moderately reliability-weighted observation graph is v3.19,
-% while the
-% common environment/PPO path remains v3.5.
-if isfield(c,'graphState') && ~strcmp(c.graphState.stateRepresentation,'baseline')
-    algorithmVersion='minimal-observation-direct-rgat-v3.19';
-end
-signature = struct('algorithmVersion',algorithmVersion, ...
-    'rl',c.rl);
-if isfield(c,'experiment') && isfield(c.experiment,'enabled') && c.experiment.enabled
-    signature.experiment = c.experiment;
-    if isfield(signature.experiment,'currentScenario')
-        signature.experiment = rmfield(signature.experiment,'currentScenario');
-    end
-end
-for i = 1:numel(fields)
-    signature.(fields{i}) = c.(fields{i});
-end
-% 학습 결과에 영향을 주지 않는 표시 설정은 지문에서 제외.
+% TRAININGSIGNATURE  Fingerprint deciding whether a saved policy fits configuration C.
+% Everything that can change a trained policy enters: the algorithm version,
+% the PPO settings (rl, including the training seed and checkpoint name), the
+% experiment contract (environment, sensors, reward, scenario family, seed
+% manifest), the state representation (graphState, including the relation
+% permutation of the shuffled arm) and the action/contact constants. Display
+% and execution-only settings do not (verbose, retrain; parallel settings are
+% ignored by landing2d.rl.signatureMatches). Evaluation settings (c.evaluation)
+% are outside the signature, so a new evaluation never invalidates a run.
+signature = struct('algorithmVersion',landing2d.rl.algorithmVersion(),'rl',c.rl);
 signature.rl.verbose = false;
 signature.rl.retrain = false;
-% 조기 종료를 끈 상태는 이 항목이 생기기 전과 학습이 완전히 같으므로 지문에서 뺍니다.
-% 그래야 예전에 저장한 정책 파일을 그대로 다시 쓸 수 있습니다.
-if isfield(signature.rl,'earlyStopPatience') && signature.rl.earlyStopPatience == 0
-    signature.rl = rmfield(signature.rl,'earlyStopPatience');
+signature.experiment = c.experiment;
+if isfield(signature.experiment,'currentScenario')
+    signature.experiment = rmfield(signature.experiment,'currentScenario');
 end
-% 상태 표현은 기준 모델일 때 지문에 넣지 않습니다. 그래야 이 항목이 생기기 전에
-% 저장해 둔 기준 모델 정책 파일을 그대로 다시 쓸 수 있습니다.
-if isfield(c,'graphState') && ~strcmp(c.graphState.stateRepresentation,'baseline')
-    signature.graphState = c.graphState;
-    signature.graphState.policyFile = '';
+signature.graphState = c.graphState;
+signature.graphState.policyFile = '';
+for name = {'padHalfLength','axMax','azMax','vxMax','vzMax'}
+    signature.(name{1}) = c.(name{1});
 end
 end
