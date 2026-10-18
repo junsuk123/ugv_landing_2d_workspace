@@ -1,3 +1,0 @@
-MethodId,Method,StateRepresentation,TrainSeed,GraphSeed,GraphHash,RelationalPathActive,MeanReturn,SuccessRate,UnsafeRate,SafeAbortRate,TimeoutRate,ParameterCount,InferenceMs
-ppo,일반 PPO,baseline,1,NaN,,1,-37.4957674511003,0,1,0,0,6101,0.0914054
-onto_rgat_ppo,온톨로지-RGAT PPO,context_rgat,1,NaN,f1dfbd3428c4cebf439d714d968c078df56dcb4e08daa4c31fadb69aa07b17fa,1,-12.8959724353464,0,0,0,1,6101,0.37917

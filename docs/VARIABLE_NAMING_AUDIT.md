@@ -4,7 +4,7 @@
 
 - 기준 커밋: `59af798` (`main`). 작업 브랜치: `naming-incsl-terms`
 - 대상: 추적 중인 MATLAB 파일 170개 전부. 디스크에는 174개가 있는데, 나머지 4개는 gitignore된 `results/optimization/`의 미추적 스크립트라 수정하지 않았다
-- 결과: 34개 파일, 약 155개 식별자 변경(P0 145 · P1 7 · P2 3). 같은 날 2차 결정(§9)에서 스키마 라벨 6개와 evidence 필드 1개를 더 바꾸고 문서 서술 2곳을 바로잡았다. 보류 12건(§4)
+- 결과: 34개 파일, 약 155개 식별자 변경(P0 145 · P1 7 · P2 3). 같은 날 2차 결정(§8)에서 스키마 라벨 6개와 evidence 필드 1개를 더 바꾸고 문서 서술 2곳을 바로잡았다. 보류 12건(§4). 실행되지 않던 보조 코드 37개 파일은 삭제했다(§9)
 
 ## 1. 기준과 방법
 
@@ -20,7 +20,7 @@
 - 루프 지표 `i`/`j`/`k`, 설정 구조체 `c`/`cfg`/`rl`/`gs`
 - 계약 파일: `+rl/computeReward.m`, `+environment/step.m`·`reset.m`·`evaluateTermination.m`·`updateDecisionContext.m`·`perceptionView.m`, `+dynamics/*`. AGENTS.md의 "공통 reward·environment·action·termination 변경 금지"를 보수적으로 지켜 열지 않았다(§4).
 - 설정 필드 전체: `c.rl`·`c.experiment`·`c.graphState`는 학습 서명에 들어가므로 이름을 바꾸면 모든 체크포인트가 무효가 된다.
-- 실행되지 않는 보조 코드(`+consistency`·`+livetest`·`+unlink`·`.codex-build`): §7. R-GAT cache 필드 참조 한 줄만 일관성을 위해 고쳤다.
+- 실행되지 않는 보조 코드(`+consistency`·`+livetest`·`+unlink`·`.codex-build`): 이름 변경 대상에서 뺐다(§7 E2). R-GAT cache 필드 참조 한 줄만 일관성을 위해 고쳤고, 이후 이 코드는 모두 삭제했다(§9).
 
 ## 2. 핵심 발견
 
@@ -30,7 +30,7 @@
 | F2 | 정책 입력(`S`, `state`, `X`)이 환경 상태로 읽혔다. 같은 파일 안에서 `state`가 물리 상태, Adam 상태(`policyState`), 정책 입력을 모두 뜻했다. `ppoTrain`의 `X`는 일반 PPO에서 12차원 $o_t$인데, NOTATION의 $X_t$는 노드 특징이다. | T15-0035(관측) vs T15-0129(상태), T15-0083·T15-0025(옵티마이저) | `policyInput`, `policyOptimizerState` 등 |
 | F3 | `relationForward`의 입력 이름이 `H`였다. 그러나 `encoderForward`와 문서에서 `H`는 출력 노드 상태이고, 입력은 노드 특징 $X_t$다. | T16-0022(노드 특징=입력) vs T15-0113(노드 임베딩=출력) | 입력 `X`, 역전파 출력 `dX` |
 | F4 | attention 단계 이름이 불분명했다. `raw`는 leaky ReLU 이전, `score`는 이후(softmax 입력), `alpha`는 softmax 정규화 계수다. | T15-0250(로짓=softmax 입력), T15-0326(어텐션 계수=softmax 정규화, '어텐션 점수'는 정규화 전) | `attentionPreActivation` → `attentionScore` → `alpha`. 사양서 제안 `attentionLogits`는 DB 정의와 맞지 않아 쓰지 않았다 |
-| F5 | **N3 `crossTrack` 특징은 미터 단위 aim error $e_x-mh$가 아니다.** 정규화된 $o_t$ 성분의 결합 $s_x(e_x)-m\,s_h(h)$이고, 축마다 척도(3 m, 8 m)가 달라 광축 기준점에서도 0이 아니다. 예: $h=6$ m, $e_x=mh=3.46$ m에서 $0.536-0.577\times0.429=0.288$. | T19-0164(횡방향 오차) | 지역 변수 `normalizedCrossTrack`과 주석. 2차 결정(§9)에서 스키마 라벨·evidence 필드도 바꾸고 EXPERIMENT_DESIGN의 서술을 바로잡았다 |
+| F5 | **N3 `crossTrack` 특징은 미터 단위 aim error $e_x-mh$가 아니다.** 정규화된 $o_t$ 성분의 결합 $s_x(e_x)-m\,s_h(h)$이고, 축마다 척도(3 m, 8 m)가 달라 광축 기준점에서도 0이 아니다. 예: $h=6$ m, $e_x=mh=3.46$ m에서 $0.536-0.577\times0.429=0.288$. | T19-0164(횡방향 오차) | 지역 변수 `normalizedCrossTrack`과 주석. 2차 결정(§8)에서 스키마 라벨·evidence 필드도 바꾸고 EXPERIMENT_DESIGN의 서술을 바로잡았다 |
 | F6 | MATLAB 내장 함수를 가리는 변수가 있었다: `norm`·`get`(observationVectorGraph), `det`(detectMarkers), `gamma`(computeAdvantage), `log`(rolloutEpisodeV2), `text`(plotTrajectories). | 공학 권고 | 모두 이름 변경 |
 | F7 | `captureRate`는 결정마다 마커 측정 갱신(`visionUpdated`)이 있었던 비율이다. 카메라 촬영률이 아니다. | T03-0001(측정 갱신) | 지역 변수 `markerUpdateRate`, `markerUpdateCount`. 저장 필드는 보류(§4 D2) |
 | F8 | `schema.riskNodes`는 LandingCondition 노드를 가리킨다. 이 노드는 위험 예측도 guard도 아니다(AGENTS.md 계약). | 공학 권고 | `landingConditionNodes`로 변경. 읽는 코드가 없음을 확인했다(§6) |
@@ -78,7 +78,7 @@
 | 〃 (P1) | cache 필드 `H`,`Hf`,`HW`,`raw`,`msgs`,`relationRaw` → `X`,`Xf`,`projected`,`attentionPreActivation`,`edgeMessages`,`fixedRelationPreActivation` | 순전파→역전파 전달용. 저장되지 않음. `alpha`·`diagnosticEdgeKeep`·`originalAlpha`는 유지 | — |
 | relationBackward.m | 출력 `dH` → `dX`, 그리고 `dWeighted`,`dMsgs`,`dHWall`,`dScore`,`dRaw`,`dRelationScore`,`dAall`,`dBall`,`dan`,`dbn`,`HWr`,`dHWr`,`dHf` → 순전파 이름에 맞춘 `d*` | 역전파 중간값 | — |
 | 〃 | 주석: 존재하지 않는 `tests/test_rgat_gradients.m` → selfTest relation-attention | 문서 오류 수정 | — |
-| +livetest/cutSelfTest.m | `c.msgs` → `c.edgeMessages` | cache 필드 변경을 따라감(실행 불가 코드, §7) | — |
+| +livetest/cutSelfTest.m | `c.msgs` → `c.edgeMessages` | cache 필드 변경을 따라감(실행 불가 코드, §7). 이후 파일 삭제(§9) | — |
 
 ### 3.3 강화학습 (`src/algorithms/+landing2d/+rl`)
 
@@ -137,10 +137,10 @@
 | D4 | `history.nodeMean` / `info.nodeMean` → `firstNodeFeatureMean` | 노드별 첫 특징의 평균. 저장됨 | D2와 같은 방식 |
 | D5 | `result.visible` → `visionUpdated` (`rollout_result_v2`, `results.mat` factorial.display) | 저장 결과·그림 입력 | 결과 스키마 버전 변경 필요 |
 | D6 | `results.mat` `factorial.display.*.command` → `requestedAcceleration` | 저장 결과. plotCaseTimeSeries가 읽는다 | 결과 재생성 시 함께 변경 |
-| D7 | ~~스키마 라벨 `'crossTrack'`, `semanticEvidence.crossTrack` → `normalizedCrossTrack`~~ | **해결(§9)** | — |
-| D8 | `typeId` (값 = node/N) | **유지 결정(§9).** 의미를 주석과 TOSM7 문서에 명시했다 | — |
-| D9 | `schema.goalNode`, `T.goalNode` (= LandingCondition, 읽는 코드 없음) | **유지 결정(§9).** 주석으로 레거시 별칭임을 명시했다 | — |
-| D10 | ~~LandingCondition 라벨 `positionRatio` 등 → `boundedPositionRatio` 등~~ | **해결(§9)** | — |
+| D7 | ~~스키마 라벨 `'crossTrack'`, `semanticEvidence.crossTrack` → `normalizedCrossTrack`~~ | **해결(§8)** | — |
+| D8 | `typeId` (값 = node/N) | **유지 결정(§8).** 의미를 주석과 TOSM7 문서에 명시했다 | — |
+| D9 | `schema.goalNode`, `T.goalNode` (= LandingCondition, 읽는 코드 없음) | **유지 결정(§8).** 주석으로 레거시 별칭임을 명시했다 | — |
+| D10 | ~~LandingCondition 라벨 `positionRatio` 등 → `boundedPositionRatio` 등~~ | **해결(§8)** | — |
 | D11 | 노드 이름 `VisionQuality` 등, 관계 이름 | 그래프 해시에 들어가 R-GAT 체크포인트 검증(`verifyCheckpointGraph`)이 실패한다. VisionQuality는 마커 갱신 여부·경과시간일 뿐 보정된 품질이 아니다(문서가 이미 그렇게 명시) | 바꾸지 않음 |
 | D12 | 방법 ID, `stateRepresentation` 값, 설정 필드(`bearingNoiseStd`, `confidenceFloor`, `perturbation.*Dropout*` 등) | 학습 서명. 바꾸면 모든 체크포인트가 무효 | 바꾸지 않음 |
 | D13 | "dropout" 용어 | F10 | 문서에서는 "마커 검출 누락"으로 쓰기를 권장 |
@@ -183,15 +183,15 @@
 
 ## 7. 별도 보고: 기존 결함 (이번 작업에서 고치지 않음)
 
-- **E1. crossTrack 특징의 의미(F5). → 해결(§9).** EXPERIMENT_DESIGN_KO.md §7의 learnability 가설은 "R-GAT 입력에는 보상의 추종 목표인 aim error(`crossTrack`)가 … 파생 특징으로 들어가지만"이라고 썼다. 실제 특징은 정규화 좌표의 결합이라 aim error와 같지 않고, 기준점에서 0도 아니다.
-- **E2. 실행 불가 보조 코드.** `+consistency`(15개 파일), `+livetest`(7개), `+unlink`(8개), `.codex-build/*.m`(2개)는 run·run_check·run_scenario에서 호출되지 않는다. 이들은 존재하지 않는 함수 12개를 호출한다: `landing2d.paper.*` 3개, `probe.buildBank`, `rl.probeActions`, `rl.normalizeAgent`, `util.resolvedConfig`, `viz.graphLayout`, `metrics.{admissibleActions, behaviorValidity, validityContext, trajectorySpatialStatistics}`. 없는 설정 필드(`c.consistency`, `registry.ablations`)도 쓴다. `livetest/infer.m`은 `encoderForward`(현재 4개 인자)를 6개 인자로, `policyAction`을 6개, `valueForward`를 3개 인자로 호출한다. 보관할지 삭제할지는 결정이 필요하다. AGENTS.md 소스 구조에도 이 패키지들이 없다.
+- **E1. crossTrack 특징의 의미(F5). → 해결(§8).** EXPERIMENT_DESIGN_KO.md §7의 learnability 가설은 "R-GAT 입력에는 보상의 추종 목표인 aim error(`crossTrack`)가 … 파생 특징으로 들어가지만"이라고 썼다. 실제 특징은 정규화 좌표의 결합이라 aim error와 같지 않고, 기준점에서 0도 아니다.
+- **E2. 실행 불가 보조 코드. → 삭제(§9).** `+consistency`(15개 파일), `+livetest`(7개), `+unlink`(8개), `.codex-build/*.m`(2개)는 run·run_check·run_scenario에서 호출되지 않는다. 이들은 존재하지 않는 함수 12개를 호출한다: `landing2d.paper.*` 3개, `probe.buildBank`, `rl.probeActions`, `rl.normalizeAgent`, `util.resolvedConfig`, `viz.graphLayout`, `metrics.{admissibleActions, behaviorValidity, validityContext, trajectorySpatialStatistics}`. 없는 설정 필드(`c.consistency`, `registry.ablations`)도 쓴다. `livetest/infer.m`은 `encoderForward`(현재 4개 인자)를 6개 인자로, `policyAction`을 6개, `valueForward`를 3개 인자로 호출한다. AGENTS.md 소스 구조에도 이 패키지들이 없었다.
 - **E3. `.vscode/tasks.json`.** JSON 문법 오류가 있다("Temporary Git status" 객체가 Smoke 작업 중간에 끼어 있음). 또 runPipeline이 거부하는 옛 옵션(`executionMode`, `spatialDimension`, `generatePaper`, `showLiveDashboard`)을 쓴다.
 - **E4. 옛 차원 주석.** reset.m(104행), replaySensing.m(11행), selfTest.m checkCommonObservation(445행)이 관측을 "24-D"로 적는다. 현재는 12차원이다.
 - **E5. 사용되지 않는 인자.** `computeReward(…,previousNorm)`의 마지막 인자는 쓰이지 않는다(계약 파일이라 손대지 않음).
 - **E6. 한글 문서 표기.** COMMON_OBSERVATION_KO.md 등은 `visionUpdated`를 "영상 보정 여부"라고 쓴다. DB 원칙(update → 갱신, T03-0001)에 따르면 "영상 측정 갱신 여부"가 맞다.
 - **E7. bearing.** DB의 방위각(T08-0064)은 수평면 각이다. 이 코드의 bearing은 x–z 평면에서 광축으로부터 잰 각이다. 이름은 카메라 관례대로 유지했고, 처음 나올 때 정의를 밝히기를 권한다.
 
-## 9. 2차 결정 (2026-10-19, 사용자 위임)
+## 8. 2차 결정 (2026-10-19, 사용자 위임)
 
 §4의 라벨 보류 항목과 F5 서술은 사용자가 판단을 위임했다. 다음과 같이 정했다.
 
@@ -206,3 +206,19 @@
 | aimError.m 주석 | 같은 정정 | — |
 
 검증(실제 MATLAB R2025b): `run_check` 14/14 PASS, smoke 통과(contrast 출력 줄 변경 전과 동일). 변경 전 기준과의 수치 회귀는 21,780개 값을 비교했고 차이 20건은 모두 의도한 메타데이터다(M2·M3 각각 `riskNodes`→`landingConditionNodes`와 `nodeFeatureNames` 셀 {7,13,14,17,21,24,28,35}). semantic evidence 값, 노드 특징, 그래프 해시, 학습 서명을 포함한 그 밖의 값은 비트 단위로 같다.
+
+## 9. 보조 코드 삭제 (2026-10-19, 사용자 결정)
+
+§7 E2에서 실행 불가로 확인한 코드를 삭제했다. 내용은 git 기록(커밋 `7d5b93f`까지)에 남아 있다.
+
+| 경로 | 파일 수 | 실행 불가 근거 |
+|---|---:|---|
+| `src/orchestration/+landing2d/+consistency` | 15 | 없는 함수(`probe.buildBank`, `rl.probeActions`, `rl.normalizeAgent`, `util.resolvedConfig`, `metrics.*` 3개)와 없는 설정(`c.consistency`, `registry.ablations`) |
+| `src/orchestration/+landing2d/+livetest` | 7 | `encoderForward`·`policyAction`·`valueForward`를 현재와 다른 인자 수로 호출, `viz.graphLayout` 없음 |
+| `src/orchestration/+landing2d/+unlink` | 8 | `landing2d.paper.*`·`viz.graphLayout` 없음, 위 livetest에 의존 |
+| `.codex-build` | 7 | `.m` 2개는 `landing2d.paper.*`·`metrics.trajectorySpatialStatistics` 호출. `build_presentation.ps1`은 없는 `docs/assets/paper/...` 폴더를 읽음. 나머지는 옛 설계의 smoke 출력과 livetest 미리보기 그림 |
+
+- 남은 참조: run·run_check·run_scenario와 남은 소스·문서 어디에도 없다. 추적 중인 MATLAB 파일은 170개에서 138개로 줄었다.
+- gitignore된 `results/optimization/`의 미추적 스크립트 4개 중 일부가 `landing2d.consistency`를 호출한다. 저장소 밖 생성물이라 손대지 않았다.
+- 메인 코드에 남은 선택 기능: `relationForward`의 `diagnosticEdgeKeep` 인자(메인 파이프라인은 항상 빈 값)와 그 역전파 금지 assert, `evaluateTrajectory`의 `liveAccelerationPulses` 필드(없으면 원래 경로). 둘 다 꺼져 있으면 수치에 영향이 없다. 지우려면 함수 시그니처와 시나리오 파일을 바꿔야 하므로 이번에는 남겼다.
+- 검증(실제 MATLAB R2025b): `run_check` 14/14 PASS, smoke 통과(contrast 출력 줄 변경 전과 동일). 삭제 직전 상태와의 수치 회귀는 21,782개 값, 차이 0이다.
