@@ -37,16 +37,16 @@ end
 
 function [row,compact] = one(agent,c,seed,spec,identity,runId,keep)
 options = struct('deterministic',true,'run',runId);
-window = [];
+eventWindow = [];
 if ~isempty(spec)
     if ~isempty(spec.scenario), options.scenario = spec.scenario; end
     if ~isempty(spec.sensorEvents), options.sensorEvents = spec.sensorEvents; end
     if ~isempty(spec.sensorNoiseScale), options.sensorNoiseScale = spec.sensorNoiseScale; end
-    window = spec.eventWindow;
+    eventWindow = spec.eventWindow;
 end
 [result,traj] = landing2d.rl.rolloutEpisodeV2(agent,c,seed,options);
 identity.EpisodeSeed = seed;
-row = landing2d.evaluation.episodeMetrics(result,traj,c,identity,window);
+row = landing2d.evaluation.episodeMetrics(result,traj,c,identity,eventWindow);
 row.Cell = cellLabel(row);
 compact = [];
 if keep
@@ -56,7 +56,7 @@ if keep
         'vzDrone',result.vzDrone,'theta',result.theta, ...
         'visible',result.visible,'terminalReason',result.terminalReason, ...
         'scenario',result.scenario,'sensorEvents',events, ...
-        'command',traj.requestedAcceleration);
+        'command',traj.requestedAcceleration);   % requested acceleration [m/s^2] (results.mat name)
 end
 end
 

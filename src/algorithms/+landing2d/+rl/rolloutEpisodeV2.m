@@ -1,10 +1,19 @@
 function [result,traj] = rolloutEpisodeV2(agent,c,seed,opts)
 % ROLLOUTEPISODEV2  PPO rollout through the versioned reset/step contract.
-% traj.time are the policy decision timestamps; traj.actorMean is the
-% pre-tanh actor mean (diagnostic; equals traj.command in deterministic runs);
-% traj.requestedAcceleration is tanh(command) times the axis limits before the
-% supervisor; traj.appliedAccelerationIntervalMean is the decision-interval
-% average of the supervisor-applied command (not a high-rate command).
+% traj.time are the policy decision timestamps. Three action representations
+% are kept apart (field names are the rollout_v2 / command_log_v1 schema):
+%   traj.command                pre-tanh Gaussian action sample (unbounded,
+%                               dimensionless; equals traj.actorMean in
+%                               deterministic runs) - not a physical command
+%   traj.normalizedAction       tanh(traj.command), in [-1,1]
+%   traj.requestedAcceleration  normalizedAction times the axis limits [m/s^2]
+%                               before the supervisor
+% traj.actorMean is the pre-tanh actor mean (diagnostic); traj.state is the
+% policy input (12-D o_t or its TOSM node features); traj.value is the critic
+% estimate V; traj.captureRate is the fraction of decisions with a marker
+% measurement update (visionUpdated); traj.appliedAccelerationIntervalMean
+% is the decision-interval average of the supervisor-applied command (not a
+% high-rate command).
 % result.contact is the evaluation-only pre-impact state of a contact
 % termination (xError, relativeVx, relativeVz, pitch, pitchRate; empty struct
 % otherwise). opts.commandLog = true adds result.commandLog (landing2d.rl.rolloutEpisodeV2
@@ -48,33 +57,33 @@ traj = struct('time',zeros(1,capacity),'observation',zeros(c.rl.observationDim,c
     'safetyIntervened',false(1,capacity),'landingInhibited',false(1,capacity), ...
     'count',0,'bootstrap',0, ...
     'captureRate',0,'return',0,'graphValues',[],'graphStates',[]);
-log = initializeLog(capacity+1,env);
-detections = 0;
+truthLog = initializeLog(capacity+1,env);
+markerUpdateCount = 0;
 if opts.commandLog
     decisionLog = initializeDecisionLog(capacity,resetInfo);
 end
 while ~env.episodeStatus.terminated && traj.count < capacity
-    state = policyState(observation,env,c,agent.encoderSpec.mode);
+    policyInput = buildPolicyInput(observation,env,c,agent.encoderSpec.mode);
     % Landing authorization in force during this decision (environment record,
     % not a planar policy input).
     landingInhibited = env.episodeStatus.landingInhibited;
     decisionStatus = env.episodeStatus;
     decisionTime = env.time;
-    [u,logProbability,mu] = landing2d.rl.policyAction(agent,state,opts.rs, ...
-        opts.deterministic);
-    aNorm = tanh(u);
-    value = landing2d.rl.valueForward(agent,state);
+    [preTanhAction,logProbability,mu] = landing2d.rl.policyAction(agent,policyInput, ...
+        opts.rs,opts.deterministic);
+    normalizedAction = tanh(preTanhAction);
+    value = landing2d.rl.valueForward(agent,policyInput);
     [env,nextObservation,reward,terminated,truncated,stepInfo] = ...
-        landing2d.environment.step(env,aNorm);
+        landing2d.environment.step(env,normalizedAction);
     k = traj.count+1;
     traj.count = k;
     traj.time(k) = decisionTime;
     traj.observation(:,k) = observation;
-    traj.state(:,k) = state;
+    traj.state(:,k) = policyInput;
     traj.nextObservation(:,k) = nextObservation;
-    traj.command(:,k) = u;
+    traj.command(:,k) = preTanhAction;
     traj.actorMean(:,k) = mu;
-    traj.normalizedAction(:,k) = aNorm;
+    traj.normalizedAction(:,k) = normalizedAction;
     traj.requestedAcceleration(:,k) = stepInfo.requestedAcceleration;
     traj.appliedAccelerationIntervalMean(:,k) = stepInfo.appliedAccelerationIntervalMean;
     if opts.commandLog
@@ -91,14 +100,14 @@ while ~env.episodeStatus.terminated && traj.count < capacity
         c.experiment.reward.discountTimeConstant);
     traj.safetyIntervened(k) = stepInfo.supervisorIntervened;
     traj.landingInhibited(k) = landingInhibited;
-    detections = detections+double(visionAvailable(env));
-    log = appendLog(log,k+1,env,stepInfo);
+    markerUpdateCount = markerUpdateCount+double(visionUpdated(env));
+    truthLog = appendLog(truthLog,k+1,env,stepInfo);
     observation = nextObservation;
 end
 if ~env.episodeStatus.terminated && traj.count >= capacity
     traj.truncated(traj.count) = true;
-    finalState = policyState(observation,env,c,agent.encoderSpec.mode);
-    traj.bootstrap = landing2d.rl.valueForward(agent,finalState);
+    finalPolicyInput = buildPolicyInput(observation,env,c,agent.encoderSpec.mode);
+    traj.bootstrap = landing2d.rl.valueForward(agent,finalPolicyInput);
     env.episodeStatus.truncated = true;
 else
     traj.bootstrap = 0;
@@ -112,22 +121,24 @@ for i = 1:numel(matrixFields), traj.(matrixFields{i}) = traj.(matrixFields{i})(:
 for i = 1:numel(rowFields), traj.(rowFields{i}) = traj.(rowFields{i})(1:n); end
 traj.rewardComponents = traj.rewardComponents(1:n);
 traj.return = sum(traj.reward);
-traj.captureRate = detections/max(n,1);
+traj.captureRate = markerUpdateCount/max(n,1);
+% result.visible is the per-decision marker measurement-update flag
+% (visionUpdated), result.captureRate its mean (rollout_result_v2 names).
 result = struct('schemaVersion','rollout_result_v2','seed',seed, ...
     'scenario',env.scenario,'status',env.episodeStatus.terminalReason, ...
     'terminated',env.episodeStatus.terminated,'truncated',env.episodeStatus.truncated, ...
-    'return',traj.return,'captureRate',traj.captureRate,'time',log.time(1:n+1), ...
-    'xDrone',log.xDrone(1:n+1),'zDrone',log.zDrone(1:n+1), ...
-    'vxDrone',log.vxDrone(1:n+1),'vzDrone',log.vzDrone(1:n+1), ...
-    'theta',log.theta(1:n+1),'pitchRate',log.pitchRate(1:n+1), ...
-    'xPad',log.xPad(1:n+1),'vxPad',log.vxPad(1:n+1), ...
-    'visible',log.visible(1:n+1),'supervisor',log.supervisor(1:n+1), ...
+    'return',traj.return,'captureRate',traj.captureRate,'time',truthLog.time(1:n+1), ...
+    'xDrone',truthLog.xDrone(1:n+1),'zDrone',truthLog.zDrone(1:n+1), ...
+    'vxDrone',truthLog.vxDrone(1:n+1),'vzDrone',truthLog.vzDrone(1:n+1), ...
+    'theta',truthLog.theta(1:n+1),'pitchRate',truthLog.pitchRate(1:n+1), ...
+    'xPad',truthLog.xPad(1:n+1),'vxPad',truthLog.vxPad(1:n+1), ...
+    'visible',truthLog.visible(1:n+1),'supervisor',truthLog.supervisor(1:n+1), ...
     'terminalReason',env.episodeStatus.terminalReason, ...
     'landingTime',terminalTime(env,'SUCCESS'),'failureTime',failureTime(env), ...
     'contact',env.episodeStatus.contact, ...
     'resetInfo',resetInfo,'commandLog',[]);
 if opts.commandLog
-    result.commandLog = buildCommandLog(traj,decisionLog,log,result,manifest,env,c, ...
+    result.commandLog = buildCommandLog(traj,decisionLog,truthLog,result,manifest,env,c, ...
         seed,opts,agent.encoderSpec.mode);
 end
 end
@@ -226,12 +237,12 @@ for i = 1:m
 end
 end
 
-function state = policyState(observation,env,c,mode)
+function policyInput = buildPolicyInput(observation,env,c,mode)
 % Plain PPO: the 12-D common observation. R-GAT arms: the TOSM graph of it.
 if strcmp(mode,'baseline')
-    state = observation;
+    policyInput = observation;
 else
-    state = landing2d.graphstate.environmentGraph(env,c,observation);
+    policyInput = landing2d.graphstate.environmentGraph(env,c,observation);
 end
 end
 
@@ -240,25 +251,28 @@ out = base; keys = fieldnames(in);
 for i = 1:numel(keys), out.(keys{i}) = in.(keys{i}); end
 end
 
-function log = initializeLog(n,env)
+function truthLog = initializeLog(n,env)
+% Evaluation-only physical truth per decision boundary (plus the update flag).
 fields = {'time','xDrone','zDrone','vxDrone','vzDrone','theta','pitchRate', ...
     'xPad','vxPad','visible','supervisor'};
-for i = 1:numel(fields), log.(fields{i}) = zeros(1,n); end
-log = appendLog(log,1,env,struct('supervisorIntervened',false));
+for i = 1:numel(fields), truthLog.(fields{i}) = zeros(1,n); end
+truthLog = appendLog(truthLog,1,env,struct('supervisorIntervened',false));
 end
 
-function log = appendLog(log,k,env,info)
-log.time(k)=env.time; log.xDrone(k)=env.physicalState.x;
-log.zDrone(k)=env.physicalState.z; log.vxDrone(k)=env.physicalState.vx;
-log.vzDrone(k)=env.physicalState.vz; log.theta(k)=env.physicalState.theta;
-log.pitchRate(k)=env.physicalState.pitchRate; log.xPad(k)=env.pad.x;
-log.vxPad(k)=env.pad.vx; log.visible(k)=visionAvailable(env);
-log.supervisor(k)=info.supervisorIntervened;
+function truthLog = appendLog(truthLog,k,env,info)
+truthLog.time(k)=env.time; truthLog.xDrone(k)=env.physicalState.x;
+truthLog.zDrone(k)=env.physicalState.z; truthLog.vxDrone(k)=env.physicalState.vx;
+truthLog.vzDrone(k)=env.physicalState.vz; truthLog.theta(k)=env.physicalState.theta;
+truthLog.pitchRate(k)=env.physicalState.pitchRate; truthLog.xPad(k)=env.pad.x;
+truthLog.vxPad(k)=env.pad.vx; truthLog.visible(k)=visionUpdated(env);
+truthLog.supervisor(k)=info.supervisorIntervened;
 end
 
-function visible = visionAvailable(env)
-% Measured visibility of the marker-camera perception used by the policy.
-visible = env.commonObservation.ugv.visionUpdated;
+function updated = visionUpdated(env)
+% Whether the marker-camera UGV estimate received a measurement update
+% (PnP measurement accepted by the KF) at this decision; used as the
+% measured marker visibility.
+updated = env.commonObservation.ugv.visionUpdated;
 end
 
 function t = terminalTime(env,reason)

@@ -1,15 +1,16 @@
-function [advantage,target] = computeAdvantage(traj,rl)
+function [advantage,valueTarget] = computeAdvantage(traj,rl)
 % COMPUTEADVANTAGE  GAE(lambda). 마지막 상태 가치는 traj.bootstrap 사용.
 % 착륙/실패로 끝난 경우 bootstrap은 0입니다. 남은 유한 지평선의 흡수상태
 % 보상은 rolloutEpisode가 마지막 보상에 이미 합산합니다.
+% valueTarget = advantage + V(s): Critic 학습 목표(GAE 가치 목표)입니다.
 count = traj.count;
 advantage = zeros(1,count);
-running = 0;
+runningAdvantage = 0;
 for k = count:-1:1
     if isfield(traj,'discount') && numel(traj.discount)>=k
-        gamma = traj.discount(k);
+        discount = traj.discount(k);
     else
-        gamma = rl.gamma;
+        discount = rl.gamma;
     end
     if isfield(traj,'terminated') && traj.terminated(k)
         nextValue = 0;
@@ -21,9 +22,9 @@ for k = count:-1:1
         nextValue = traj.value(k+1);
         continuation = 1;
     end
-    delta = traj.reward(k)+gamma*nextValue-traj.value(k);
-    running = delta+gamma*rl.lambda*continuation*running;
-    advantage(k) = running;
+    delta = traj.reward(k)+discount*nextValue-traj.value(k);
+    runningAdvantage = delta+discount*rl.lambda*continuation*runningAdvantage;
+    advantage(k) = runningAdvantage;
 end
-target = advantage+traj.value;
+valueTarget = advantage+traj.value;
 end

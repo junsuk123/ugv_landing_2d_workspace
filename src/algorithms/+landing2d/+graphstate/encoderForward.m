@@ -1,7 +1,10 @@
-function [g,cache] = encoderForward(params,spec,S,head)
+function [g,cache] = encoderForward(params,spec,policyInput,head)
 % ENCODERFORWARD  State representation -> Actor/Critic input.
-%   S : [stateDim x B]  12-D o_t (baseline) or the flattened node features X_t
-%   g : [graphDim x B]  input of the policy/value MLP
+%   policyInput : [stateDim x B]  12-D o_t (baseline) or the flattened node
+%                 features X_t of the same o_t (an observation, not the
+%                 environment state)
+%   g           : [graphDim x B]  input of the policy/value MLP (graph
+%                 embedding g_t for context_rgat, o_t itself for baseline)
 % context_rgat, relation operators additive_v1: H = tanh(RGAT(X) + W0 X + b0)
 % per node. typed_v1: the 'propagate' edges (and self) form the additive
 % attention graph, the 'modulate' edges a second attention graph over the
@@ -13,12 +16,12 @@ function [g,cache] = encoderForward(params,spec,S,head)
 % informational: Actor and Critic have separate encoders.
 if nargin < 4 || isempty(head), head = 'policy'; end %#ok<NASGU>
 if strcmp(spec.mode,'baseline')
-    g = S;
+    g = policyInput;
     cache = struct('mode',spec.mode);
     return;
 end
-B = size(S,2); N = spec.nNodes; dh = spec.hiddenDim;
-X = reshape(S,spec.inDim,N,B);
+B = size(policyInput,2); N = spec.nNodes; dh = spec.hiddenDim;
+X = reshape(policyInput,spec.inDim,N,B);
 Xf = reshape(X,spec.inDim,N*B);
 local = reshape(params.W0*Xf+params.b0,dh,N,B);
 typed = isfield(spec,'relationOperators') && strcmp(spec.relationOperators,'typed_v1');

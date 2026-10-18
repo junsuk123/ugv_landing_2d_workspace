@@ -25,6 +25,9 @@ R-GAT 비교군(`onto_rgat_ppo`, `shuffled_rgat_ppo`)의 상태 표현이다. 12
 | N6 | `ViewMargin` | Implicit | $(\theta_{FOV}/2-|\hat\beta|)/(\theta_{FOV}/2)$, $\hat\beta/(\theta_{FOV}/2)$ |
 | N7 | `LandingCondition` | Implicit | $r/(1+r)$, $r$ = \|e_x\|, \|v_r\|, \|v_z\|, \|θ\|, \|θ̇\| ÷ 접지 한계 |
 
+- N2–N5의 값은 정규화된 $o_t$ 성분 $x/(\lvert x\rvert+s)$이다. 그래서 N3의 cross-track은 정규화 좌표에서 계산한
+  $s_x(e_x)-m\,s_h(h)$이고, 미터 단위 aim error $e_x-mh$와 같지 않으며 광축 기준점에서 0도 아니다. 코드의 지역 변수는
+  `normalizedCrossTrack`이다(`docs/VARIABLE_NAMING_AUDIT.md` F5). N6·N7은 역정규화한 미터·라디안 값으로 계산한다.
 - $\hat\beta$는 추정된 상대 위치와 기체 피치, 카메라 장착각으로 계산한다. 계산식은 `landing2d.sensing.projectPad`와 같다.
   이 값은 예상 시야 여유일 뿐 검출 결과가 아니므로 `VisionQuality`와 함께 읽는다.
 - `LandingCondition`은 현재 상태의 착륙 적합성을 나타내는 특징이다. 미래 접촉을 예측하지 않는다.

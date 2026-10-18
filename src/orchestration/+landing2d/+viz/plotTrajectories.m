@@ -76,11 +76,11 @@ end
 ylim(ax,limits);
 end
 
-function text = dropoutText(spec)
+function label = dropoutText(spec)
 e = spec.sensorEvents;
 if isfinite(e.dropoutStart)
-    text = sprintf('%.1f-%.1f s',e.dropoutStart,e.dropoutEnd);
+    label = sprintf('%.1f-%.1f s',e.dropoutStart,e.dropoutEnd);
 else
-    text = 'none';
+    label = 'none';
 end
 end

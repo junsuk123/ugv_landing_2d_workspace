@@ -8,10 +8,10 @@ if track.initialized
         +0.5*track.padAx*sensor.predictionHorizon^2;
     h = state.z-scenario.padHeight;
     futureTheta = state.theta+state.pitchRate*sensor.predictionHorizon;
-    fakeState = state; fakeState.x = 0; fakeState.z = h;
-    fakeState.theta = futureTheta;
-    fakePad = struct('x',futureEx,'z',0);
-    predicted = landing2d.sensing.projectPad(fakeState,fakePad,sensor);
+    predictedState = state; predictedState.x = 0; predictedState.z = h;
+    predictedState.theta = futureTheta;
+    predictedPad = struct('x',futureEx,'z',0);
+    predicted = landing2d.sensing.projectPad(predictedState,predictedPad,sensor);
     predictedBearing = finiteOrZero(predicted.bearing);
     predictedMargin = finiteOrZero(predicted.fovMargin);
 else

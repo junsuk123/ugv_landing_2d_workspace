@@ -23,3 +23,16 @@
 | $m,p$ | UGV 운동 요인(0 CV, 1 CA), 관측 요인(0 정상, 1 누락) |
 | $I_L=L_{11}-L_{10}-L_{01}+L_{00}$ | 2×2 사례의 상호작용 (S4−S3−S2+S1) |
 | $\Delta v,\delta e_x$ | 초기 상대속도, 광축 기준점 대비 초기 위치 편차 |
+
+## 코드 식별자 대응 (2026-10-19)
+
+| 기호 | 코드 식별자 | 비고 |
+|---|---|---|
+| $o_t$ | `observationVector`, 정책 입력 `policyInput` | 그래프 비교군의 `policyInput`은 $X_t$를 평탄화한 값이다. 둘 다 관측이며 환경 상태가 아니다 |
+| $X_t$ | `X` (R-GAT 입력 노드 특징) | 학습된 노드 임베딩이 아니다. 노드 상태는 `H`다 |
+| $\alpha_{ij}^{(r)}$ | `alpha` | softmax 이전 단계는 `attentionPreActivation` → `attentionScore` |
+| $g_t$ | `g` | — |
+| tanh 이전 가우시안 표본 | `preTanhAction` (평균 `mu`), 저장 필드 `traj.command` | 범위 없는 무차원 값. 물리 명령이 아니다 |
+| $u_t\in[-1,1]^2$ | `normalizedAction` $=\tanh(\cdot)$ | — |
+| $a_t$ | `requestedAcceleration` $=$ 한계 × `normalizedAction` [m/s²] | direct-policy에서는 요청값과 적용값이 같다 |
+| $e_{aim}=e_x-mh$ | `aimError` (평가) | TOSM N3 특징 `normalizedCrossTrack`은 정규화 좌표의 결합이라 이 값과 같지 않다 |

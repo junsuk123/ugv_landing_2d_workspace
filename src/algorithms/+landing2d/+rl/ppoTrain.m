@@ -29,47 +29,57 @@ gs = c.graphState;
 % however many samples each collects; minibatch shuffles use RS.
 episodeRs = RandStream('threefry','Seed',rl.seed+rl.episodeStreamSeedOffset);
 seedRange = double(c.experiment.manifest.trainEpisodeSeedRange);
-policyState = landing2d.util.adamInit(policyCore(agent));
-valueState = landing2d.util.adamInit(valueCore(agent));
-policyEncoderState = landing2d.util.adamInit(agent.policy.encoder);
-valueEncoderState = landing2d.util.adamInit(agent.value.encoder);
+% Adam optimizer states (moments), not environment or policy-input states.
+policyOptimizerState = landing2d.util.adamInit(policyCore(agent));
+valueOptimizerState = landing2d.util.adamInit(valueCore(agent));
+policyEncoderOptimizerState = landing2d.util.adamInit(agent.policy.encoder);
+valueEncoderOptimizerState = landing2d.util.adamInit(agent.value.encoder);
 patience = 0;
 if isfield(rl,'earlyStopPatience'), patience = rl.earlyStopPatience; end
-environmentSteps = 0; episodes = 0; wall = tic; stagnant = 0;
+environmentSteps = 0; episodes = 0; wall = tic; evaluationsWithoutImprovement = 0;
 window = emptyWindow();
-[~,score,info] = landing2d.rl.evaluateV2(agent,c,[]);
-history = historyRow(0,score,info,NaN,NaN,0,0,0,windowDiagnostics(window));
-best = agent; bestScore = score; bestSelection = info.selectionScore; bestIndex = 1;
+% validationReturn: mean episode return on the validation episodes;
+% info.selectionScore: the outcome-ordered score that selects the checkpoint.
+[~,validationReturn,info] = landing2d.rl.evaluateV2(agent,c,[]);
+history = historyRow(0,validationReturn,info,NaN,NaN,0,0,0,windowDiagnostics(window));
+best = agent; bestValidationReturn = validationReturn;
+bestSelectionScore = info.selectionScore; bestIndex = 1;
 if rl.verbose
     fprintf('  [INIT] return %8.2f | select %8.2f | landing %3.0f%%\n', ...
-        score,info.selectionScore,100*info.landingRate);
+        validationReturn,info.selectionScore,100*info.landingRate);
 end
 for iteration = 1:rl.ppoIterations
     episodeSeed = randi(episodeRs,seedRange,rl.episodesPerIteration,1);
-    state = cell(rl.episodesPerIteration,1); command = state;
-    logProbability = state; advantage = state; target = state;
+    episodePolicyInput = cell(rl.episodesPerIteration,1); episodePreTanhAction = episodePolicyInput;
+    episodeLogProbability = episodePolicyInput; episodeAdvantage = episodePolicyInput;
+    episodeValueTarget = episodePolicyInput;
     episodeReturn = zeros(rl.episodesPerIteration,1);
     episodeSuccess = false(rl.episodesPerIteration,1);
     % Each episode uses its own seeded stream, so serial and parallel
     % collection give the same data (rl.parallelEpisodes changes speed only).
     if rl.parallelEpisodes
         parfor e = 1:rl.episodesPerIteration
-            [state{e},command{e},logProbability{e},advantage{e},target{e}, ...
-                episodeReturn(e),episodeSuccess(e)] = collectEpisode(agent,c,rl,episodeSeed(e));
+            [episodePolicyInput{e},episodePreTanhAction{e},episodeLogProbability{e}, ...
+                episodeAdvantage{e},episodeValueTarget{e},episodeReturn(e), ...
+                episodeSuccess(e)] = collectEpisode(agent,c,rl,episodeSeed(e));
         end
     else
         for e = 1:rl.episodesPerIteration
-            [state{e},command{e},logProbability{e},advantage{e},target{e}, ...
-                episodeReturn(e),episodeSuccess(e)] = collectEpisode(agent,c,rl,episodeSeed(e));
+            [episodePolicyInput{e},episodePreTanhAction{e},episodeLogProbability{e}, ...
+                episodeAdvantage{e},episodeValueTarget{e},episodeReturn(e), ...
+                episodeSuccess(e)] = collectEpisode(agent,c,rl,episodeSeed(e));
         end
     end
     window.returnSum = window.returnSum+sum(episodeReturn);
     window.success = window.success+sum(episodeSuccess);
     window.episodes = window.episodes+numel(episodeReturn);
-    X = [state{:}]; U = [command{:}]; oldLogProbability = [logProbability{:}];
-    A = [advantage{:}]; R = [target{:}];
-    A = (A-mean(A))/(std(A)+1e-8);
-    n = size(X,2);
+    % Batch columns: policy input, pre-tanh action sample, its behaviour log
+    % probability, GAE advantage (normalized below) and value target.
+    policyInput = [episodePolicyInput{:}]; preTanhAction = [episodePreTanhAction{:}];
+    oldLogProbability = [episodeLogProbability{:}];
+    advantage = [episodeAdvantage{:}]; valueTarget = [episodeValueTarget{:}];
+    advantage = (advantage-mean(advantage))/(std(advantage)+1e-8);
+    n = size(policyInput,2);
     window.decisions = window.decisions+n;
     environmentSteps = environmentSteps+n;
     episodes = episodes+rl.episodesPerIteration;
@@ -79,13 +89,15 @@ for iteration = 1:rl.ppoIterations
         for start = 1:rl.miniBatch:n
             index = order(start:min(start+rl.miniBatch-1,n));
             if updatePolicy
-                [agent,policyState,policyEncoderState,stats] = policyStep(agent,policyState, ...
-                    policyEncoderState,X(:,index),U(:,index),oldLogProbability(index), ...
-                    A(index),rl,gs);
+                [agent,policyOptimizerState,policyEncoderOptimizerState,stats] = policyStep( ...
+                    agent,policyOptimizerState,policyEncoderOptimizerState, ...
+                    policyInput(:,index),preTanhAction(:,index),oldLogProbability(index), ...
+                    advantage(index),rl,gs);
                 window.policy = accumulate(window.policy,stats);
             end
-            [agent,valueState,valueEncoderState,stats] = valueStep(agent,valueState, ...
-                valueEncoderState,X(:,index),R(index),rl,gs);
+            [agent,valueOptimizerState,valueEncoderOptimizerState,stats] = valueStep(agent, ...
+                valueOptimizerState,valueEncoderOptimizerState,policyInput(:,index), ...
+                valueTarget(index),rl,gs);
             window.value = accumulate(window.value,stats);
         end
     end
@@ -93,27 +105,28 @@ for iteration = 1:rl.ppoIterations
     if mod(iteration,rl.evaluateEvery) == 0 || isLast
         trainReturn = window.returnSum/max(window.episodes,1);
         trainLandingRate = window.success/max(window.episodes,1);
-        [~,score,info] = landing2d.rl.evaluateV2(agent,c,[]);
-        history(end+1) = historyRow(iteration,score,info,trainReturn,trainLandingRate, ...
+        [~,validationReturn,info] = landing2d.rl.evaluateV2(agent,c,[]);
+        history(end+1) = historyRow(iteration,validationReturn,info,trainReturn,trainLandingRate, ...
             environmentSteps,episodes,toc(wall),windowDiagnostics(window)); %#ok<AGROW>
-        if info.selectionScore > bestSelection
-            best = agent; bestScore = score; bestSelection = info.selectionScore;
-            bestIndex = numel(history); stagnant = 0;
+        if info.selectionScore > bestSelectionScore
+            best = agent; bestValidationReturn = validationReturn;
+            bestSelectionScore = info.selectionScore;
+            bestIndex = numel(history); evaluationsWithoutImprovement = 0;
         else
-            stagnant = stagnant+1;
+            evaluationsWithoutImprovement = evaluationsWithoutImprovement+1;
         end
         if rl.verbose
             fprintf(['  [%3d/%3d] train %8.2f | land %3.0f%% | validation %8.2f | ' ...
                 'select %8.2f | land %3.0f%% | unsafe %3.0f%% | timeout %3.0f%%\n'], ...
-                iteration,rl.ppoIterations,trainReturn,100*trainLandingRate,score, ...
+                iteration,rl.ppoIterations,trainReturn,100*trainLandingRate,validationReturn, ...
                 info.selectionScore,100*info.landingRate,100*info.unsafeRate, ...
                 100*info.timeoutRate);
         end
         window = emptyWindow();
-        if patience > 0 && stagnant >= patience
+        if patience > 0 && evaluationsWithoutImprovement >= patience
             if rl.verbose
                 fprintf('  early stop: no improvement in %d evaluations (%d/%d).\n', ...
-                    stagnant,iteration,rl.ppoIterations);
+                    evaluationsWithoutImprovement,iteration,rl.ppoIterations);
             end
             break;
         end
@@ -121,17 +134,20 @@ for iteration = 1:rl.ppoIterations
 end
 history(bestIndex).selected = true;
 best.trainingSelection = struct('iteration',history(bestIndex).iteration, ...
-    'selectionScore',bestSelection);
+    'selectionScore',bestSelectionScore);
 agent = best;
 if rl.verbose
     fprintf('  selected update %d: validation return %.2f | selection score %.2f\n', ...
-        history(bestIndex).iteration,bestScore,bestSelection);
+        history(bestIndex).iteration,bestValidationReturn,bestSelectionScore);
 end
 end
 
-function row = historyRow(iteration,score,info,trainReturn,trainLandingRate,steps, ...
+function row = historyRow(iteration,validationReturn,info,trainReturn,trainLandingRate,steps, ...
     episodes,seconds,d)
-row = struct('iteration',iteration,'score',score,'selectionScore',info.selectionScore, ...
+% Persisted history field names are kept (checkpoint info.history and
+% learning_curves.csv): score = validation mean return, captureRate = mean
+% marker-update rate (landing2d.rl.evaluateV2).
+row = struct('iteration',iteration,'score',validationReturn,'selectionScore',info.selectionScore, ...
     'landingRate',info.landingRate,'unsafeRate',info.unsafeRate, ...
     'timeoutRate',info.timeoutRate,'captureRate',info.meanCaptureRate, ...
     'trainReturn',trainReturn,'trainLandingRate',trainLandingRate, ...
@@ -179,34 +195,39 @@ end
 % ------------------------------------------------------------ policy update
 % The PPO objective is the same for every method (landing2d.rl.policyLossGradient);
 % for graph arms the gradient continues into the encoder (encoderStep).
-function [agent,state,encoderState,stats] = policyStep(agent,state,encoderState, ...
-    X,U,oldLogProbability,A,rl,gs)
-[grads,encoderGrads,stats] = landing2d.rl.policyLossGradient(agent,X,U, ...
-    oldLogProbability,A,rl);
+function [agent,optimizerState,encoderOptimizerState,stats] = policyStep(agent, ...
+    optimizerState,encoderOptimizerState,policyInput,preTanhAction,oldLogProbability, ...
+    advantage,rl,gs)
+[grads,encoderGrads,stats] = landing2d.rl.policyLossGradient(agent,policyInput, ...
+    preTanhAction,oldLogProbability,advantage,rl);
 grads = landing2d.util.clipGradient(grads,rl.maxGradNorm);
-[core,state] = landing2d.util.adamUpdate(policyCore(agent),grads,state,rl.policyLearnRate);
+[core,optimizerState] = landing2d.util.adamUpdate(policyCore(agent),grads,optimizerState, ...
+    rl.policyLearnRate);
 agent.policy.mean = core.mean;
 agent.policy.logStd = max(core.logStd,rl.minimumLogStd);
-[agent.policy.encoder,encoderState] = encoderStep(agent.policy.encoder, ...
-    encoderGrads,encoderState,rl,gs);
+[agent.policy.encoder,encoderOptimizerState] = encoderStep(agent.policy.encoder, ...
+    encoderGrads,encoderOptimizerState,rl,gs);
 end
 
 % ------------------------------------------------------------- value update
-function [agent,state,encoderState,stats] = valueStep(agent,state,encoderState,X,R,rl,gs)
-[grads,encoderGrads,stats] = landing2d.rl.valueLossGradient(agent,X,R);
+function [agent,optimizerState,encoderOptimizerState,stats] = valueStep(agent, ...
+    optimizerState,encoderOptimizerState,policyInput,valueTarget,rl,gs)
+[grads,encoderGrads,stats] = landing2d.rl.valueLossGradient(agent,policyInput,valueTarget);
 grads = landing2d.util.clipGradient(grads,rl.maxGradNorm);
-[core,state] = landing2d.util.adamUpdate(valueCore(agent),grads,state,rl.valueLearnRate);
+[core,optimizerState] = landing2d.util.adamUpdate(valueCore(agent),grads,optimizerState, ...
+    rl.valueLearnRate);
 agent.value.net = core.net;
-[agent.value.encoder,encoderState] = encoderStep(agent.value.encoder, ...
-    encoderGrads,encoderState,rl,gs);
+[agent.value.encoder,encoderOptimizerState] = encoderStep(agent.value.encoder, ...
+    encoderGrads,encoderOptimizerState,rl,gs);
 end
 
 % --------------------------------------------------- graph encoder update
-function [params,state] = encoderStep(params,grads,state,rl,gs)
+function [params,optimizerState] = encoderStep(params,grads,optimizerState,rl,gs)
 % Plain PPO has an empty encoder: nothing to update.
 if isempty(fieldnames(params)), return; end
 grads = landing2d.util.clipGradient(grads,rl.maxGradNorm);
-[params,state] = landing2d.util.adamUpdate(params,grads,state,gs.encoderLearnRate);
+[params,optimizerState] = landing2d.util.adamUpdate(params,grads,optimizerState, ...
+    gs.encoderLearnRate);
 end
 
 function core = policyCore(agent)
@@ -218,14 +239,14 @@ core = struct('net',agent.value.net);
 end
 
 % ------------------------------------------------ one episode (parallel unit)
-function [state,command,logProbability,advantage,target,episodeReturn,episodeSuccess] = ...
-    collectEpisode(agent,c,rl,seed)
+function [policyInput,preTanhAction,logProbability,advantage,valueTarget,episodeReturn, ...
+    episodeSuccess] = collectEpisode(agent,c,rl,seed)
 localRs = RandStream('threefry','Seed',seed);
 options = struct('deterministic',false,'collect',true,'rs',localRs);
 [result,traj] = landing2d.rl.rolloutEpisodeV2(agent,c,seed,options);
-[advantage,target] = landing2d.rl.computeAdvantage(traj,rl);
-state = traj.state;
-command = traj.command;
+[advantage,valueTarget] = landing2d.rl.computeAdvantage(traj,rl);
+policyInput = traj.state;           % policy input (traj.state, rollout_v2 field name)
+preTanhAction = traj.command;       % pre-tanh Gaussian sample (traj.command)
 logProbability = traj.logProbability;
 episodeReturn = traj.return;
 episodeSuccess = strcmp(result.terminalReason,'SUCCESS');

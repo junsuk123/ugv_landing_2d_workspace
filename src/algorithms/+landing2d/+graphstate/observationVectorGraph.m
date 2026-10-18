@@ -1,27 +1,28 @@
-function [S,detail] = observationVectorGraph(v,G,c)
+function [policyInput,detail] = observationVectorGraph(observationVector,G,c)
 % OBSERVATIONVECTORGRAPH Build the planar graph from an existing 12-D vector.
-% This is the runtime path: environment.step already returns v, so graph
-% policies need not vectorize the same common-observation structure twice.
+% This is the runtime path: environment.step already returns the vector, so
+% graph policies need not vectorize the same common-observation structure twice.
 % graphState.observationFeatures = 'tosm7_v1' (reduced 7-node TOSM ontology).
+% policyInput is the flattened node-feature matrix X(:) of the R-GAT arms.
 version = c.graphState.observationFeatures;
 assert(strcmp(version,'tosm7_v1'),'landing2d:GraphObservationFeatures', ...
     'Unknown planar graph feature version.');
-vs = landing2d.observation.vectorSchema(G);
-v = v(:);
-assert(numel(v)==vs.dimension && all(isfinite(v)), ...
+observationSchema = landing2d.observation.vectorSchema(G);
+observationVector = observationVector(:);
+assert(numel(observationVector)==observationSchema.dimension && all(isfinite(observationVector)), ...
     'landing2d:GraphObservation','The graph needs the registered observation vector.');
 schema = cachedSchema();
-get = @(name)v(strcmp(vs.names,name));
-[X,evidence] = tosmFeatures(get,schema,G,c);
+observationComponent = @(name)observationVector(strcmp(observationSchema.names,name));
+[X,semanticEvidence] = tosmFeatures(observationComponent,schema,G,c);
 X=min(max(X,-1),1);
-S=X(:);
+policyInput=X(:);
 if nargout>1
-    detail=struct('X',X,'schema',schema,'observationVector',v, ...
-        'featureVersion',version,'semanticEvidence',evidence);
+    detail=struct('X',X,'schema',schema,'observationVector',observationVector, ...
+        'featureVersion',version,'semanticEvidence',semanticEvidence);
 end
 end
 
-function [X,evidence] = tosmFeatures(get,schema,G,c)
+function [X,semanticEvidence] = tosmFeatures(observationComponent,schema,G,c)
 % Reduced TOSM node features. Every value is a deterministic function of the
 % registered o_t plus public calibration constants (camera geometry,
 % normalization scales, mechanical touchdown limits). Vision quality is
@@ -29,53 +30,67 @@ function [X,evidence] = tosmFeatures(get,schema,G,c)
 % qualifiesEstimate edges; the estimate nodes are not confidence-weighted,
 % so the quality path runs through those typed edges (permuted in the
 % shuffled control).
-ex = get('relative_x'); h = get('relative_height');
-rvx = get('relative_vx'); ugvVx = get('ugv_vx');
-vz = get('drone_vz'); st = get('drone_sinTheta');
-ct = get('drone_cosTheta'); rate = get('drone_pitchRate');
-visionUpdated = get('ugv_visionUpdated'); visionAge = get('ugv_visionAge');
-navValid = get('drone_navigationValid'); navAge = get('drone_navigationAge');
+% The o_t entries are normalized (bounded scaling x/(|x|+s), Gamma
+% normalization); the *Meters values are their unscaled physical values.
+normalizedRelativeX = observationComponent('relative_x');
+normalizedHeight = observationComponent('relative_height');
+normalizedRelativeVx = observationComponent('relative_vx');
+normalizedUgvVx = observationComponent('ugv_vx');
+normalizedDroneVz = observationComponent('drone_vz');
+sinTheta = observationComponent('drone_sinTheta');
+cosTheta = observationComponent('drone_cosTheta');
+normalizedPitchRate = observationComponent('drone_pitchRate');
+visionUpdated = observationComponent('ugv_visionUpdated'); visionAge = observationComponent('ugv_visionAge');
+navValid = observationComponent('drone_navigationValid'); navAge = observationComponent('drone_navigationAge');
 aimSlope = tan(-c.experiment.sensor.cameraPitchOffset);
-crossTrack = ex-aimSlope*h;
+% Cross-track of the normalized coordinates along the camera-aim slope m.
+% The two axes use different scales, so this is not the metric aim error
+% e_x - m h (landing2d.evaluation.aimError) and it is not zero on the aim line.
+normalizedCrossTrack = normalizedRelativeX-aimSlope*normalizedHeight;
 N=schema.nNodes; X=zeros(schema.inDim,N);
 put(1,visionUpdated,visionAge,0,0,0);
-put(2,ugvVx,ugvVx^2,0,0,0);
-put(3,ex,h,crossTrack,0.5*(crossTrack^2+h^2),0);
-put(4,rvx,rvx^2,0,0,0);
-put(5,vz,st,rate,navValid,navAge);
+put(2,normalizedUgvVx,normalizedUgvVx^2,0,0,0);
+put(3,normalizedRelativeX,normalizedHeight,normalizedCrossTrack, ...
+    0.5*(normalizedCrossTrack^2+normalizedHeight^2),0);
+put(4,normalizedRelativeVx,normalizedRelativeVx^2,0,0,0);
+put(5,normalizedDroneVz,sinTheta,normalizedPitchRate,navValid,navAge);
 % ViewMargin: predicted FOV/2-|beta| of the estimated pad in the body-fixed
 % camera (same projection as landing2d.sensing.projectPad). It is a
 % prediction from the estimate, not a detection result; it is read together
 % with VisionQuality through the conditionsLanding relation.
-norm = G.normalization;
-exM = unscale(ex,norm.relativePosition); hM = unscale(h,norm.height);
-theta = atan2(st,ct);
+normalizationScales = G.normalization;
+relativeXMeters = unscale(normalizedRelativeX,normalizationScales.relativePosition);
+heightMeters = unscale(normalizedHeight,normalizationScales.height);
+theta = atan2(sinTheta,cosTheta);
 thetaCamera = theta+c.experiment.sensor.cameraPitchOffset;
-depth = -exM*sin(thetaCamera)+hM*cos(thetaCamera);
-lateral = exM*cos(thetaCamera)+hM*sin(thetaCamera);
+depth = -relativeXMeters*sin(thetaCamera)+heightMeters*cos(thetaCamera);
+lateral = relativeXMeters*cos(thetaCamera)+heightMeters*sin(thetaCamera);
 halfFov = c.experiment.sensor.fov/2;
-if hypot(exM,hM) > eps
+if hypot(relativeXMeters,heightMeters) > eps
     bearing = atan2(lateral,depth);
     fovMargin = (halfFov-abs(bearing))/halfFov;
-    bearingNorm = bearing/halfFov;
+    normalizedBearing = bearing/halfFov;
 else
-    bearing = 0; fovMargin = 0; bearingNorm = 0;
+    bearing = 0; fovMargin = 0; normalizedBearing = 0;
 end
-put(6,fovMargin,bearingNorm,0,0,0);
+put(6,fovMargin,normalizedBearing,0,0,0);
 % LandingCondition: current-state touchdown suitability, one ratio per
 % mechanical touchdown limit, softly bounded r/(1+r) (0.5 = at the limit).
 % It summarizes evidence only; it never approves, blocks or clips an action.
 safety = c.experiment.safety;
-ratio = [abs(exM)/safety.touchdownPositionTolerance; ...
-    abs(unscale(rvx,norm.vx))/safety.touchdownSpeedX; ...
-    abs(unscale(vz,norm.vz))/safety.touchdownSpeedZ; ...
+touchdownLimitRatio = [abs(relativeXMeters)/safety.touchdownPositionTolerance; ...
+    abs(unscale(normalizedRelativeVx,normalizationScales.vx))/safety.touchdownSpeedX; ...
+    abs(unscale(normalizedDroneVz,normalizationScales.vz))/safety.touchdownSpeedZ; ...
     abs(theta)/safety.touchdownPitchTolerance; ...
-    abs(unscale(rate,norm.pitchRate))/safety.touchdownPitchRateTolerance];
-condition = ratio./(1+ratio);
-put(7,condition(1),condition(2),condition(3),condition(4),condition(5));
-evidence = struct('crossTrack',crossTrack,'bearing',bearing, ...
-    'fovMargin',fovMargin,'landingRatio',ratio', ...
-    'landingCondition',condition');
+    abs(unscale(normalizedPitchRate,normalizationScales.pitchRate))/safety.touchdownPitchRateTolerance];
+landingCondition = touchdownLimitRatio./(1+touchdownLimitRatio);
+put(7,landingCondition(1),landingCondition(2),landingCondition(3), ...
+    landingCondition(4),landingCondition(5));
+% Field 'crossTrack' holds normalizedCrossTrack (name kept with the schema
+% label, docs/VARIABLE_NAMING_AUDIT.md).
+semanticEvidence = struct('crossTrack',normalizedCrossTrack,'bearing',bearing, ...
+    'fovMargin',fovMargin,'touchdownLimitRatio',touchdownLimitRatio', ...
+    'landingCondition',landingCondition');
 
     function put(node,f1,f2,f3,f4,f5)
         X(:,node)=[f1;f2;f3;f4;f5;node/N];

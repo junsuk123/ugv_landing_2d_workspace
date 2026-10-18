@@ -1,5 +1,5 @@
 function pose = estimatePadPose(detections,G)
-% ESTIMATEPADPOSE  ArUco 코너 -> 카메라 기준 패드 자세 CT_P (마커 보드 평면 PnP).
+% ESTIMATEPADPOSE  ArUco 코너 -> 카메라 기준 패드 포즈 CT_P (마커 보드 평면 PnP).
 % G = 부가 정보 Gamma. 검출된 등록 마커의 네 코너(검출기 순서 = ArUco 규약)를
 % Gamma의 패드 기준 실제 코너와 ID로 대응시킵니다. 미등록·중복 ID는 쓰지 않습니다.
 % 일부 마커만 보여도 남은 코너로 같은 패드 원점(패드 상면 중심)을 추정하며,

@@ -4,13 +4,13 @@ function [O,memory,detail] = capture(memory,detections,navigation,t,G)
 % (landing2d.sensing.navigationEstimate 형식), 기억, 부가 정보 G = Gamma뿐입니다.
 % 패드·UGV 참값, tracker 추정, 결정 문맥 플래그, 남은 임무 시간, 이전 행동, 보상은
 % 받을 경로가 없으며, 등록되지 않은 입력 필드는 거부합니다.
-%   G_t  ArUco 코너 -> 평면 PnP -> UGV 위치 관측 -> 등속 KF 위치·속도,
+%   G_t  ArUco 코너 -> 평면 PnP -> UGV 위치 측정치 -> 등속 KF 위치·속도,
 %        영상 보정 여부, 마지막 영상 보정 후 경과시간 (초기화 전이면 Inf)
 %        마커가 안 보이면 위치·속도를 0으로 바꾸지 않고 예측값을 유지합니다.
 %   D_t  융합 측위 + 측위 경과시간(결정 시각 - 측위 시각)
 %   H_t  직전 결정 시점의 UGV·드론 위치·속도 (현재 값을 만든 뒤 기록)
 % 가속 중·추종 부족·하강 가능 같은 판단은 만들지 않습니다(이후 단계 몫).
-% detail은 진단용 PnP 결과와 UGV 위치 관측입니다(관측 벡터 아님).
+% detail은 진단용 PnP 포즈와 UGV 위치 측정치 y입니다(관측 벡터 아님).
 assert(isequal(fieldnames(detections)',{'valid','stamp','ids','corners','imageSize'}) ...
     && isequal(fieldnames(navigation)',{'positionXZ','velocityXZ','pitchSinCos', ...
     'pitchRate','navigationValid','navigationAge','navigationStamp'}), ...

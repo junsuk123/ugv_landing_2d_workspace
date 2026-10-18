@@ -163,15 +163,15 @@ function [a,attention] = requested(run,O,G,limits)
 attention = [];
 spec = run.agent.encoderSpec;
 if strcmp(spec.mode,'baseline')
-    state = landing2d.observation.toVector(O,G);
+    policyInput = landing2d.observation.toVector(O,G);
 else
-    state = landing2d.graphstate.observationGraph(O,G,run.config);
+    policyInput = landing2d.graphstate.observationGraph(O,G,run.config);
     [~,cache] = landing2d.graphstate.encoderForward(run.agent.policy.encoder, ...
-        spec,state,'policy');
-    quality = find(strcmp(spec.schema.nodeNames,'VisionQuality'));
+        spec,policyInput,'policy');
+    visionQualityNode = find(strcmp(spec.schema.nodeNames,'VisionQuality'));
     attention = struct('alpha',cache.cache1.alpha(:,1), ...
-        'qualityEdges',spec.T.src(:)==quality & spec.T.dst(:)~=quality);
+        'qualityEdges',spec.T.src(:)==visionQualityNode & spec.T.dst(:)~=visionQualityNode);
 end
-[~,~,mu] = landing2d.rl.policyAction(run.agent,state,[],true);
+[~,~,mu] = landing2d.rl.policyAction(run.agent,policyInput,[],true);
 a = limits(:).*tanh(mu(:));
 end

@@ -31,7 +31,7 @@ X=reshape(S,agent.encoderSpec.inDim,agent.encoderSpec.nNodes);
 [maskedZ,~]=landing2d.rgat.relationForward(X,c.W,c.a,c.E,c.T,keep,c.attentionMode);
 expected=normalZ;
 for edge=edges
-    expected(:,t.dst(edge))=expected(:,t.dst(edge))-c.msgs(:,edge)*c.alpha(edge);
+    expected(:,t.dst(edge))=expected(:,t.dst(edge))-c.edgeMessages(:,edge)*c.alpha(edge);
 end
 assert(norm(maskedZ-expected,'fro')<1e-12);
 assertThrows(@()landing2d.rgat.relationBackward(zeros(size(maskedZ)),maskedCache.cache1), ...

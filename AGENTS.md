@@ -95,6 +95,16 @@ run                          % 3 비교군 × 학습 시드 1–5
 run_scenario('S4')
 ```
 
+## 명명 규칙 (2026-10-19, INCSL 용어 DB)
+
+- 근거와 전체 변경표는 `docs/VARIABLE_NAMING_AUDIT.md`에 있다. 새 식별자는 DB `canonical_en`을 camelCase로 쓴다. 문서에 정의된 수학 기호(Γ=`G`, `O`, `X`, `H`, `W`·`a`·`E`, `alpha`, `g`, `mu`·`sigma`, KF의 `F`·`Q`·`C`·`P`·`y`)는 기호 그대로 둔다
+- 행동은 세 가지로 구분한다: `preTanhAction`(tanh 이전 가우시안 표본) → `normalizedAction`(tanh, [-1,1]) → `requestedAcceleration`([m/s²])
+- 정책·Critic 입력은 `policyInput`(12차원 $o_t$ 또는 그 노드 특징)이다. 환경 상태(`state`, 물리 참값)와 Adam 상태(`*OptimizerState`)와 섞어 쓰지 않는다
+- R-GAT: 입력 노드 특징 `X` → `attentionPreActivation` → `attentionScore`(softmax 입력) → `alpha`(정규화 계수) → `edgeMessages` → 집계 `Z` → 노드 상태 `H` → graph embedding `g`
+- 정규화 값은 `normalized*` 접두사를 쓰고 물리 값은 단위 접미사(`*Meters`)를 쓴다. `*Norm` 접미사는 노름(크기)으로 읽히므로 쓰지 않는다
+- MATLAB 내장 함수 이름(`norm`, `get`, `det`, `gamma`, `log`, `text` 등)을 변수 이름으로 쓰지 않는다
+- 학습 서명·그래프 해시·체크포인트·결과 스키마에 들어가는 이름(`traj.command`, `captureRate`, 노드·관계 이름, 설정 필드)은 마이그레이션 없이 바꾸지 않는다(감사 문서 §4)
+
 ## 검증 계약
 
 - `landing2d.orchestration.selfTest`: 14개 검사

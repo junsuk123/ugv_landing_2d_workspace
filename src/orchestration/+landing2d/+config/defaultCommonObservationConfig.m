@@ -3,8 +3,8 @@ function co = defaultCommonObservationConfig(padHeight)
 %   G_t  UGV 추정 상태 (6): 위치 x,z, 속도 vx,vz, 영상 보정 여부, 마지막 영상 보정 후 경과시간
 %   D_t  드론 융합 측위 (9): x, z, vx, vz, sin/cos pitch, pitch rate, 측위 유효, 측위 경과시간
 %   H_t  직전 운동 기록 (9): 직전 결정 시점의 UGV·드론 위치·속도, 기록 유효
-% 인지 경로: ArUco 코너 -> 평면 PnP(카메라 기준 패드 자세) -> 드론 측위·장착 관계로
-% 로컬 UGV 위치 관측 -> 등속 칼만 필터 -> UGV 위치·속도. 미검출 시 예측만 수행합니다.
+% 인지 경로: ArUco 코너 -> 평면 PnP(카메라 기준 패드 포즈) -> 드론 측위·장착 관계로
+% 로컬 UGV 위치 측정치 -> 등속 칼만 필터 -> UGV 위치·속도. 미검출 시 예측만 수행합니다.
 % PADHEIGHT(scenario.padHeight)는 UGV 기준점(패드 중심 아래 지면)에서 패드 상면까지의 높이입니다.
 % 평면 전용 계약입니다. 세 비교군의 정책 입력이고, 같은 UGV
 % 추정이 안전 감독기·착륙 승인을 구동하므로 설정 전체가 task fingerprint·학습 서명에

@@ -1,8 +1,8 @@
-function metric = episodeMetrics(result,traj,c,identity,window)
+function metric = episodeMetrics(result,traj,c,identity,eventWindow)
 % EPISODEMETRICS  Evaluation-only metrics of one rollout (relational_policy_v1).
-%   metric = landing2d.evaluation.episodeMetrics(result,traj,c,identity,window)
+%   metric = landing2d.evaluation.episodeMetrics(result,traj,c,identity,eventWindow)
 % RESULT/TRAJ from landing2d.rl.rolloutEpisodeV2 (deterministic direct policy).
-% IDENTITY is a scalar struct whose fields lead the row. WINDOW = [t0,t1] is
+% IDENTITY is a scalar struct whose fields lead the row. EVENTWINDOW = [t0,t1] is
 % the event interval of a fixed case (metrics over [t0, t1 + settling)), or []
 % for sampled episodes (window metrics NaN). Truth is read only here, after
 % the rollout; nothing is fed back to a policy, and no metric uses an ontology
@@ -35,18 +35,18 @@ function metric = episodeMetrics(result,traj,c,identity,window)
 %             Touchdown{PositionError_m, RelativeSpeed_mps, VerticalSpeed_mps}:
 %             |e_x|, |v_r|, |v_z| at contact (NaN without contact)
 % The tracking tolerance is safety.touchdownPositionTolerance.
-if nargin < 5, window = []; end
+if nargin < 5, eventWindow = []; end
 n = traj.count;
 assert(n>0,'landing2d:EmptyRollout','Rollout produced no decisions.');
 safety = c.experiment.safety;
 sensor = c.experiment.sensor;
-s = result.scenario;
+scenario = result.scenario;
 events = result.resetInfo.evaluatorMetadata.sensorEvents;
 t = result.time(1:n);
 dt = traj.dt(:)';
 endTime = result.time(n+1);
 ex = result.xPad(1:n)-result.xDrone(1:n);
-height = result.zDrone(1:n)-s.padHeight;
+height = result.zDrone(1:n)-scenario.padHeight;
 aimError = landing2d.evaluation.aimError(result.xPad(1:n),result.xDrone(1:n),height,c);
 relativeVx = result.vxPad(1:n)-result.vxDrone(1:n);
 tolerance = safety.touchdownPositionTolerance;
@@ -54,39 +54,41 @@ holdSeconds = c.evaluation.tracking.hold;
 vz = result.vzDrone(1:n);
 theta = result.theta(1:n);
 pitchRate = result.pitchRate(1:n);
-visible = logical(result.visible(1:n));
-command = traj.requestedAcceleration;
+% result.visible: per-decision marker measurement update (visionUpdated);
+% padInGeometricView: pad centre inside the camera FOV and range (truth).
+visionUpdated = logical(result.visible(1:n));
+requestedAcceleration = traj.requestedAcceleration;   % [m/s^2], 2 x n
 
-geometricVisible = false(1,n);
+padInGeometricView = false(1,n);
 for k = 1:n
     state = struct('x',result.xDrone(k),'z',result.zDrone(k),'theta',theta(k));
-    pad = struct('x',result.xPad(k),'z',s.padHeight);
-    geometricVisible(k) = landing2d.sensing.projectPad(state,pad,sensor).visible;
+    pad = struct('x',result.xPad(k),'z',scenario.padHeight);
+    padInGeometricView(k) = landing2d.sensing.projectPad(state,pad,sensor).visible;
 end
 inDropout = t>=events.dropoutStart & t<events.dropoutEnd;
 readiness = c.experiment.reward.readinessHeight;
 approach = height>readiness;
 
 windowSeconds = 0; inWindow = false(1,n);
-if ~isempty(window)
-    span = [max(0,window(1)),min(endTime,window(2)+c.evaluation.settling)];
+if ~isempty(eventWindow)
+    span = [max(0,eventWindow(1)),min(endTime,eventWindow(2)+c.evaluation.settling)];
     inWindow = t>=span(1) & t<span(2);
     windowSeconds = weighted(inWindow,dt);
 end
 
-reacquisition = NaN; trackingReacquisition = NaN;
+reacquisitionLatency = NaN; trackingReacquisition = NaN;
 if isfinite(events.dropoutEnd)
     index = find(result.time>=events.dropoutEnd & result.visible,1,'first');
     if ~isempty(index)
-        reacquisition = max(0,result.time(index)-events.dropoutEnd);
-        restored = events.dropoutEnd+reacquisition;
+        reacquisitionLatency = max(0,result.time(index)-events.dropoutEnd);
+        restored = events.dropoutEnd+reacquisitionLatency;
         trackingReacquisition = settleTime(t,aimError,restored,restored,tolerance,holdSeconds);
     end
 end
-rematch = NaN; recovery = NaN;
-if s.a2 > 0
-    rematch = rematchTime(t,relativeVx,s.T1+s.T2,safety.touchdownSpeedX,1.0);
-    recovery = settleTime(t,aimError,s.T1,s.T1+s.T2,tolerance,holdSeconds);
+speedRematch = NaN; recoveryTime = NaN;
+if scenario.a2 > 0
+    speedRematch = rematchTime(t,relativeVx,scenario.T1+scenario.T2,safety.touchdownSpeedX,1.0);
+    recoveryTime = settleTime(t,aimError,scenario.T1,scenario.T1+scenario.T2,tolerance,holdSeconds);
 end
 
 low = height<=readiness;
@@ -98,46 +100,46 @@ limitExceeded = abs(ex)>safety.touchdownPositionTolerance ...
 brakingHeight = max(height-safety.touchdownHeight,0.01);
 brakeDemand = max(vz.^2-safety.touchdownSpeedZ^2,0)./(2*brakingHeight);
 unsuitable = limitExceeded | brakeDemand>c.azMax;
-contact = contactRatios(result,c);
+contactLimitRatio = contactRatios(result,c);
 
 reason = string(result.terminalReason);
 unsafeReasons = ["UNSAFE_CONTACT","UNAUTHORIZED_CONTACT","MISSED_PAD_CONTACT", ...
     "SAFETY_ENVELOPE_VIOLATION"];
 initialSpeedOffset = 0;
-if isfield(s,'initialSpeedOffset'), initialSpeedOffset = s.initialSpeedOffset; end
+if isfield(scenario,'initialSpeedOffset'), initialSpeedOffset = scenario.initialSpeedOffset; end
 touchdown = NaN(1,3);
-if isfinite(contact(1))
+if isfinite(contactLimitRatio(1))
     touchdown = abs([result.contact.xError,result.contact.relativeVx,result.contact.relativeVz]);
 end
 final = t>=endTime-c.evaluation.failure.finalWindow-1e-9;
 finalAim = rmsOf(aimError(final),dt(final));
-finalViewLoss = weighted(final & ~geometricVisible,dt)/max(weighted(final,dt),eps);
-lostMarker = isfinite(events.dropoutEnd) && isnan(reacquisition);
-failure = failureClass(reason,contact,finalAim,finalViewLoss,lostMarker,tolerance, ...
+finalViewLoss = weighted(final & ~padInGeometricView,dt)/max(weighted(final,dt),eps);
+lostMarker = isfinite(events.dropoutEnd) && isnan(reacquisitionLatency);
+failure = failureClass(reason,contactLimitRatio,finalAim,finalViewLoss,lostMarker,tolerance, ...
     c.evaluation.failure.viewLossFraction);
-row = struct('MotionFactor',double(s.a2>0), ...
+row = struct('MotionFactor',double(scenario.a2>0), ...
     'ObservationFactor',double(isfinite(events.dropoutStart)), ...
-    'DropoutKind',string(events.dropoutKind),'UgvAcceleration',s.a2, ...
-    'InitialSpeedOffset',initialSpeedOffset,'InitialHeight',s.height, ...
+    'DropoutKind',string(events.dropoutKind),'UgvAcceleration',scenario.a2, ...
+    'InitialSpeedOffset',initialSpeedOffset,'InitialHeight',scenario.height, ...
     'TerminalReason',reason,'FailureClass',failure,'Success',double(reason=="SUCCESS"), ...
     'Unsafe',double(ismember(reason,unsafeReasons)),'Timeout',double(reason=="TASK_TIMEOUT"), ...
     'Return',result.return,'LandingTime_s',result.landingTime, ...
     'Duration_s',sum(dt), ...
     'AimErrorRMS_m',rmsOf(aimError,dt),'RelativeSpeedRMS_mps',rmsOf(relativeVx,dt), ...
-    'CommandRateRMS_mps3',commandRate(t,command,true(1,n)), ...
+    'CommandRateRMS_mps3',commandRate(t,requestedAcceleration,true(1,n)), ...
     'WindowSeconds',windowSeconds, ...
     'WindowAimErrorRMS_m',windowValue(@()rmsOf(aimError(inWindow),dt(inWindow)),windowSeconds), ...
     'WindowMaxAbsAimError_m',windowValue(@()max(abs(aimError(inWindow))),windowSeconds), ...
     'WindowRelativeSpeedRMS_mps',windowValue(@()rmsOf(relativeVx(inWindow),dt(inWindow)),windowSeconds), ...
     'WindowMaxAbsRelativeSpeed_mps',windowValue(@()max(abs(relativeVx(inWindow))),windowSeconds), ...
-    'WindowCommandRateRMS_mps3',windowValue(@()commandRate(t,command,inWindow),windowSeconds), ...
-    'SpeedRematch_s',rematch,'RecoveryTime_s',recovery, ...
-    'ReacquisitionLatency_s',reacquisition,'TrackingReacquisition_s',trackingReacquisition, ...
+    'WindowCommandRateRMS_mps3',windowValue(@()commandRate(t,requestedAcceleration,inWindow),windowSeconds), ...
+    'SpeedRematch_s',speedRematch,'RecoveryTime_s',recoveryTime, ...
+    'ReacquisitionLatency_s',reacquisitionLatency,'TrackingReacquisition_s',trackingReacquisition, ...
     'ExogenousDropout_s',weighted(inDropout,dt), ...
-    'ApproachViewLoss_s',weighted(approach & ~inDropout & ~geometricVisible,dt), ...
-    'MeasuredViewLoss_s',weighted(~visible,dt), ...
+    'ApproachViewLoss_s',weighted(approach & ~inDropout & ~padInGeometricView,dt), ...
+    'MeasuredViewLoss_s',weighted(~visionUpdated,dt), ...
     'UnsuitableDescent_s',weighted(low & descending & unsuitable,dt), ...
-    'ContactMaxRatio',max(contact), ...
+    'ContactMaxRatio',max(contactLimitRatio), ...
     'TouchdownPositionError_m',touchdown(1),'TouchdownRelativeSpeed_mps',touchdown(2), ...
     'TouchdownVerticalSpeed_mps',touchdown(3), ...
     'FinalAimErrorRMS_m',finalAim,'FinalViewLossFraction',finalViewLoss);
@@ -203,21 +205,21 @@ for k = find(t>=searchStart-1e-9)
 end
 end
 
-function label = failureClass(reason,ratio,finalAim,finalViewLoss,lostMarker, ...
+function label = failureClass(reason,contactLimitRatio,finalAim,finalViewLoss,lostMarker, ...
     tolerance,viewLossFraction)
-% Rules and order of landing2d.evaluation.failureClasses. RATIO = contact
-% ratios [x, v_r, v_z, pitch, pitch rate] against the touchdown limits.
+% Rules and order of landing2d.evaluation.failureClasses. CONTACTLIMITRATIO =
+% contact ratios [x, v_r, v_z, pitch, pitch rate] against the touchdown limits.
 switch reason
     case "SUCCESS"
         label = "SUCCESS";
     case {"MISSED_PAD_CONTACT","UNSAFE_CONTACT","UNAUTHORIZED_CONTACT"}
-        if ratio(1)>1
+        if contactLimitRatio(1)>1
             label = "LARGE_TOUCHDOWN_POSITION_ERROR";
-        elseif ratio(2)>1
+        elseif contactLimitRatio(2)>1
             label = "HIGH_TOUCHDOWN_RELATIVE_SPEED";
-        elseif ratio(3)>1
+        elseif contactLimitRatio(3)>1
             label = "HIGH_TOUCHDOWN_VERTICAL_SPEED";
-        elseif any(ratio(4:5)>1)
+        elseif any(contactLimitRatio(4:5)>1)
             label = "UNSAFE_TOUCHDOWN_ATTITUDE";
         else
             label = "OTHER_FAILURE";

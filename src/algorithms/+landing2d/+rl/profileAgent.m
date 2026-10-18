@@ -8,9 +8,9 @@ if nargin<4, repetitions=50; end
 [env,observation]=landing2d.environment.reset(c,seed);
 mode=agent.encoderSpec.mode;
 if strcmp(mode,'baseline')
-    state=observation;
+    policyInput=observation;
 else
-    state=landing2d.graphstate.environmentGraph(env,c,observation);
+    policyInput=landing2d.graphstate.environmentGraph(env,c,observation);
 end
 % Exclude one-time MATLAB dispatch/JIT setup from the steady-state profile.
 warmRs=RandStream('threefry','Seed',1);
@@ -19,8 +19,8 @@ for i=1:min(20,repetitions)
     if ~strcmp(mode,'baseline')
         landing2d.graphstate.environmentGraph(env,c,observation);
     end
-    landing2d.rl.policyAction(agent,state,warmRs,true);
-    landing2d.rl.valueForward(agent,state);
+    landing2d.rl.policyAction(agent,policyInput,warmRs,true);
+    landing2d.rl.valueForward(agent,policyInput);
 end
 tic;
 for i=1:repetitions
@@ -31,19 +31,19 @@ graphMs=0;
 if ~strcmp(mode,'baseline')
     tic;
     for i=1:repetitions
-        state=landing2d.graphstate.environmentGraph(env,c,observation);
+        policyInput=landing2d.graphstate.environmentGraph(env,c,observation);
     end
     graphMs=1000*toc/repetitions;
 end
 rs=RandStream('threefry','Seed',1);
 tic;
 for i=1:repetitions
-    landing2d.rl.policyAction(agent,state,rs,true);
+    landing2d.rl.policyAction(agent,policyInput,rs,true);
 end
 actorMs=1000*toc/repetitions;
 tic;
 for i=1:repetitions
-    landing2d.rl.valueForward(agent,state);
+    landing2d.rl.valueForward(agent,policyInput);
 end
 criticMs=1000*toc/repetitions;
 deployedMs=observationMs+graphMs+actorMs;

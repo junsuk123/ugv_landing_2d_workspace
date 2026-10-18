@@ -24,7 +24,7 @@ function detections = detectMarkers(state,pad,t,sensor,co,rs,event)
 assert(~isfield(state,'y'),'landing2d:SpatialDimension', ...
     'detectMarkers supports the planar contract only.');
 cam = co.camera;
-det = co.detector;
+detector = co.detector;
 W = cam.imageSize(1); H = cam.imageSize(2);
 ids = zeros(0,1); corners = zeros(0,4,2);
 stamp = t;
@@ -34,12 +34,12 @@ if event.dropout || ~event.frameCaptured
         'ids',ids,'corners',corners,'imageSize',[W,H]);
     return;
 end
-c = cos(state.theta); s = sin(state.theta);
-bodyToWorld = [c,0,s; 0,1,0; -s,0,c];
+cosTheta = cos(state.theta); sinTheta = sin(state.theta);
+bodyToWorld = [cosTheta,0,sinTheta; 0,1,0; -sinTheta,0,cosTheta];
 cameraToWorld = bodyToWorld*cam.bodyToCamera(1:3,1:3);
 origin = [state.x;0;state.z]+bodyToWorld*cam.bodyToCamera(1:3,4);
 geometry = landing2d.sensing.markerGeometry(co.pad);
-b = det.borderPixels;
+b = detector.borderPixels;
 for i = 1:numel(co.pad.markerIds)
     world = [pad.x+geometry(i,:,1);geometry(i,:,2);pad.z+geometry(i,:,3)];
     p = cameraToWorld'*(world-origin);
@@ -48,18 +48,18 @@ for i = 1:numel(co.pad.markerIds)
     end
     xy = landing2d.sensing.distortPoints(p(1:2,:)./p(3,:),cam.distortion);
     uv = cam.intrinsicMatrix(1:2,:)*[xy;ones(1,4)];
-    if det.pixelNoiseStd > 0
+    if detector.pixelNoiseStd > 0
         assert(~isempty(rs),'landing2d:SensorNoise', ...
             'pixelNoiseStd > 0 needs a time-indexed noise block or a RandStream.');
         if isnumeric(rs)
-            uv = uv+det.pixelNoiseStd*rs(:,:,i);
+            uv = uv+detector.pixelNoiseStd*rs(:,:,i);
         else
-            uv = uv+det.pixelNoiseStd*randn(rs,2,4);
+            uv = uv+detector.pixelNoiseStd*randn(rs,2,4);
         end
     end
     % The border check keeps every reported corner inside the image.
     inside = all(uv(1,:) >= b & uv(1,:) <= W-1-b & uv(2,:) >= b & uv(2,:) <= H-1-b);
-    if ~inside || min(vecnorm(uv-uv(:,[2,3,4,1]),2,1)) < det.minimumSidePixels
+    if ~inside || min(vecnorm(uv-uv(:,[2,3,4,1]),2,1)) < detector.minimumSidePixels
         continue;
     end
     ids(end+1,1) = co.pad.markerIds(i); %#ok<AGROW>

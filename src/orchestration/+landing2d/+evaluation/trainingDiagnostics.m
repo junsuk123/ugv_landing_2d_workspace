@@ -47,26 +47,29 @@ initial = landing2d.rl.initialAgent(c);
 % Gradient batch: the first N episodes of the run's training stream.
 stream = RandStream('threefry','Seed',rl.seed+rl.episodeStreamSeedOffset);
 seeds = randi(stream,double(c.experiment.manifest.trainEpisodeSeedRange),n,1);
-X = {}; U = {}; L = {}; A = {}; T = {};
+policyInput = {}; preTanhAction = {}; logProbability = {}; advantage = {}; valueTarget = {};
 for i = 1:n
     options = struct('deterministic',false,'collect',true, ...
         'rs',RandStream('threefry','Seed',seeds(i)));
     [~,traj] = landing2d.rl.rolloutEpisodeV2(agent,c,seeds(i),options);
-    [advantage,target] = landing2d.rl.computeAdvantage(traj,rl);
-    X{end+1} = traj.state; U{end+1} = traj.command; %#ok<AGROW>
-    L{end+1} = traj.logProbability; A{end+1} = advantage; T{end+1} = target; %#ok<AGROW>
+    [episodeAdvantage,episodeValueTarget] = landing2d.rl.computeAdvantage(traj,rl);
+    policyInput{end+1} = traj.state; preTanhAction{end+1} = traj.command; %#ok<AGROW>
+    logProbability{end+1} = traj.logProbability; advantage{end+1} = episodeAdvantage; %#ok<AGROW>
+    valueTarget{end+1} = episodeValueTarget; %#ok<AGROW>
 end
-X = [X{:}]; U = [U{:}]; L = [L{:}]; A = [A{:}]; T = [T{:}];
-A = (A-mean(A))/(std(A)+1e-8);
-[~,actorEncoder,actorStats] = landing2d.rl.policyLossGradient(agent,X,U,L,A,rl);
-[~,criticEncoder,criticStats] = landing2d.rl.valueLossGradient(agent,X,T);
-graph = ~isempty(fieldnames(agent.policy.encoder));
-[actorChange,actorRelative] = change(agent.policy.encoder,initial.policy.encoder,graph);
-[criticChange,criticRelative] = change(agent.value.encoder,initial.value.encoder,graph);
+policyInput = [policyInput{:}]; preTanhAction = [preTanhAction{:}];
+logProbability = [logProbability{:}]; advantage = [advantage{:}]; valueTarget = [valueTarget{:}];
+advantage = (advantage-mean(advantage))/(std(advantage)+1e-8);
+[~,actorEncoder,actorStats] = landing2d.rl.policyLossGradient(agent,policyInput, ...
+    preTanhAction,logProbability,advantage,rl);
+[~,criticEncoder,criticStats] = landing2d.rl.valueLossGradient(agent,policyInput,valueTarget);
+hasGraphEncoder = ~isempty(fieldnames(agent.policy.encoder));
+[actorChange,actorRelative] = change(agent.policy.encoder,initial.policy.encoder,hasGraphEncoder);
+[criticChange,criticRelative] = change(agent.value.encoder,initial.value.encoder,hasGraphEncoder);
 [~,actorHeadRelative] = change(struct('mean',agent.policy.mean,'logStd',agent.policy.logStd), ...
     struct('mean',initial.policy.mean,'logStd',initial.policy.logStd),true);
 [~,criticHeadRelative] = change(agent.value.net,initial.value.net,true);
-row = table(string(run.id),string(run.label),run.trainSeed,size(X,2), ...
+row = table(string(run.id),string(run.label),run.trainSeed,size(policyInput,2), ...
     actorStats.encoderGradNorm,criticStats.encoderGradNorm, ...
     actorStats.headGradNorm,criticStats.headGradNorm, ...
     actorChange,criticChange,actorRelative,criticRelative, ...
@@ -79,7 +82,7 @@ row = table(string(run.id),string(run.label),run.trainSeed,size(X,2), ...
     'CriticEncoderRelativeChange','ActorHeadRelativeChange','CriticHeadRelativeChange', ...
     'TrainingActorEncoderGradNorm','TrainingCriticEncoderGradNorm'});
 P = table();
-if graph
+if hasGraphEncoder
     P = [parameterRows(run,'actor',agent.policy.encoder,initial.policy.encoder,actorEncoder); ...
         parameterRows(run,'critic',agent.value.encoder,initial.value.encoder,criticEncoder)];
 end
