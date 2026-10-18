@@ -27,6 +27,21 @@ assert(strcmp(mode,'context_rgat') && strcmp(gs.readout,'grouped_factorized'), .
 [schema,T,graph] = landing2d.rgat.applyRelationPerturbation(schema,T,gs);
 dh = gs.hiddenDim;
 spec.schema = schema; spec.T = T; spec.graph = graph;
+% Relation operators: additive_v1 = one attention layer over every edge;
+% typed_v1 = the edges whose (possibly shuffled) relation type is a
+% 'modulate' relation form a second attention graph whose message gates the
+% destination state (landing2d.graphstate.encoderForward). Both graphs use
+% the same W1/a1/E1 (each relation's parameters act on its own edges only),
+% so the parameter count does not change.
+spec.relationOperators = 'additive_v1';
+if isfield(gs,'relationOperators'), spec.relationOperators = gs.relationOperators; end
+if strcmp(spec.relationOperators,'typed_v1')
+    modulating = find(strcmp(schema.relationOperators,'modulate'));
+    isMod = ismember(schema.rel,modulating);
+    spec.modEdges = find(isMod); spec.addEdges = find(~isMod);
+    spec.Tadd = landing2d.rgat.topology(subgraph(schema,~isMod));
+    spec.Tmod = landing2d.rgat.topology(subgraph(schema,isMod));
+end
 spec.inDim = schema.inDim; spec.nNodes = schema.nNodes; spec.hiddenDim = dh;
 spec.graphStateDim = schema.inDim*schema.nNodes;
 spec.rawDim = spec.graphStateDim; spec.stateDim = spec.graphStateDim;
@@ -60,4 +75,10 @@ if dh >= schema.inDim-1 && gs.graphDim >= size(schema.readoutInit,1)
         params.Wn(row,schema.readoutInit(row,1)) = 0.25;
     end
 end
+end
+
+function s = subgraph(schema,keep)
+% The same nodes and relation ids with only the KEEP edges.
+s = schema;
+s.src = schema.src(keep); s.dst = schema.dst(keep); s.rel = schema.rel(keep);
 end

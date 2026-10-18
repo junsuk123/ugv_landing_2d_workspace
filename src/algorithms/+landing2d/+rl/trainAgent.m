@@ -8,10 +8,9 @@ function [agent,info] = trainAgent(c,trainer)
 if nargin < 2 || isempty(trainer), trainer = @landing2d.rl.ppoTrain; end
 rl = landing2d.rl.ensurePool(c.rl);
 c.rl = rl;
-initRs = RandStream('threefry','Seed',rl.seed+101);
 ppoRs = RandStream('threefry','Seed',rl.seed+404);
 started = tic;
-agent = landing2d.rl.agentInit(rl,initRs,c.graphState);
+agent = landing2d.rl.initialAgent(c);
 if rl.verbose
     fprintf('PPO (%d updates x %d episodes), random initial policy\n', ...
         rl.ppoIterations,rl.episodesPerIteration);

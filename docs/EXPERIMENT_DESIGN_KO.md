@@ -34,6 +34,24 @@
 
 한 학습 시드만으로는 어떤 줄도 주장하지 않는다. 시드 하나의 결과는 실행 간 변동을 담지 못한다(§6).
 
+### 둔감함과 반응성: 함께 읽는 규칙 (결과 전에 고정)
+
+원하는 정책 특성은 "관측 교란에는 불필요하게 반응하지 않고, 실제 운동 변화에는 반응한다"이다. 작은 잡음 민감도나 작은 궤적 분산만으로는 이것을 주장하지 않는다. 입력을 무시하는 정책도 잡음에 둔감하기 때문이다.
+
+| 둔감함 쪽 지표 | 반응성 쪽 지표 (같이 읽음) |
+|---|---|
+| open-loop 잡음 민감도 `NoiseActionVar` $=\mathrm{tr\,Cov}[a]$ (§5.5) | 같은 probe 상태의 속도 민감도 `SensitivityX` (기대 부호 양수) |
+| S2 궤적 분산 `TrajectoryVariance_m2` (§5.3) | S3·S4 구간 aim error RMS, CA 에피소드 `RecoveryTime_s` |
+| 누락 효과의 명령 변화 `Dropout\|CA` (§5.3) | 같은 쌍의 구간 aim error RMS |
+
+| 결과 (TOSM−PPO, TOSM−Shuffled의 시드 짝 차이) | 해석 |
+|---|---|
+| 둔감함 ↓ **그리고** 반응성 유지(구간이 0을 포함하거나 개선) | 관측 교란에 덜 민감하면서 운동 변화 대응을 유지 (가장 강한 주장) |
+| 둔감함 ↓ **그러나** 회복 시간·추종 오차 악화 또는 `SensitivityX` 감소 | robustness가 아니라 과도한 평활화·보수적 정책 가능성. 개선으로 보고하지 않음 |
+| 둔감함 차이 없음 | 해당 축에서 관계 구조의 효과 근거 없음 |
+
+TOSM−Shuffled 차이가 이 규칙을 만족할 때만 "의미 관계 배치"의 효과로 읽는다. TOSM−PPO만 만족하면 그래프 구조 자체의 효과일 수 있다.
+
 ## 2. 비교군 (3개 고정)
 
 | id | 상태 표현 | 역할 |
@@ -46,7 +64,36 @@
 - **R-GAT 전용 손실 항 제거.** 이전 코드에는 R-GAT에만 연속 결정 명령 차이를 벌하는 평활화 항(`temporalPolicyConsistencyWeight = 0.03`)이 있었다. 이 항은 한 비교군의 손실을 바꾸고, "불필요한 명령 변화" 지표를 그 비교군에 유리하게 만든다. 그래서 삭제했다(`landing2d.rl.ppoTrain`).
 - **attention은 입력 의존**(`input_dependent_v1`)이다. $\alpha^{(r)}_{ij}(X_t)$가 현재 노드 특징에 따라 바뀐다. 이전의 `fixed_relation_v1`은 관측과 무관한 관계별 가중치였다. 파라미터 수는 같다.
 - M3의 그래프 시드는 학습 시드와 같다(`s01_g01`, `s02_g02`, …). 그래서 M3의 시드 간 평균은 관계 순열에 대해서도 평균한 값이다.
+- **M3 교란 비율 하한(2026-10-18).** 의미 간선 13개 중 최소 10개(`registry.relationShuffle.minChangedFraction = 0.7`)의 관계 유형이 바뀐 순열만 받는다. 제약 없는 순열은 평균 47/13 ≈ 3.6개 간선의 원래 유형을 우연히 유지한다. 이전 레지스트리(v3)의 그래프 s01–s05는 각각 7·8·10·6·10개만 바뀌어, 세 run이 TOSM 배치의 절반 가까이를 유지했다. 하한은 학습 서명(`graphState.relationPerturbation`)에 들어가므로 M3 체크포인트는 다시 학습된다. 실제 교란 비율은 `training_relations.csv`에 기록된다(§5.6).
 - 같은 학습 시드의 세 비교군은 같은 학습 에피소드 순서를 본다(`rl.episodeStreamSeedOffset`). 비교군 차이는 학습 시드별로 짝지어 계산한다.
+
+### 2.1 관계 연산자 `typed_v1` (2026-10-18, 설계 이력 포함)
+
+**이력.** 첫 설계(`additive_v1`)에서는 모든 관계가 같은 덧셈 메시지 형태였고, 관계 유형마다 가중치 $W_r$만 달랐다. 시드 1–5에서 TOSM과 교란 대조군은 성공률·학습 속도·잡음 민감도에서 차이가 없었고, 가속 사례(S3·S4)에서는 대조군이 더 잘 추종했다(`results/checkpoints/archive/pre_fix_2026-10-18` 이후 재평가). 이 설계 변경은 그 test 결과를 본 뒤에 이루어졌으므로 아래 확인 실험은 이 사실을 함께 보고한다.
+
+**진단(validation만 사용).** 학습된 두 모델 모두 의미 간선을 실제로 쓴다. 의미 간선을 모두 제거하면 validation 착륙률이 약 0.44–0.46으로 떨어진다. 그러나 노드마다 특징 채널의 의미가 달라서, 한 관계로 묶인 간선이 $W_r$을 공유해도 얻는 구조가 없다. 그래서 어떤 묶음(TOSM이든 교란이든)으로도 같은 성능을 학습한다. 관계 유형이 계산에서 의미를 갖지 않는 구조였다.
+
+**변경.** 관계 유형이 메시지의 연산 형태를 정한다(`contextSchema.relationOperators`).
+
+| 관계 | 의미 | 연산 |
+|---|---|---|
+| `qualifiesEstimate` | 관측 품질이 추정치의 신뢰를 정한다 | 조절(modulate) |
+| `conditionsLanding` | 조건이 착륙 판단의 무게를 정한다 | 조절(modulate) |
+| `informsMotion`, `affectsVisibility`, self | 출발 상태가 도착 상태를 바꾼다 | 전파(propagate) |
+
+$H = (1+\tanh(\mathrm{RGAT}_{mod}(X)))\odot\tanh(\mathrm{RGAT}_{prop}(X)+W_0X+b_0)$. 전파 간선(self 포함)과 조절 간선은 각각 도착 노드 기준으로 정규화된 attention 그래프다. 두 그래프는 같은 $W_1, a_1, E_1$을 쓰고(관계마다 자기 간선에만 작용), 파라미터 수는 6,101로 같다. 조절 간선이 없는 노드의 게이트는 정확히 1이고, 초기값에서도 1 근처다. 연산 종류는 관계 유형에 붙으므로 교란 대조군에서는 같은 연산자가 순열된 간선에 적용된다. 보상·손실·환경·관측은 바뀌지 않는다. `additive_v1`은 설정으로 다시 고를 수 있다.
+
+**사전 가설 (개발·확인 결과 전에 기록).**
+- H1: 품질 게이트가 올바른 간선(VisionQuality → 추정 노드)에만 있으므로, 누락 관련 지표(`TrackingReacquisition_s`, S2·S4 구간 aim error, stale 갱신 반응)에서 TOSM − Shuffled < 0.
+- H2: 가속 대응(`RecoveryTime_s`, S3 구간 aim error)은 TOSM이 Shuffled보다 나쁘지 않다.
+- 해석은 §1의 규칙을 그대로 따른다. H1·H2가 지지되지 않으면 그대로 보고한다.
+
+**절차.** 개발은 학습 시드 6·7과, 체크포인트 선택에 쓰지 않은 validation 시드 2101–2200으로만 한다. 확인 실험은 학습 시드 1–5에서 전체 평가를 한 번 실행한다. test·S1–S4·stress·probe는 확인 실험에서만 쓴다.
+
+**개발 결과 (시드 6·7, validation 2101–2200, 시드 2개라 판단 근거 아님).**
+- 학습 AUC: TOSM 0.72·0.70 대 Shuffled 0.10·0.57. 두 시드 모두 TOSM이 공중 정지 국소해를 먼저 벗어났다(Shuffled 시드 6은 예산 안에서 미수렴, best validation 0.74).
+- 수렴 후 추종: 시드 7에서 TOSM이 나빴다(aim error 0.39 대 0.25 m, CA 회복 6.6 대 3.2 s). 시드 6은 비슷했다. H1·H2는 개발 단계에서 지지되지 않았다.
+- 검토 후 기각한 가설: `informsMotion`이 수평(RelativeVelocity → RelativePosition)과 수직(DroneMotion → RelativePosition) 운동을 같은 $W$로 묶어 간섭한다는 가설. 시드 7에서 수직 간선만 제거하면 CA 추종이 오히려 나빠져(aim error 0.55 → 0.74 m) 기각했고, 이에 따른 온톨로지 수정은 하지 않았다.
 - 이번 설계에서 다루지 않은 대조군: Semantic-Flat PPO, R-GCN PPO, PPO-LSTM. 필요하면 별도 추가 실험으로 등록해야 하며, 현재 결과로 이들과의 비교를 주장하지 않는다.
 
 ## 3. 환경
@@ -94,7 +141,20 @@
 
 모든 지표는 rollout이 끝난 뒤 평가 전용 참값으로 계산한다(`landing2d.evaluation.episodeMetrics`). 온톨로지 노드·attention·보상은 지표에 쓰지 않는다.
 
-**추종 오차는 aim error** $e_{aim}=e_x-h\tan\gamma$다. 공통 보상이 추종하는 카메라 광축 기준점에서의 수평 오차이며, 착지 시 0이 된다. 고고도에서 $e_x\approx h\tan\gamma$는 설계된 접근 자세다. 그래서 $e_x$ 자체를 오차로 쓰지 않는다.
+**추종 오차는 aim error** $e_{aim}=e_x-mh$, $m=\tan(-\theta_C)$다(`landing2d.evaluation.aimError`). $\theta_C=-30°$는 카메라 장착 피치이고, $m$은 공통 보상(`computeReward`, `REWARD_KO.md`의 $e_x^*=mh$)과 TOSM crossTrack 특징이 쓰는 기울기와 같다. 공통 보상이 추종하는 카메라 광축 기준점에서의 수평 오차이며, 착지 시 $e_x$와 같아진다. 고고도에서 $e_x\approx mh$($h=6$ m에서 3.46 m)는 설계된 접근 자세다. 그래서 $e_x$ 자체를 오차로 쓰지 않는다.
+
+> **2026-10-18 수정.** 이전 평가 코드는 $e_x-h\tan\theta_C$로 계산해 부호가 반대였다(광축 기준점에서 0이 아니라 $2mh$). 그 이전에 생성된 `AimErrorRMS_m`, `WindowAimErrorRMS_m`, `WindowMaxAbsAimError_m`과 aim error 그림은 무효이며 재평가해야 한다. 학습·보상·관측은 이 오류와 무관하다.
+
+에피소드별 추가 지표(`episodeMetrics`, 모두 평가 전용 참값):
+
+| 지표 | 정의 |
+|---|---|
+| `RecoveryTime_s` | CA 에피소드. 가속 시작 $T_1$부터, 가속 구간이 끝난 뒤 $\lvert e_{aim}\rvert\le$ 0.5 m(접지 위치 허용치)가 1 s(`evaluation.tracking.hold`) 또는 에피소드 끝까지 유지되기 시작한 시각까지. 가속 구간 길이 $T_2$를 포함한다 |
+| `TrackingReacquisition_s` | 누락 에피소드. 누락 후 첫 마커 측정 시각부터 같은 기준으로 추종이 회복될 때까지 (`ReacquisitionLatency_s`는 누락 끝 → 첫 측정) |
+| `TouchdownPositionError_m`, `TouchdownRelativeSpeed_mps`, `TouchdownVerticalSpeed_mps` | 접촉 순간 $\lvert e_x\rvert$, $\lvert v_r\rvert$, $\lvert v_z\rvert$ (접촉 없으면 NaN) |
+| `FailureClass` | `landing2d.evaluation.failureClasses`의 결정론적 규칙. 접촉 실패는 패드 밖 → 상대속도 → 수직속도 → 자세 순, timeout은 재획득 실패(누락 후 마커 미측정) → 시야 이탈(마지막 2 s 중 50% 이상 패드가 기하학적 시야 밖) → 추종 실패(마지막 2 s aim error RMS > 0.5 m) → 하강 미완료(hovering) 순 |
+
+실패 분류는 `*_failureRuns.csv`(run별 비율)와 `*_failureSummary.csv`(시드 간)로 나온다. 성공률 숫자만이 아니라 실패가 어떤 상황에서 생겼는지 비교군별로 본다.
 
 ### 5.1 학습 효율 (`learningEfficiency`)
 
@@ -103,6 +163,8 @@ PPO 중 25 update마다 validation 100개 에피소드의 착륙률을 누적 �
 - `StepsTo50`, `StepsTo80`: 착륙률이 처음 50%, 80%에 도달한 스텝. 도달하지 못하면 예산 값으로 censor하고 `Reached = 0`으로 표시한다.
 - `AUC`: 학습 곡선 아래 면적 ÷ 예산.
 - `BestValidationSuccess`, `SelectedIteration`도 함께 기록한다.
+- `LateGain`: plateau 확인. 마지막 20% 평가의 평균 착륙률 − 그 앞 20%의 평균. 0에 가까우면 예산 안에서 곡선이 평탄해졌고, 뚜렷한 양수면 아직 개선 중이다. "일반 PPO를 덜 학습시킨 것 아닌가"에 대한 답은 이 값과 학습 곡선으로 한다.
+- 학습 곡선(`learning_curves.csv`)에는 PPO 갱신 진단(학습 창의 return·착륙률·에피소드 길이, actor surrogate 손실, critic MSE, 엔트로피, 근사 KL, clip 비율, actor/critic head·인코더의 clip 전 기울기 노름)도 들어간다. 2026-10-18 이후 학습한 run만 값이 있다. 진단 기록은 갱신을 바꾸지 않는다(리팩토링 전후 짧은 학습이 비트 단위로 같음을 확인).
 
 validation은 체크포인트 선택에도 쓰이므로, 이 수치는 held-out 성능이 아니라 학습 속도다.
 
@@ -126,6 +188,8 @@ test 200개 에피소드(모든 run이 같은 에피소드)로 성공·unsafe·t
   - **상호작용** $I_L=L_{S4}-L_{S3}-L_{S2}+L_{S1}$: 누락과 가속이 겹칠 때, 각각의 효과를 더한 것보다 추가로 생기는 변화
 - $I_L$은 이 설계의 실험적 상호작용이다. 관계 하나가 그 변화를 인과적으로 설명한다는 뜻이 아니다. 사례별 평균과 성공률을 함께 읽는다.
 - 명령 변화 감소는 같은 쌍의 추종 오차가 유지될 때만 개선으로 본다. 운동 효과에서 명령 변화가 커지는 것은 필요한 반응일 수 있다.
+- 사례별 비교군 차이(`factorial_caseContrasts.csv`)도 계산한다.
+- **잡음에 의한 궤적 분산**(보조 지표). 한 사례의 반복 20회는 물리 시나리오·초기 상태가 같고 센서 잡음표만 다르다. run·사례마다 $V_{traj}=\frac1T\sum_t\mathrm{tr\,Cov}_{rep}[(x_d-x_p,\,z_d)(t)]$를 모든 반복이 비행 중인 결정 시점(`CommonHorizon_s`)에서 평균하고, 사건 구간만의 값도 낸다(`factorial_dispersion*.csv`). 과거 세미나의 "궤적 분산 99% 감소"와 같은 종류의 지표이므로, 위의 함께 읽는 규칙(§1) 없이 주장하지 않는다.
 
 ### 5.4 학습 범위 밖 일반화 (`generalization`)
 
@@ -152,10 +216,24 @@ stress 100개 에피소드를 모든 조건에 똑같이 쓴다(조건 간 짝�
   - `DeltaAx/Az`: (갱신 없음 − 갱신) 명령 차이.
   - `EstimateShift`: 추정 오차 변화. 추정이 거의 같은데 명령이 크게 바뀌면, 추정값이 아니라 갱신 플래그·경과시간에 반응한 것이다.
   - `AttentionShift`: R-GAT 첫 층 Actor attention의 VisionQuality 출발 간선 평균 |Δα|. 기술 지표일 뿐 중요도가 아니다.
+- **잡음 대비** (관측 교란 민감도): 속도 대비와 같은 결정 시점에서, 같은 물리 궤적을 명목 잡음표와 16개의 다른 잡음표(잡음 기준 시드 + $j\times10^7$, 다른 모든 난수열과 겹치지 않음)로 다시 재생한다. 물리 상태·누락 일정은 같고 관측만 $o'=o+\epsilon$ 경로(마커 검출 → PnP·KF)로 달라진다.
+  - `NoiseActionVar` $=\mathrm{tr\,Cov}_j[a]$ [(m/s²)²]. 정책 잡음 민감도 $S_{noise}=\mathrm{tr}(J_\pi\Sigma_oJ_\pi^\top)$의 Monte Carlo 값이다. 선형화하지 않고, $\Sigma_o$는 센서·추정기 체인이 실제로 만드는 관측 공분산이다. `NoiseStdAx/Az`는 축별 표준편차.
+  - 기준 구동기 값을 척도 기준으로 함께 보고한다. 작을수록 좋다고 단정하지 않는다(§1 함께 읽는 규칙).
+- **attention**(`probes_attention*.csv`, 그림 `fig_attention`): 갱신 대비 입력에서 간선별 첫 층 Actor α의 평균. 기술 지표다.
+
+### 5.6 학습 진단 (`trainingDiagnostics`)
+
+체크포인트만으로 계산하므로 진단 기록 이전에 학습한 run에도 쓸 수 있다.
+
+- **기울기 전달**: 학습된 정책에서, run 자신의 학습 에피소드 난수열의 첫 4개 에피소드(확률적 정책, PPO와 같은 advantage 정규화)로 공통 PPO actor 손실·critic 손실의 기울기를 구한다(`landing2d.rl.policyLossGradient`, `valueLossGradient`, PPO 갱신과 같은 함수). actor/critic 인코더 기울기 노름이 0이 아니면 PPO 손실 → MLP → graph embedding → R-GAT 경로가 실제로 기울기를 전달한다는 뜻이다.
+- **파라미터 변화**: `landing2d.rl.initialAgent`로 PPO 시작점을 정확히 재구성해 $\lVert\theta_{final}-\theta_{init}\rVert$와 상대 변화를 인코더·head별로, 인코더는 파라미터 묶음(W1, a1, E1, W0, b0, Wc, Wn, bg)별로도 낸다(`training_parameters.csv`).
+- **사용한 그래프**: run별 의미 간선 수, 유형이 바뀐 간선 수·비율, 관계별 간선 수, 그래프 해시(`training_relations.csv`)와 간선별 TOSM 유형·실제 유형(`training_edges.csv`).
+
+논문에는 한 문장이면 된다: Actor와 Critic R-GAT 인코더가 PPO 학습 중 0이 아닌 기울기와 파라미터 갱신을 받았음을 확인했다.
 
 ## 6. 통계
 
-- **분석 단위는 학습 시드(run)다.** 각 run을 에피소드·반복 평균으로 먼저 요약한다(`runMeans`). 그다음 학습 시드에 대해 평균과 95% t 구간을 낸다(`seedSummary`).
+- **분석 단위는 학습 시드(run)다.** 각 run을 에피소드·반복 평균으로 먼저 요약한다(`runMeans`). 그다음 학습 시드에 대해 평균, 표준편차, 95% t 구간, 중앙값·사분위수(type 7), 시드 수, 총 에피소드 수를 낸다(`seedSummary`).
 - **비교군 차이는 학습 시드별 짝 차이**다(`methodContrasts`: TOSM−PPO, TOSM−Shuffled, Shuffled−PPO). 평균, 95% t 구간, A>B인 시드 수를 함께 낸다.
 - 학습 시드가 하나면 구간은 NaN이다. 잡음 반복 20회의 변동은 한 학습 실행 안의 변동이지 방법 간 차이의 근거가 아니다.
 - 5개 시드의 t 구간은 넓다. 구간이 0을 포함하면 "차이의 증거 없음"으로 보고한다. 차이를 주장하려면 `run(struct('trainSeeds',1:10))`로 늘린다.
@@ -170,6 +248,7 @@ run_scenario('S4')           % 통제 사례 하나의 궤적 보기 (학습된 
 ```
 
 - 새 환경에서 비교 결과를 믿기 전에 learnability 점검이 통과해야 한다. 이것은 네 번째 비교군이 아니라 과제의 학습 가능성 점검이다.
+- **2026-10-18 점검 결과: 통과하지 못함.** 일반 PPO(시드 1)는 쉬운 조건(CV·정상·속도 일치)에서도 착륙률 0%였다. 초기 위험 접촉 뒤 약 50 update부터 공중 정지 정책(timeout 100%, return −8.6)으로 수렴해 700 update 동안 벗어나지 못했다. 본 실험에서도 PPO는 시드 1–4에서 validation 0%였다. 따라서 R-GAT 계열 대 PPO의 차이는 현재 "표현의 효과"로 해석하지 않는다. 가능한 원인으로, R-GAT 입력에는 보상의 추종 목표인 aim error(`crossTrack`)와 착지 한계 비율이 파생 특징으로 들어가지만 일반 PPO는 포화 스케일된 관측에서 이를 직접 계산해야 한다는 점이 있다(검증 전 가설). 관계 의미의 효과는 TOSM 대 Shuffled(같은 특징·같은 구조)로만 판단한다.
 - `run`은 학습 서명이 맞는 체크포인트를 재사용한다. 중간에 멈춰도 다시 실행하면 이어서 진행한다. 모두 다시 학습하려면 `retrain = true`를 준다.
 
 ## 8. 출력
@@ -177,8 +256,8 @@ run_scenario('S4')           % 통제 사례 하나의 궤적 보기 (학습된 
 | 경로 | 내용 |
 |---|---|
 | `results/checkpoints/<method>_sNN[_gNN].mat` | agent, 학습 기록, 학습 서명, 실행 식별 |
-| `results/evaluation/*.csv`, `results.mat` | 절별 에피소드 표, run 평균, 시드 요약, 비교군 대비 |
-| `results/figures/fig_*.png` | contrasts, learning, heldout, factorial, trajectories, generalization, probes |
+| `results/evaluation/*.csv`, `results.mat` | 절별 에피소드 표, run 평균, 시드 요약, 비교군 대비, 실패 분류. `training_*`는 기울기·파라미터 변화·그래프. `results.mat`의 `factorial.display`는 표시 시드의 S1–S4 시계열(위치·속도·피치·명령·가시성·사건) |
+| `results/figures/fig_*.png` | contrasts, learning, heldout, factorial, trajectories, timeseries(S4), generalization, probes, diagnostics, attention, training(진단이 기록된 run만) |
 
 ## 9. 코드 대응
 
@@ -189,9 +268,21 @@ run_scenario('S4')           % 통제 사례 하나의 궤적 보기 (학습된 
 | 설정 | `+config/defaultPlanarVisibilityConfig`, `primaryConfig`, `defaultEvaluationConfig`, `methodRegistry`, `applyMethod` |
 | PPO (공통) | `+rl/ppoTrain`, `trainAgent`, `loadOrTrainAgent` |
 | R-GAT | `+graphstate/contextSchema`, `observationVectorGraph`, `encoderInit/Forward/Backward`, `+rgat/*` |
-| 평가 | `+evaluation/*` |
+| 평가 | `+evaluation/*` (지표 `episodeMetrics`, `aimError`, `failureClasses`, `failureTable`; 학습 진단 `trainingDiagnostics`) |
+| 기울기 (PPO와 진단 공통) | `+rl/policyLossGradient`, `valueLossGradient`, `initialAgent` |
 | 실행 | `+orchestration/runPipeline`, `runCheck`, `runScenario`, `selfTest` |
-| 그림 | `+viz/plotResults`, `plotTrajectories` |
+| 그림 | `+viz/plotResults`, `plotTrajectories`, `plotCaseTimeSeries` |
+
+## 10. 검토했지만 채택하지 않은 설계
+
+| 제안 | 결정과 이유 |
+|---|---|
+| M3 관계 순열을 학습 시드와 분리된 고정 시드(예: 2026) 하나로 | 채택하지 않음. 그래프 시드 = 학습 시드로 두면 M3의 시드 간 평균이 특정 순열 하나가 아니라 순열들에 대한 평균이 된다. 고정 순열이 필요하면 `applyMethod(cfg,'shuffled_rgat_ppo',s,g)`로 지정할 수 있다 |
+| S2에 잡음 수준 변화·측정 지연 포함 | 잡음 ×2는 학습 범위 밖이므로 §5.4 generalization에 둔다. 측정 지연은 환경 계약(관측 경로)을 바꾸므로 넣지 않는다. S2는 마커 누락만 바꾼다 |
+| S3에 감속(CV → 감속 → CV) 포함 | 학습 분포의 가속도는 0.3–0.8 m/s²(양수)뿐이므로 감속은 학습 범위 밖이다. 통제 사례는 학습 범위 안이어야 한다 |
+| 그래프 노드 7개·간선 16개(세미나 자료) | 현재 계약은 `tosm7_v1`(의미 13 + self 7 = 20 간선, 노드 구성도 다름, `TOSM7_ONTOLOGY_KO.md`) |
+| 결과 폴더 `results/train/…`, `results/eval/S1…` | 기존 계약(`checkpoints/`, `evaluation/`, `figures/`)을 유지. 같은 내용은 CSV 이름으로 구분된다 |
+| 상대 위치 RMSE를 $e_x$로 | $e_x$는 설계된 접근 오프셋 $mh$를 포함하므로 추종 오차가 아니다. aim error를 쓴다 |
 
 ## 참고문헌
 

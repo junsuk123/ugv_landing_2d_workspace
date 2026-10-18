@@ -27,12 +27,14 @@ for i = 1:numel(g.conditions)
 end
 episodes = struct2table([rows{:}]);
 metrics = {'Success','Unsafe','Timeout','Return','AimErrorRMS_m','RelativeSpeedRMS_mps', ...
-    'CommandRateRMS_mps3','ApproachViewLoss_s','UnsuitableDescent_s'};
+    'CommandRateRMS_mps3','ApproachViewLoss_s','UnsuitableDescent_s','RecoveryTime_s', ...
+    'TrackingReacquisition_s','TouchdownPositionError_m','TouchdownRelativeSpeed_mps'};
 R = landing2d.evaluation.runMeans(episodes,{'Condition'},metrics);
+[failureRuns,failureSummary] = landing2d.evaluation.failureTable(episodes,{'Condition'});
 out = struct('episodes',episodes,'runs',R, ...
     'summary',landing2d.evaluation.seedSummary(R,{'Condition'},metrics), ...
     'contrasts',landing2d.evaluation.methodContrasts(R,{'Condition'},metrics), ...
-    'metrics',{metrics});
+    'failureRuns',failureRuns,'failureSummary',failureSummary,'metrics',{metrics});
 end
 
 function [c,noiseScale] = conditionConfig(c,name,g)

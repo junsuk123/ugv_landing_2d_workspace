@@ -23,43 +23,100 @@ function out = openLoopProbes(runs,c,probeSet)
 %             edges leaving VisionQuality, first R-GAT layer, actor): how much
 %             the input-dependent attention re-weights the quality messages.
 %             Descriptive only; alpha is not a causal importance.
+%   noise     at the velocity-probe decisions, the same physical trajectory
+%             replayed with 1 + noiseReplicates sensor-noise tables:
+%             NoiseActionVar = tr Cov_j[a] [(m/s^2)^2], the Monte Carlo value
+%             of the policy noise sensitivity S_noise = tr(J Sigma_o J') with
+%             Sigma_o the observation covariance the sensing/estimation chain
+%             produces (no linearization); NoiseStdAx/Az per axis. A small
+%             value alone is not robustness: read it with SensitivityX (the
+%             response to an actual relative-velocity change) at the same states.
+%   attention graph arms: mean first-layer actor alpha of every edge at the
+%             fresh and stale update-probe inputs (per run; descriptive).
 % No probe result selects a checkpoint or feeds back into a trajectory.
 if nargin < 3 || isempty(probeSet), probeSet = landing2d.evaluation.buildProbeSet(c); end
-velocityRows = {}; updateRows = {};
+velocityRows = {}; updateRows = {}; noiseRows = {}; attentionRows = {};
 limits = landing2d.environment.actionLimits(c);
-[velocityRows{end+1},updateRows{end+1}] = referenceRows(probeSet,c,limits);
+[velocityRows{end+1},updateRows{end+1},noiseRows{end+1}] = referenceRows(probeSet,c,limits);
 for r = 1:numel(runs)
-    fprintf('  open-loop probes %-18s seed %d: %d + %d probes\n',runs(r).id, ...
-        runs(r).trainSeed,numel(probeSet.velocity),numel(probeSet.update));
-    [velocityRows{end+1},updateRows{end+1}] = policyRows(runs(r),probeSet,limits); %#ok<AGROW>
+    fprintf('  open-loop probes %-18s seed %d: %d + %d + %d x %d probes\n',runs(r).id, ...
+        runs(r).trainSeed,numel(probeSet.velocity),numel(probeSet.update), ...
+        numel(probeSet.noise),1+probeSet.meta.noiseReplicates);
+    [velocityRows{end+1},updateRows{end+1},noiseRows{end+1},attentionRows{end+1}] = ...
+        policyRows(runs(r),probeSet,limits); %#ok<AGROW>
 end
 velocity = vertcat(velocityRows{:});
 update = vertcat(updateRows{:});
+noise = vertcat(noiseRows{:});
+attention = vertcat(attentionRows{:});
 velocityMetrics = {'SensitivityX','SensitivityZ','PositiveSensitivity'};
 updateMetrics = {'AbsDeltaAx','AbsDeltaAz','DeltaAx','DeltaAz','EstimateShift_m', ...
     'EstimateShiftV_mps','AttentionShift'};
+noiseMetrics = {'NoiseActionVar','NoiseStdAx','NoiseStdAz'};
 learned = @(T)T(T.MethodId~="reference_driver",:);
 VR = landing2d.evaluation.runMeans(velocity,{},velocityMetrics);
 UR = landing2d.evaluation.runMeans(update,{},updateMetrics);
-out = struct('velocity',velocity,'update',update,'velocityRuns',VR,'updateRuns',UR, ...
+NR = landing2d.evaluation.runMeans(noise,{},noiseMetrics);
+attentionSummary = table();
+if ~isempty(attention)
+    attentionSummary = landing2d.evaluation.seedSummary(attention, ...
+        {'Edge','Source','Target','CanonicalRelation'},{'AlphaFresh','AlphaStale'});
+end
+out = struct('velocity',velocity,'update',update,'noise',noise, ...
+    'velocityRuns',VR,'updateRuns',UR,'noiseRuns',NR, ...
     'velocitySummary',landing2d.evaluation.seedSummary(VR,{},velocityMetrics), ...
     'updateSummary',landing2d.evaluation.seedSummary(UR,{},updateMetrics), ...
+    'noiseSummary',landing2d.evaluation.seedSummary(NR,{},noiseMetrics), ...
     'velocityContrasts',landing2d.evaluation.methodContrasts(learned(VR),{},velocityMetrics), ...
     'updateContrasts',landing2d.evaluation.methodContrasts(learned(UR),{},updateMetrics), ...
+    'noiseContrasts',landing2d.evaluation.methodContrasts(learned(NR),{},noiseMetrics), ...
+    'attention',attention,'attentionSummary',attentionSummary, ...
     'velocityMetrics',{velocityMetrics},'updateMetrics',{updateMetrics}, ...
-    'meta',probeSet.meta);
+    'noiseMetrics',{noiseMetrics},'meta',probeSet.meta);
 end
 
-function [V,U] = policyRows(run,P,limits)
+function [V,U,N,A] = policyRows(run,P,limits)
 act = @(O)requested(run,O,P.context,limits);
 V = velocityTable(P,act,string(run.id),string(run.label),run.trainSeed);
-U = updateTable(P,act,string(run.id),string(run.label),run.trainSeed);
+[U,alpha] = updateTable(P,act,string(run.id),string(run.label),run.trainSeed);
+N = noiseTable(P,act,string(run.id),string(run.label),run.trainSeed);
+A = attentionTable(run,alpha);
 end
 
-function [V,U] = referenceRows(P,c,limits)
+function [V,U,N] = referenceRows(P,c,limits)
 act = @(O)deal(limits(:).*landing2d.probe.referenceDriver(O,P.context,c,[],0),[]);
 V = velocityTable(P,act,"reference_driver","Reference driver",0);
 U = updateTable(P,act,"reference_driver","Reference driver",0);
+N = noiseTable(P,act,"reference_driver","Reference driver",0);
+end
+
+function T = noiseTable(P,act,id,label,seed)
+n = numel(P.noise); variance = zeros(n,2);
+for i = 1:n
+    O = P.noise(i).O;
+    a = zeros(2,numel(O));
+    for j = 1:numel(O), [a(:,j),~] = act(O{j}); end
+    variance(i,:) = var(a,0,2)';
+end
+T = table(repmat(id,n,1),repmat(label,n,1),repmat(seed,n,1), ...
+    [P.noise.episode]',[P.noise.decision]',[P.noise.height]',sum(variance,2), ...
+    sqrt(variance(:,1)),sqrt(variance(:,2)), ...
+    'VariableNames',{'MethodId','Method','TrainSeed','Episode','Decision','Height', ...
+    'NoiseActionVar','NoiseStdAx','NoiseStdAz'});
+end
+
+function T = attentionTable(run,alpha)
+% Mean actor alpha per edge (run's own typed graph) at the update-probe inputs.
+T = table();
+if isempty(alpha), return; end
+spec = run.agent.encoderSpec; schema = spec.schema; g = spec.graph;
+m = numel(spec.T.src);
+T = table(repmat(string(run.id),m,1),repmat(string(run.label),m,1), ...
+    repmat(run.trainSeed,m,1),(1:m)',string(schema.nodeNames(spec.T.src))', ...
+    string(schema.nodeNames(spec.T.dst))',string(schema.relationNames(g.canonicalRel))', ...
+    string(schema.relationNames(spec.T.rel))',alpha.fresh(:),alpha.stale(:), ...
+    'VariableNames',{'MethodId','Method','TrainSeed','Edge','Source','Target', ...
+    'CanonicalRelation','RunRelation','AlphaFresh','AlphaStale'});
 end
 
 function T = velocityTable(P,act,id,label,seed)
@@ -75,8 +132,9 @@ T = table(repmat(id,n,1),repmat(label,n,1),repmat(seed,n,1), ...
     'SensitivityX','SensitivityZ','PositiveSensitivity'});
 end
 
-function T = updateTable(P,act,id,label,seed)
+function [T,alpha] = updateTable(P,act,id,label,seed)
 n = numel(P.update); d = zeros(n,2); shift = nan(n,1);
+alpha = []; sumFresh = 0; sumStale = 0;
 for i = 1:n
     [stale,alphaStale] = act(P.update(i).stale);
     [fresh,alphaFresh] = act(P.update(i).fresh);
@@ -84,7 +142,11 @@ for i = 1:n
     if ~isempty(alphaFresh)
         quality = alphaFresh.qualityEdges;
         shift(i) = mean(abs(alphaStale.alpha(quality)-alphaFresh.alpha(quality)));
+        sumFresh = sumFresh+alphaFresh.alpha; sumStale = sumStale+alphaStale.alpha;
     end
+end
+if n > 0 && ~isscalar(sumFresh)
+    alpha = struct('fresh',sumFresh/n,'stale',sumStale/n);
 end
 T = table(repmat(id,n,1),repmat(label,n,1),repmat(seed,n,1), ...
     [P.update.episode]',[P.update.decision]',[P.update.height]', ...

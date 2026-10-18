@@ -39,9 +39,11 @@ for r = 1:numel(runs)
     end
 end
 episodes = struct2table([rows{:}]);
-disp(episodes(:,{'MethodId','TrainSeed','Replicate','TerminalReason', ...
-    'WindowAimErrorRMS_m','WindowCommandRateRMS_mps3','UnsuitableDescent_s'}));
+disp(episodes(:,{'MethodId','TrainSeed','Replicate','FailureClass', ...
+    'WindowAimErrorRMS_m','WindowCommandRateRMS_mps3','RecoveryTime_s', ...
+    'TrackingReacquisition_s','TouchdownRelativeSpeed_mps'}));
 view = struct('cases',spec,'display',shown,'displaySeed',options.trainSeeds(1));
 fig = landing2d.viz.plotTrajectories(view,cfg,options.visible);
-output = struct('case',spec,'episodes',episodes,'figure',fig);
+timeSeries = landing2d.viz.plotCaseTimeSeries(view,cfg,caseId,options.visible);
+output = struct('case',spec,'episodes',episodes,'figure',fig,'timeSeries',timeSeries);
 end

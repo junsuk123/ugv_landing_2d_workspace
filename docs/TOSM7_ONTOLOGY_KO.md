@@ -48,6 +48,15 @@ R-GAT 비교군(`onto_rgat_ppo`, `shuffled_rgat_ppo`)의 상태 표현이다. 12
 상대 위치 변화에 영향을 준다는 뜻이다. 현재 상대 위치를 상대 속도만으로 정한다는 뜻은 아니다.
 관계 구조는 고정되어 있고, 매 시점 바뀌는 것은 노드 특징뿐이다.
 
+## 관계 연산자 (`typed_v1`, 기본값)
+
+관계 유형은 가중치만이 아니라 메시지의 연산 형태를 정한다(`schema.relationOperators`).
+
+- 조절(modulate): `qualifiesEstimate`, `conditionsLanding`. "A가 B를 조건 짓는다/한정한다"는 뜻이므로, A의 메시지가 B의 노드 상태에 곱셈 게이트 $(1+\tanh(\cdot))\in(0,2)$로 작용한다.
+- 전파(propagate): `informsMotion`, `affectsVisibility`, self. "A가 B를 바꾼다"는 뜻이므로 덧셈 메시지다.
+- 두 종류는 각각 도착 노드 기준으로 정규화된 attention 그래프이고, 같은 관계별 파라미터를 쓴다(파라미터 수 불변). 교란 대조군에서는 연산자가 순열된 라벨을 따라간다.
+- 근거와 진단은 `EXPERIMENT_DESIGN_KO.md` §2.1에 있다. 모든 관계가 덧셈인 이전 인코더는 `relationOperators = 'additive_v1'`로 고를 수 있다.
+
 ## 인코더와 모델 용량
 
 - 단일 R-GAT 층: 관계별 사영 $W_r$, 관계 임베딩 $E_r$, **입력 의존 attention**(`input_dependent_v1`)
@@ -63,7 +72,10 @@ R-GAT 비교군(`onto_rgat_ppo`, `shuffled_rgat_ppo`)의 상태 표현이다. 12
 ## 관계 교란 대조군 (`shuffled_rgat_ppo`)
 
 - `landing2d.rgat.applyRelationPerturbation`이 의미 간선 13개의 관계 유형을 고정 순열로 바꾼다. self 간선은 보호하고,
-  원래 배치와 전역 이름 치환 배치는 거부한다.
+  원래 배치와 전역 이름 치환 배치(`qualifiesEstimate` ↔ `informsMotion`, 둘 다 3개)는 거부한다.
+- 의미 간선 중 10개 이상(`registry.relationShuffle.minChangedFraction = 0.7`)의 유형이 바뀐 순열만 받는다.
+  제약 없는 순열은 평균 3.6개 간선의 TOSM 유형을 우연히 유지하므로, 대조군이 TOSM 배치의 상당 부분을 갖지 않게 한다.
+  run별 실제 교란 비율과 간선별 유형은 `training_relations.csv`, `training_edges.csv`에 저장된다.
 - 노드·간선(src/dst)·관계별 간선 수·파라미터 초기값은 TOSM과 같다. 그래프 해시와 학습 서명은 다르다.
 - 그래프 시드 = 학습 시드. 체크포인트에는 실제 사용한 그래프(src/dst/rel/hash)가 저장된다. 로드할 때는
   `landing2d.rl.verifyCheckpointGraph`가 이를 확인한다. 추론 시 다시 순열하지 않는다.

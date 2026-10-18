@@ -19,8 +19,18 @@ for b = 1:B
     grads.Wn = grads.Wn+preOutput(:,b).*cache.channel(:,:,b);
     dH(:,:,b) = (params.Wc'*weighted)*spec.groupMatrix;
 end
-preH = dH.*(1-cache.H.^2);
-[dXRelation,g1] = landing2d.rgat.relationBackward(preH,cache.cache1);
+if isfield(cache,'cacheMod')
+    % typed_v1: H = (1 + M) .* A, A = tanh(Z_prop + local), M = tanh(Z_mod).
+    preH = dH.*(1+cache.M).*(1-cache.A.^2);
+    preM = dH.*cache.A.*(1-cache.M.^2);
+    [dXa,ga] = landing2d.rgat.relationBackward(preH,cache.cacheAdd);
+    [dXm,gm] = landing2d.rgat.relationBackward(preM,cache.cacheMod);
+    dXRelation = dXa+dXm;
+    g1 = struct('W',ga.W+gm.W,'a',ga.a+gm.a,'E',ga.E+gm.E);
+else
+    preH = dH.*(1-cache.H.^2);
+    [dXRelation,g1] = landing2d.rgat.relationBackward(preH,cache.cache1);
+end
 flat = reshape(preH,dh,N*B);
 grads.W1 = g1.W; grads.a1 = g1.a; grads.E1 = g1.E;
 grads.W0 = flat*cache.Xf';

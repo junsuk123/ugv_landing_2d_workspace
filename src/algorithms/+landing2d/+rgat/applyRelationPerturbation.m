@@ -1,18 +1,21 @@
 function [schema,T,graph] = applyRelationPerturbation(schema,T,gs)
 % APPLYRELATIONPERTURBATION  Fixed edge-relation shuffle for the relation-perturbed R-GAT.
 % Without graphState.relationPerturbation the canonical graph passes through.
-% With relationPerturbation = struct('type','edge_relation_shuffle','graphSeed',k)
-% the relation type ids of the shufflable edges are permuted once:
+% With relationPerturbation = struct('type','edge_relation_shuffle','graphSeed',k,
+% 'minChangedFraction',f) the relation type ids of the semantic edges are
+% permuted once:
 %   - node features, node order, src/dst, node and edge counts, per-relation
 %     edge counts and the network structure are unchanged;
-%   - self edges (relation 'self') are protected; the raw_plus_groups readout
-%     needs no other structural edge;
-%   - an assignment equal to the canonical one, or equal to it up to a global
-%     renaming of relation ids (here only supports <-> inhibits, the two
-%     relations with equal counts), is rejected and redrawn.
-% The same graphSeed always gives the same assignment, so pretraining, PPO,
-% validation, test and inference share one typed graph. GRAPH records
-% src/dst/rel, the canonical rel, and a SHA-256 hash of the typed graph.
+%   - self edges (relation 'self') are protected;
+%   - an assignment equal to the canonical one up to a global renaming of
+%     relation ids (in tosm7_v1 qualifiesEstimate <-> informsMotion, the two
+%     relations with 3 edges each) is rejected and redrawn;
+%   - an assignment changing the relation type of fewer than ceil(f * 13)
+%     semantic edges is rejected and redrawn (no field: no such rule, the
+%     comparison_registry_v3 graphs).
+% The same graphSeed always gives the same assignment, so PPO, validation,
+% test and inference share one typed graph. GRAPH records src/dst/rel, the
+% canonical rel, and a SHA-256 hash of the typed graph.
 canonicalRel = schema.rel;
 perturbation = 'none';
 graphSeed = NaN;
@@ -20,12 +23,15 @@ if isfield(gs,'relationPerturbation')
     p = gs.relationPerturbation;
     selfId = find(strcmp(schema.relationNames,'self'));
     movable = find(schema.rel ~= selfId);
+    minChanged = 0;
+    if isfield(p,'minChangedFraction'), minChanged = ceil(p.minChangedFraction*numel(movable)-1e-9); end
     rs = RandStream('threefry','Seed',p.graphSeed);
     accepted = false;
     for attempt = 1:1000
         rel = canonicalRel;
         rel(movable) = canonicalRel(movable(randperm(rs,numel(movable))));
-        if ~sameUpToRenaming(rel(movable),canonicalRel(movable))
+        if ~sameUpToRenaming(rel(movable),canonicalRel(movable)) ...
+                && sum(rel(movable)~=canonicalRel(movable))>=minChanged
             accepted = true;
             break;
         end
@@ -42,7 +48,7 @@ if isfield(gs,'relationPerturbation')
                 schema.relationNames{rel(e)},canonicalPurpose{e});
         end
     end
-    schema.relationPerturbation = struct('type',p.type,'graphSeed',p.graphSeed);
+    schema.relationPerturbation = p;
     schema.variant = [schema.variant,'_relation_shuffle'];
     T = landing2d.rgat.topology(schema);
     perturbation = p.type;

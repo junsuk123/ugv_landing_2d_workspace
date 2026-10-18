@@ -27,13 +27,14 @@ run_scenario('S4')           % 통제 사례 하나의 궤적 (학습된 체크�
 
 | 절 | 내용 |
 |---|---|
-| learning | validation 착륙률 학습 곡선, 목표(50%·80%) 도달 환경 스텝, AUC |
-| heldout | 학습 분포 test 200개. 전체와 UGV(CV/CA) × 마커(정상/누락) 네 셀 |
-| factorial | 통제 사례 S1–S4 (CV·CA × 정상·누락, S4는 누락이 가속 시작과 겹침). 짝지은 효과와 상호작용 $S4-S3-S2+S1$ |
+| learning | validation 착륙률 학습 곡선, 목표(50%·80%) 도달 환경 스텝, AUC, plateau 확인(LateGain), PPO 갱신 진단 |
+| training | R-GAT 인코더까지 PPO 손실 기울기가 전달되는지, 초기값 대비 파라미터 변화, 각 run이 쓴 관계 그래프(교란 비율) |
+| heldout | 학습 분포 test 200개. 전체와 UGV(CV/CA) × 마커(정상/누락) 네 셀. 회복 시간·재획득 시간·착지 오차·실패 분류 |
+| factorial | 통제 사례 S1–S4 (CV·CA × 정상·누락, S4는 누락이 가속 시작과 겹침). 짝지은 효과와 상호작용 $S4-S3-S2+S1$, 잡음에 의한 궤적 분산 |
 | generalization | 학습 범위 밖: 가속 1.0–1.5 m/s², 누락 1–2 s, 잡음 ×2, 가속+누락 |
-| probes | 모든 정책에 같은 관측 입력. UGV 속도 대비에 대한 민감도, 마커 갱신 유무에 대한 반응, attention 변화 |
+| probes | 모든 정책에 같은 관측 입력. 관측 잡음 민감도 $\mathrm{tr\,Cov}[a]$, UGV 속도 대비에 대한 민감도, 마커 갱신 유무에 대한 반응, attention |
 
-모든 요약은 **학습 시드 간** 평균과 95% t 구간이다. 비교군 차이는 학습 시드별 짝 차이로 계산한다. 시드 하나로는 방법 간 차이를 주장하지 않는다.
+모든 요약은 **학습 시드 간** 평균과 95% t 구간이다(중앙값·사분위수도 함께 저장). 비교군 차이는 학습 시드별 짝 차이로 계산한다. 시드 하나로는 방법 간 차이를 주장하지 않는다. 관측 잡음 민감도와 궤적 분산은 추종 오차·회복 시간·속도 민감도와 함께만 해석한다(입력을 무시하는 정책도 잡음에 둔감하다).
 
 ## 구조
 
@@ -42,7 +43,7 @@ run.m  run_check.m  run_scenario.m      진입점
 src/orchestration/+landing2d/
   +config         실험·PPO·평가 설정, 비교군 등록
   +orchestration  파이프라인, 학습/로드, self-test
-  +evaluation     평가 5종, 지표, 시드 통계
+  +evaluation     평가 6종, 지표, 실패 분류, 시드 통계
   +viz            결과 그림
   +util           Adam, 해시 등
 src/simulations/+landing2d/     환경·동역학·센서·공통 관측·기준 구동기

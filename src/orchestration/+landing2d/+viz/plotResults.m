@@ -7,8 +7,14 @@ function figures = plotResults(results,cfg,options)
 %   heldout         training-distribution test per motion x observation cell
 %   factorial       S1-S4 outcomes, paired effects and interaction
 %   trajectories    S1-S4 paths of the display training seed
+%   timeseries      S4 aim error, relative velocity, a_x, a_z of the display seed
 %   generalization  outside the training ranges vs the in-distribution test
 %   probes          open-loop velocity sensitivity and stale-update response
+%   diagnostics     noise sensitivity vs responsiveness per run, noise-induced
+%                   trajectory variance, failure classes, R-GAT gradient flow
+%                   and parameter change, learning-curve plateau
+%   attention       mean first-layer actor alpha per edge (descriptive)
+%   training        PPO update diagnostics over steps (runs that recorded them)
 % Bars = mean over training seeds, whiskers = 95% t interval over seeds (none
 % with one seed: one run gives no between-run variation).
 if nargin < 3, options = struct(); end
@@ -26,6 +32,10 @@ if isfield(results,'factorial')
     figures.factorial = factorialFigure(results.factorial,methods,visible);
     if ~isempty(results.factorial.display)
         figures.trajectories = landing2d.viz.plotTrajectories(results.factorial,cfg,options.visible);
+        if any(strcmp({results.factorial.display.case},'S4'))
+            figures.timeseries = landing2d.viz.plotCaseTimeSeries(results.factorial,cfg, ...
+                'S4',options.visible);
+        end
     end
 end
 if isfield(results,'generalization')
@@ -34,6 +44,15 @@ if isfield(results,'generalization')
     figures.generalization = generalizationFigure(results.generalization,reference,methods,visible);
 end
 if isfield(results,'probes'), figures.probes = probeFigure(results.probes,methods,visible); end
+figures.diagnostics = diagnosticsFigure(results,methods,visible);
+if isfield(results,'probes') && isfield(results.probes,'attentionSummary') ...
+        && ~isempty(results.probes.attentionSummary)
+    figures.attention = attentionFigure(results.probes.attentionSummary,methods,visible);
+end
+if isfield(results,'learning') && ismember('ActorHeadGradNorm',results.learning.curves.Properties.VariableNames) ...
+        && any(isfinite(results.learning.curves.ActorHeadGradNorm))
+    figures.training = trainingFigure(results.learning.curves,methods,visible);
+end
 if ~isempty(options.outputDir)
     folder = char(options.outputDir);
     if ~exist(folder,'dir'), mkdir(folder); end
@@ -194,6 +213,155 @@ set(ax,'XTickLabel',{''}); title(ax,{'attention change on VisionQuality edges','
 legend(ax,{graph.label},'Location','southoutside');
 end
 
+function fig = diagnosticsFigure(results,methods,visible)
+fig = figure('Name','Diagnostics','Color','w','Visible',visible,'Position',[60 60 1500 800]);
+t = tiledlayout(fig,2,3,'TileSpacing','compact','Padding','compact');
+title(t,{'Diagnostics: read noise sensitivity and dispersion only together with responsiveness and tracking', ...
+    'points = runs (one per training seed); bars = mean over seeds \pm 95% t interval'});
+% (a) Open-loop noise sensitivity vs relative-velocity responsiveness per run.
+ax = nexttile(t); hold(ax,'on'); grid(ax,'on'); box(ax,'on');
+if isfield(results,'probes') && isfield(results.probes,'noiseRuns')
+    N = results.probes.noiseRuns; V = results.probes.velocityRuns;
+    J = innerjoin(N(:,{'MethodId','TrainSeed','NoiseActionVar'}), ...
+        V(:,{'MethodId','TrainSeed','SensitivityX'}),'Keys',{'MethodId','TrainSeed'});
+    for m = 1:numel(methods)
+        rows = J(J.MethodId==methods(m).id,:);
+        scatter(ax,rows.NoiseActionVar,rows.SensitivityX,36,methods(m).color, ...
+            methods(m).marker,'filled','DisplayName',methods(m).label);
+    end
+    ref = J(J.MethodId=="reference_driver",:);
+    if ~isempty(ref)
+        scatter(ax,ref.NoiseActionVar,ref.SensitivityX,60,'k','p','filled', ...
+            'DisplayName','reference driver');
+    end
+    set(ax,'XScale','log'); yline(ax,0,'k-','HandleVisibility','off');
+    legend(ax,'Location','best','FontSize',7);
+else
+    noData(ax);
+end
+xlabel(ax,'noise sensitivity tr Cov[a] [(m/s^2)^2] (log)');
+ylabel(ax,'velocity sensitivity da_x/dv_r [1/s]');
+title(ax,{'open loop: upper left = insensitive to noise','and responsive to relative motion'});
+% (b) Noise-induced closed-loop trajectory variance per controlled case.
+ax = nexttile(t);
+if isfield(results,'factorial') && isfield(results.factorial,'dispersionSummary')
+    set(ax,'YScale','log');
+    cellBars(ax,results.factorial.dispersionSummary,'Case',["S1","S2","S3","S4"], ...
+        'TrajectoryVariance_m2',methods);
+else
+    noData(ax);
+end
+ylabel(ax,'mean tr Cov[p] [m^2] (log)');
+title(ax,{'trajectory variance over noise replicates','(secondary; common flight horizon)'});
+% (c) Outcome classes of the held-out test.
+ax = nexttile(t); hold(ax,'on'); box(ax,'on');
+if isfield(results,'heldout') && isfield(results.heldout,'failureSummary')
+    S = results.heldout.failureSummary; S = S(S.Cell=="all",:);
+    classes = landing2d.evaluation.failureClasses();
+    value = zeros(numel(methods),numel(classes));
+    for m = 1:numel(methods)
+        for k = 1:numel(classes)
+            row = S(S.MethodId==methods(m).id & S.Class==classes(k),:);
+            if ~isempty(row), value(m,k) = row.Fraction; end
+        end
+    end
+    keep = any(value>0,1);
+    b = bar(ax,value(:,keep),'stacked');
+    % One fixed colour per class (failureClasses order), the same in every run.
+    colors = [0.30 0.65 0.35;0.80 0.20 0.20;0.95 0.50 0.15;0.60 0.30 0.10; ...
+        0.85 0.45 0.70;0.45 0.25 0.65;0.30 0.75 0.90;0.90 0.75 0.10; ...
+        0.15 0.35 0.70;0.55 0.55 0.55];
+    colors = colors(keep,:);
+    for k = 1:numel(b), b(k).FaceColor = colors(k,:); b(k).EdgeColor = 'none'; end
+    set(ax,'XTick',1:numel(methods),'XTickLabel',{methods.label},'XTickLabelRotation',15);
+    legend(ax,cellstr(classes(keep)),'Location','southoutside','FontSize',6,'Interpreter','none');
+    ylim(ax,[0,1]);
+else
+    noData(ax);
+end
+ylabel(ax,'fraction of episodes (mean over seeds)');
+title(ax,'held-out outcome classes');
+% (d) Gradient of the common PPO loss at the R-GAT encoders, (e) their change.
+graph = methods(~strcmp({methods.id},'ppo'));
+ax = nexttile(t);
+if isfield(results,'training') && ~isempty(graph)
+    set(ax,'YScale','log');
+    methodBars(ax,results.training.summary,{'ActorEncoderGradNorm','CriticEncoderGradNorm'}, ...
+        graph,'||dL/d\theta_{encoder}|| at the trained policy');
+    set(ax,'XTickLabel',{'actor R-GAT','critic R-GAT'});
+    legend(ax,{graph.label},'Location','southoutside');
+else
+    noData(ax);
+end
+title(ax,'PPO loss gradient reaching the encoders');
+ax = nexttile(t);
+if isfield(results,'training') && ~isempty(graph)
+    methodBars(ax,results.training.summary,{'ActorEncoderRelativeChange', ...
+        'CriticEncoderRelativeChange'},graph,'||\theta - \theta_0|| / ||\theta_0||');
+    set(ax,'XTickLabel',{'actor R-GAT','critic R-GAT'});
+else
+    noData(ax);
+end
+title(ax,'encoder change from the initialization');
+% (f) Plateau check of the learning curves.
+ax = nexttile(t);
+if isfield(results,'learning') && ismember('LateGain',results.learning.summary.Properties.VariableNames)
+    methodBars(ax,results.learning.summary,{'LateGain'},methods,'\Delta validation landing rate');
+    set(ax,'XTickLabel',{''}); yline(ax,0,'k-');
+else
+    noData(ax);
+end
+title(ax,{'late learning gain (last vs previous','share of the evaluations; ~0 = plateau)'});
+end
+
+function fig = attentionFigure(S,methods,visible)
+fig = figure('Name','Attention','Color','w','Visible',visible,'Position',[60 60 1500 480]);
+ax = axes(fig); hold(ax,'on'); grid(ax,'on'); box(ax,'on');
+graph = methods(~strcmp({methods.id},'ppo'));
+edges = unique(S.Edge);
+value = nan(numel(edges),numel(graph)); ci = value;
+names = strings(numel(edges),1);
+for e = 1:numel(edges)
+    for m = 1:numel(graph)
+        row = S(S.Edge==edges(e) & S.MethodId==graph(m).id,:);
+        if isempty(row), continue; end
+        value(e,m) = row.AlphaFresh; ci(e,m) = row.AlphaFresh_ci;
+        names(e) = row.Source+" > "+row.Target+" ("+row.CanonicalRelation+")";
+    end
+end
+drawBars(ax,value,ci,graph);
+set(ax,'XTick',1:numel(edges),'XTickLabel',cellstr(names),'XTickLabelRotation',35, ...
+    'TickLabelInterpreter','none','FontSize',7);
+ylabel(ax,'mean actor \alpha (fresh marker update)');
+legend(ax,{graph.label},'Location','northeast');
+title(ax,{'First-layer actor attention per edge at the update-probe states (TOSM relation in brackets)', ...
+    'descriptive only: \alpha is a normalized aggregation weight, not a causal importance'});
+end
+
+function fig = trainingFigure(C,methods,visible)
+fig = figure('Name','PPO diagnostics','Color','w','Visible',visible,'Position',[60 60 1500 420]);
+t = tiledlayout(fig,1,4,'TileSpacing','compact','Padding','compact');
+title(t,'PPO update diagnostics (window means between validations; mean over seeds)');
+spec = {'ActorEncoderGradNorm','actor R-GAT ||grad|| (pre-clip)';'Entropy','policy entropy'; ...
+    'ApproxKL','approximate KL';'ValueLoss','critic MSE'};
+for k = 1:size(spec,1)
+    ax = nexttile(t); hold(ax,'on'); grid(ax,'on'); box(ax,'on');
+    for m = 1:numel(methods)
+        rows = C(C.MethodId==methods(m).id & isfinite(C.(spec{k,1})),:);
+        if isempty(rows), continue; end
+        g = findgroups(rows.Iteration);
+        plot(ax,splitapply(@mean,rows.EnvironmentSteps,g),splitapply(@mean,rows.(spec{k,1}),g), ...
+            methods(m).lineStyle,'Color',methods(m).color,'LineWidth',1.4,'DisplayName',methods(m).label);
+    end
+    xlabel(ax,'environment steps'); title(ax,spec{k,2});
+    if k==1, legend(ax,'Location','best','FontSize',7); end
+end
+end
+
+function noData(ax)
+text(ax,0.5,0.5,'no data','Units','normalized','HorizontalAlignment','center');
+end
+
 % ------------------------------------------------------------------ helpers
 function cellBars(ax,S,key,categories,metric,methods)
 % Grouped bars: categories on x, one bar per method, seed interval whiskers.
@@ -237,10 +405,15 @@ if single
 end
 b = bar(ax,value,'grouped');
 if single, xlim(ax,[0.5,1.5]); end
+% On a log axis the lower whisker stops above zero (the interval is drawn clipped).
+logScale = strcmp(ax.YScale,'log');
 for m = 1:numel(b)
     b(m).FaceColor = methods(m).color; b(m).EdgeColor = 'none';
     x = b(m).XEndPoints; ok = isfinite(value(:,m)) & isfinite(ci(:,m));
-    errorbar(ax,x(ok),value(ok,m),ci(ok,m),'k.','LineWidth',0.8,'HandleVisibility','off');
+    lower = ci(:,m);
+    if logScale, lower = min(lower,0.99*value(:,m)); ok = ok & value(:,m)>0; end
+    errorbar(ax,x(ok),value(ok,m),lower(ok),ci(ok,m),'k.','LineWidth',0.8, ...
+        'HandleVisibility','off');
 end
 end
 

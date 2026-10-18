@@ -10,20 +10,31 @@ function metric = episodeMetrics(result,traj,c,identity,window)
 %
 % Factors     MotionFactor (UGV accelerates), ObservationFactor (exogenous
 %             dropout), DropoutKind, InitialSpeedOffset
-% Mission     Success, Unsafe, Timeout, Return, LandingTime_s
-% Tracking    aim error e_aim = e_x - h tan(camera pitch offset): horizontal
-%             error from the camera-aim point the common reward tracks (0 at
-%             touchdown); relative speed v_r = v_pad - v_drone
+% Mission     Success, Unsafe, Timeout, Return, LandingTime_s, FailureClass
+%             (landing2d.evaluation.failureClasses)
+% Tracking    aim error e_aim = e_x - m h, m = tan(-camera pitch offset)
+%             (landing2d.evaluation.aimError): horizontal error from the
+%             camera-aim point the common reward tracks (0 at touchdown);
+%             relative speed v_r = v_pad - v_drone
 % Command     CommandRateRMS: time-weighted RMS of the requested-command rate
 %             over consecutive decisions [m/s^3] (direct policy: requested = applied)
 % Events      SpeedRematch_s (|v_r| <= touchdownSpeedX held 1 s after the CA
-%             phase), ReacquisitionLatency_s, ExogenousDropout_s, and
-%             ApproachViewLoss_s: pad outside the camera view above the
-%             readiness height outside any exogenous dropout (policy-induced
-%             view loss, recorded separately from the injected dropout)
+%             phase), RecoveryTime_s (CA episodes: t_r - T1, t_r = first time
+%             at or after the end of the CA phase from which |e_aim| <=
+%             tracking tolerance holds for evaluation.tracking.hold s or until
+%             the episode ends), ReacquisitionLatency_s (dropout end -> first
+%             marker measurement), TrackingReacquisition_s (that measurement ->
+%             |e_aim| back inside the tolerance, same hold rule),
+%             ExogenousDropout_s, and ApproachViewLoss_s: pad outside the
+%             camera view above the readiness height outside any exogenous
+%             dropout (policy-induced view loss, recorded separately from the
+%             injected dropout)
 % Landing     UnsuitableDescent_s: descending below the readiness height while
 %             a touchdown limit is exceeded or the remaining height cannot
-%             brake to touchdownSpeedZ within azMax; ContactMaxRatio
+%             brake to touchdownSpeedZ within azMax; ContactMaxRatio;
+%             Touchdown{PositionError_m, RelativeSpeed_mps, VerticalSpeed_mps}:
+%             |e_x|, |v_r|, |v_z| at contact (NaN without contact)
+% The tracking tolerance is safety.touchdownPositionTolerance.
 if nargin < 5, window = []; end
 n = traj.count;
 assert(n>0,'landing2d:EmptyRollout','Rollout produced no decisions.');
@@ -36,8 +47,10 @@ dt = traj.dt(:)';
 endTime = result.time(n+1);
 ex = result.xPad(1:n)-result.xDrone(1:n);
 height = result.zDrone(1:n)-s.padHeight;
-aimError = ex-max(height,0)*tan(sensor.cameraPitchOffset);
+aimError = landing2d.evaluation.aimError(result.xPad(1:n),result.xDrone(1:n),height,c);
 relativeVx = result.vxPad(1:n)-result.vxDrone(1:n);
+tolerance = safety.touchdownPositionTolerance;
+holdSeconds = c.evaluation.tracking.hold;
 vz = result.vzDrone(1:n);
 theta = result.theta(1:n);
 pitchRate = result.pitchRate(1:n);
@@ -61,14 +74,19 @@ if ~isempty(window)
     windowSeconds = weighted(inWindow,dt);
 end
 
-reacquisition = NaN;
+reacquisition = NaN; trackingReacquisition = NaN;
 if isfinite(events.dropoutEnd)
     index = find(result.time>=events.dropoutEnd & result.visible,1,'first');
-    if ~isempty(index), reacquisition = max(0,result.time(index)-events.dropoutEnd); end
+    if ~isempty(index)
+        reacquisition = max(0,result.time(index)-events.dropoutEnd);
+        restored = events.dropoutEnd+reacquisition;
+        trackingReacquisition = settleTime(t,aimError,restored,restored,tolerance,holdSeconds);
+    end
 end
-rematch = NaN;
+rematch = NaN; recovery = NaN;
 if s.a2 > 0
     rematch = rematchTime(t,relativeVx,s.T1+s.T2,safety.touchdownSpeedX,1.0);
+    recovery = settleTime(t,aimError,s.T1,s.T1+s.T2,tolerance,holdSeconds);
 end
 
 low = height<=readiness;
@@ -87,11 +105,21 @@ unsafeReasons = ["UNSAFE_CONTACT","UNAUTHORIZED_CONTACT","MISSED_PAD_CONTACT", .
     "SAFETY_ENVELOPE_VIOLATION"];
 initialSpeedOffset = 0;
 if isfield(s,'initialSpeedOffset'), initialSpeedOffset = s.initialSpeedOffset; end
+touchdown = NaN(1,3);
+if isfinite(contact(1))
+    touchdown = abs([result.contact.xError,result.contact.relativeVx,result.contact.relativeVz]);
+end
+final = t>=endTime-c.evaluation.failure.finalWindow-1e-9;
+finalAim = rmsOf(aimError(final),dt(final));
+finalViewLoss = weighted(final & ~geometricVisible,dt)/max(weighted(final,dt),eps);
+lostMarker = isfinite(events.dropoutEnd) && isnan(reacquisition);
+failure = failureClass(reason,contact,finalAim,finalViewLoss,lostMarker,tolerance, ...
+    c.evaluation.failure.viewLossFraction);
 row = struct('MotionFactor',double(s.a2>0), ...
     'ObservationFactor',double(isfinite(events.dropoutStart)), ...
     'DropoutKind',string(events.dropoutKind),'UgvAcceleration',s.a2, ...
     'InitialSpeedOffset',initialSpeedOffset,'InitialHeight',s.height, ...
-    'TerminalReason',reason,'Success',double(reason=="SUCCESS"), ...
+    'TerminalReason',reason,'FailureClass',failure,'Success',double(reason=="SUCCESS"), ...
     'Unsafe',double(ismember(reason,unsafeReasons)),'Timeout',double(reason=="TASK_TIMEOUT"), ...
     'Return',result.return,'LandingTime_s',result.landingTime, ...
     'Duration_s',sum(dt), ...
@@ -103,12 +131,16 @@ row = struct('MotionFactor',double(s.a2>0), ...
     'WindowRelativeSpeedRMS_mps',windowValue(@()rmsOf(relativeVx(inWindow),dt(inWindow)),windowSeconds), ...
     'WindowMaxAbsRelativeSpeed_mps',windowValue(@()max(abs(relativeVx(inWindow))),windowSeconds), ...
     'WindowCommandRateRMS_mps3',windowValue(@()commandRate(t,command,inWindow),windowSeconds), ...
-    'SpeedRematch_s',rematch,'ReacquisitionLatency_s',reacquisition, ...
+    'SpeedRematch_s',rematch,'RecoveryTime_s',recovery, ...
+    'ReacquisitionLatency_s',reacquisition,'TrackingReacquisition_s',trackingReacquisition, ...
     'ExogenousDropout_s',weighted(inDropout,dt), ...
     'ApproachViewLoss_s',weighted(approach & ~inDropout & ~geometricVisible,dt), ...
     'MeasuredViewLoss_s',weighted(~visible,dt), ...
     'UnsuitableDescent_s',weighted(low & descending & unsuitable,dt), ...
-    'ContactMaxRatio',max(contact));
+    'ContactMaxRatio',max(contact), ...
+    'TouchdownPositionError_m',touchdown(1),'TouchdownRelativeSpeed_mps',touchdown(2), ...
+    'TouchdownVerticalSpeed_mps',touchdown(3), ...
+    'FinalAimErrorRMS_m',finalAim,'FinalViewLossFraction',finalViewLoss);
 names = [fieldnames(identity);fieldnames(row)];
 values = [struct2cell(identity);struct2cell(row)];
 metric = cell2struct(values,names,1);
@@ -152,6 +184,56 @@ for k = find(t>=startTime-1e-9)
         latency = max(0,t(k)-startTime);
         return;
     end
+end
+end
+
+function latency = settleTime(t,err,origin,searchStart,tolerance,hold)
+% First time t_r >= SEARCHSTART from which |err| <= TOLERANCE holds for HOLD s
+% (or until the episode ends); returns t_r - ORIGIN, NaN if it never settles.
+latency = NaN;
+inside = abs(err)<=tolerance;
+for k = find(t>=searchStart-1e-9)
+    if ~inside(k), continue; end
+    stop = find(t>=t(k)+hold-1e-9,1,'first');
+    if isempty(stop), stop = numel(t); end
+    if all(inside(k:stop))
+        latency = t(k)-origin;
+        return;
+    end
+end
+end
+
+function label = failureClass(reason,ratio,finalAim,finalViewLoss,lostMarker, ...
+    tolerance,viewLossFraction)
+% Rules and order of landing2d.evaluation.failureClasses. RATIO = contact
+% ratios [x, v_r, v_z, pitch, pitch rate] against the touchdown limits.
+switch reason
+    case "SUCCESS"
+        label = "SUCCESS";
+    case {"MISSED_PAD_CONTACT","UNSAFE_CONTACT","UNAUTHORIZED_CONTACT"}
+        if ratio(1)>1
+            label = "LARGE_TOUCHDOWN_POSITION_ERROR";
+        elseif ratio(2)>1
+            label = "HIGH_TOUCHDOWN_RELATIVE_SPEED";
+        elseif ratio(3)>1
+            label = "HIGH_TOUCHDOWN_VERTICAL_SPEED";
+        elseif any(ratio(4:5)>1)
+            label = "UNSAFE_TOUCHDOWN_ATTITUDE";
+        else
+            label = "OTHER_FAILURE";
+        end
+    case "TASK_TIMEOUT"
+        if lostMarker
+            label = "REACQUISITION_FAILURE";
+        elseif finalViewLoss>=viewLossFraction
+            label = "FOV_LOSS";
+        elseif finalAim>tolerance
+            label = "TIMEOUT_TRACKING";
+        else
+            label = "TIMEOUT_HOVERING";
+        end
+    otherwise
+        label = "OTHER_FAILURE";
 end
 end
 

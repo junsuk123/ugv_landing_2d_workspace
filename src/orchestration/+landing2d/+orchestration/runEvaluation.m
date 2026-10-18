@@ -1,18 +1,19 @@
 function results = runEvaluation(runs,cfg,options)
 % RUNEVALUATION  Every evaluation of relational_policy_v1 on trained runs.
 %   results = landing2d.orchestration.runEvaluation(runs,cfg,options)
-% options.sections  any of 'learning','heldout','factorial','generalization',
-%                   'probes' (default all)
+% options.sections  any of 'learning','training','heldout','factorial',
+%                   'generalization','probes' (default all)
 % options.outputDir CSV/MAT destination ('' = do not save)
 % Sections (docs/EXPERIMENT_DESIGN_KO.md):
 %   learning        sample efficiency from the training histories (validation)
+%   training        R-GAT gradient flow and parameter change, relation graphs used
 %   heldout         test split of the training distribution, per 2 x 2 cell
 %   factorial       controlled S1-S4 cases: paired effects and interaction
 %   generalization  outside the training ranges (stress split)
 %   probes          open-loop same-state responses (velocity / update contrast)
 % Every summary is over training seeds (one run = one sample); every contrast
 % is seed-paired. Nothing here selects or changes a checkpoint.
-available = {'learning','heldout','factorial','generalization','probes'};
+available = {'learning','training','heldout','factorial','generalization','probes'};
 defaults = struct('sections',{available},'outputDir','');
 names = fieldnames(defaults);
 for i = 1:numel(names)
@@ -28,6 +29,10 @@ results = struct('schemaVersion','relational_policy_results_v1', ...
 if ismember('learning',sections)
     fprintf('\n[evaluate] learning efficiency\n');
     results.learning = landing2d.evaluation.learningEfficiency(runs,cfg);
+end
+if ismember('training',sections)
+    fprintf('\n[evaluate] training diagnostics (gradient flow, parameter change, graphs)\n');
+    results.training = landing2d.evaluation.trainingDiagnostics(runs,cfg);
 end
 if ismember('heldout',sections)
     fprintf('\n[evaluate] held-out test (training distribution)\n');
@@ -66,7 +71,7 @@ end
 function saveResults(results,folder)
 if ~exist(folder,'dir'), mkdir(folder); end
 writetable(results.runs,fullfile(folder,'runs.csv'));
-sections = {'learning','heldout','factorial','generalization','probes'};
+sections = {'learning','training','heldout','factorial','generalization','probes'};
 for i = 1:numel(sections)
     if ~isfield(results,sections{i}), continue; end
     s = results.(sections{i});

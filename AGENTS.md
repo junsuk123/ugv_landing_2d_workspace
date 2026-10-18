@@ -7,7 +7,7 @@
 - 비교군 3개 고정, 단일 정의 `landing2d.config.methodRegistry`
   - `ppo`
   - `onto_rgat_ppo`
-  - `shuffled_rgat_ppo`: 관계 유형 고정 순열, self 보존, 그래프 시드 = 학습 시드
+  - `shuffled_rgat_ppo`: 관계 유형 고정 순열, self 보존, 그래프 시드 = 학습 시드, 의미 간선 13개 중 10개 이상 유형 변경(`registry.relationShuffle.minChangedFraction = 0.7`)
 - 비교군을 추가하려면 registry 등록과 문서 근거가 필요하다. Semantic-Flat·R-GCN·PPO-LSTM은 미포함이며, 이들과의 비교는 주장하지 않는다
 - 공통 계약: 동일 환경·센서·보상·행동·종료·PPO 손실·예산·검증 일정·파라미터 수(6,101). 핵심 차이는 Actor/Critic 상태 표현뿐
 - direct-policy: 안전 감독기·착륙 승인·SAFE_ABORT 가드 없음. 접촉은 기계적 조건만 판정
@@ -18,7 +18,7 @@
 - `src/orchestration/+landing2d`
   - `+config`: 실험·PPO·평가 설정, 비교군, 검증
   - `+orchestration`: 파이프라인, 학습/로드, self-test
-  - `+evaluation`: 평가 5종, 지표, 시드 통계
+  - `+evaluation`: 평가 6종(학습 효율·학습 진단·held-out·S1–S4·일반화·probe), 지표, 실패 분류, 시드 통계
   - `+viz`: 그림
   - `+util`
 - `src/simulations/+landing2d`: 환경·동역학·센서·공통 관측(`+observation`)·시나리오·기준 구동기와 측정 재생(`+probe`)
@@ -34,8 +34,11 @@
   - 현재 reward_v5
 - PPO 손실은 세 비교군이 완전히 같다. 특정 비교군에만 주는 손실 항·잔차 헤드·입력 표준화·우회 경로 금지
   - 2026-10-17 R-GAT 전용 명령 평활화 항 삭제
+  - 손실 기울기는 `landing2d.rl.policyLossGradient`·`valueLossGradient` 단일 경로(PPO 갱신과 학습 진단이 공유)
+  - 갱신 진단(손실·엔트로피·KL·clip 비율·기울기 노름)은 읽기만 한다. 진단 추가로 학습 수치가 바뀌면 안 된다(바뀌면 `algorithmVersion` 갱신)
 - R-GAT
   - 단일 층, 입력 의존 attention(`input_dependent_v1`), 노드별 국소 경로, `grouped_factorized` readout, graph embedding 16
+  - 관계 연산자 `typed_v1`(2026-10-18): 조절 관계(`qualifiesEstimate`, `conditionsLanding`)는 곱셈 게이트, 전파 관계(`informsMotion`, `affectsVisibility`, self)는 덧셈 메시지. 연산자는 관계 유형에 붙어 교란 대조군에서도 라벨을 따라간다. `additive_v1`은 선택지로 유지
   - Actor 35-38, Critic 35-30
   - `fixed_relation_v1`은 같은 파라미터의 선택지로만 유지
 - 그래프(`docs/TOSM7_ONTOLOGY_KO.md`)
@@ -61,13 +64,19 @@
 - 학습 범위 밖 조건(`defaultEvaluationConfig.generalization`)은 학습 범위를 실제로 벗어나야 한다(검증됨)
 - 평가 지표
   - 평가 전용 참값으로만 계산(`landing2d.evaluation.episodeMetrics`). 온톨로지 노드·attention·보상 미사용
-  - 추종 오차는 카메라 광축 기준 aim error
+  - 추종 오차는 카메라 광축 기준 aim error, 단일 정의 `landing2d.evaluation.aimError`($e_x-mh$, $m=\tan(-\theta_C)$, 보상과 같은 기울기). 그림도 이 함수를 쓴다
   - 외부 주입 누락과 정책 유발 시야 이탈을 분리 기록
+  - 실패 분류는 `landing2d.evaluation.failureClasses`의 사전 고정 규칙. 결과를 보고 규칙·임계값을 바꾸지 않는다
+  - 관측 잡음 민감도·궤적 분산·명령 변화 감소는 같은 run의 추종 오차·회복 시간·속도 민감도와 함께만 해석(`EXPERIMENT_DESIGN_KO.md` §1)
 - open-loop probe
   - 정책과 무관한 기준 구동기 궤적 사용
   - 명목 재생 = 환경 관측(비트 일치)
   - 정책 행동을 궤적에 되먹이지 않음
+  - 잡음 대비는 같은 물리 궤적을 다른 잡음표(전용 난수열)로 재생한다
   - attention 변화는 기술 지표이며 인과적 중요도로 해석 금지
+- 학습 진단(`landing2d.evaluation.trainingDiagnostics`)
+  - R-GAT 기울기·파라미터 변화는 체크포인트에서 계산. 초기값은 `landing2d.rl.initialAgent`(PPO 시작점과 동일)로 재구성
+  - 진단 결과로 체크포인트·비교군을 고르지 않는다
 - 통계
   - 분석 단위 = 학습 시드. 비교군 차이는 학습 시드별 짝 차이
   - 학습 시드 하나로는 방법 간 차이를 주장하지 않는다

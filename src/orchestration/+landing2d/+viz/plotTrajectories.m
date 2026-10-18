@@ -2,7 +2,8 @@ function fig = plotTrajectories(F,cfg,visible)
 % PLOTTRAJECTORIES  S1-S4 flights of the display training seed (every replicate).
 %   fig = landing2d.viz.plotTrajectories(factorialResult,cfg,visible)
 % Left: pad-relative x-z path with the level-attitude camera FOV edges.
-% Right: aim error e_aim = e_x - h tan(camera pitch offset) over time, with
+% Right: aim error e_aim = e_x - m h, m = tan(-camera pitch offset)
+% (landing2d.evaluation.aimError) over time, with
 % the UGV acceleration phase (orange) and the marker dropout (gray).
 % Bold = replicate 1, faint = other noise replicates.
 if nargin < 3, visible = false; end
@@ -38,7 +39,7 @@ for s = 1:nS
             res = results{r};
             h = res.zDrone-res.scenario.padHeight;
             xr = res.xDrone-res.xPad;
-            aim = (res.xPad-res.xDrone)-max(h,0)*tan(sensor.cameraPitchOffset);
+            aim = landing2d.evaluation.aimError(res.xPad,res.xDrone,h,cfg);
             if r==1
                 plot(axPath,xr,h,method.lineStyle,'Color',method.color,'LineWidth',1.6, ...
                     'DisplayName',sprintf('%s | success %d/%d',method.label,success,numel(results)));

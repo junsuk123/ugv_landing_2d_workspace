@@ -9,6 +9,12 @@ function P = buildProbeSet(c)
 %                           shifted by +/- velocityDelta
 %   update(i).fresh/stale   the same decision replayed with the marker frames of
 %                           the last staleAge seconds dropped (estimator predicts)
+%   noise(i).O              at every velocity-probe decision, the observation of
+%                           the nominal replay followed by noiseReplicates
+%                           replays of the same physical trajectory with other
+%                           sensor-noise tables (noise base + j * noiseSeedStride):
+%                           o' = o + noise through the same sensing/estimation
+%                           chain, the physical state and dropout schedule fixed
 % The nominal replay must reproduce the environment observation exactly
 % (otherwise the probe would not be the state the policy would see).
 q = c.evaluation.probes;
@@ -16,6 +22,7 @@ seeds = c.experiment.manifest.testSeeds(1:q.episodes);
 velocity = struct('episode',{},'decision',{},'height',{},'plus',{},'minus',{});
 update = struct('episode',{},'decision',{},'height',{},'fresh',{},'stale',{}, ...
     'estimateShift',{},'estimateShiftV',{});
+noise = struct('episode',{},'decision',{},'height',{},'O',{});
 context = [];
 for e = 1:numel(seeds)
     record = landing2d.probe.recordReference(c,seeds(e));
@@ -23,6 +30,11 @@ for e = 1:numel(seeds)
     assert(isequal(rep.observation,record.observation),'landing2d:ProbeReplay', ...
         'Nominal sensing replay differs from the environment (seed %d).',seeds(e));
     context = rep.context;
+    noisy = cell(1,q.noiseReplicates);
+    for j = 1:q.noiseReplicates
+        other = record; other.base = record.base+j*q.noiseSeedStride;
+        noisy{j} = landing2d.probe.replaySensing(other,c,1);
+    end
     height = record.state(2,:)-record.pad(2,:);   % drone above the pad surface (truth)
     for k = 1:q.stride:record.decisions
         if ~(rep.flags.estimateInitialized(k) && rep.flags.visionUpdated(k) ...
@@ -34,6 +46,8 @@ for e = 1:numel(seeds)
         minus = O; minus.ugv.velocityXZ(1) = minus.ugv.velocityXZ(1)-q.velocityDelta;
         velocity(end+1) = struct('episode',e,'decision',k-1,'height',height(k), ...
             'plus',plus,'minus',minus); %#ok<AGROW>
+        noise(end+1) = struct('episode',e,'decision',k-1,'height',height(k), ...
+            'O',{[{O},cellfun(@(r)r.O{k},noisy,'UniformOutput',false)]}); %#ok<AGROW>
         if record.time(k) < q.staleAge+1, continue; end
         stale = staleReplay(record,c,k,q.staleAge);
         if ~stale.flags.estimateInitialized(k) || stale.flags.visionUpdated(k), continue; end
@@ -45,9 +59,10 @@ for e = 1:numel(seeds)
                 abs(rep.perceptionError.velocity(1,k))); %#ok<AGROW>
     end
 end
-P = struct('velocity',velocity,'update',update,'context',context, ...
+P = struct('velocity',velocity,'update',update,'noise',noise,'context',context, ...
     'meta',struct('seeds',seeds,'velocityDelta',q.velocityDelta, ...
     'staleAge',q.staleAge,'stride',q.stride,'minimumHeight',q.minimumHeight, ...
+    'noiseReplicates',q.noiseReplicates,'noiseSeedStride',q.noiseSeedStride, ...
     'driver',c.evaluation.probe.driver));
 end
 

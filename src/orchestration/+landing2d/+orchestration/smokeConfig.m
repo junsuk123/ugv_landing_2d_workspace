@@ -15,5 +15,7 @@ cfg.evaluation.factorial.replicates = 2;
 cfg.evaluation.generalization.episodes = 1;
 cfg.evaluation.probes.episodes = 1;
 cfg.evaluation.probes.stride = 20;
+cfg.evaluation.probes.noiseReplicates = 2;
+cfg.evaluation.training.gradientEpisodes = 1;
 cfg.figureVisible = false;
 end

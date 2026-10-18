@@ -6,7 +6,7 @@ Three PPO policies are compared in a planar x–z landing task on a constant-vel
 - `onto_rgat_ppo`: the TOSM 7-node graph of the same observation → input-dependent R-GAT → MLP
 - `shuffled_rgat_ppo`: the same with the semantic relation types permuted (control)
 
-The question is whether the relational inductive bias improves learning efficiency, generalization outside the training ranges, and the response to marker dropout and UGV acceleration. It is not about expressive power: the graph is a deterministic function of the observation and adds no information. The design is described in `docs/EXPERIMENT_DESIGN_KO.md` (Korean).
+The question is whether the relational inductive bias improves learning efficiency, generalization outside the training ranges, and the response to marker dropout and UGV acceleration: low sensitivity to observation noise together with an intact response to actual platform motion (noise sensitivity tr Cov[a] is read only with tracking error, recovery time and velocity sensitivity). It is not about expressive power: the graph is a deterministic function of the observation and adds no information. The design is described in `docs/EXPERIMENT_DESIGN_KO.md` (Korean).
 
 ```matlab
 run_check                    % self-test + bounded smoke of every stage

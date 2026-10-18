@@ -23,6 +23,12 @@ for name = {'initScale','encoderLearnRate'}
     validateattributes(gs.(name{1}),{'numeric'}, ...
         {'scalar','real','finite','positive'},mfilename,name{1});
 end
+if isfield(gs,'relationOperators')
+    assert(strcmp(gs.stateRepresentation,'context_rgat') ...
+        && ismember(gs.relationOperators,{'additive_v1','typed_v1'}), ...
+        'landing2d:RelationOperators', ...
+        'graphState.relationOperators (context_rgat only) must be additive_v1 or typed_v1.');
+end
 % Only the shuffled comparison arm carries a relation permutation.
 if isfield(gs,'relationPerturbation')
     p = gs.relationPerturbation;
@@ -31,6 +37,10 @@ if isfield(gs,'relationPerturbation')
         'graphState.relationPerturbation must be an edge_relation_shuffle of context_rgat.');
     validateattributes(p.graphSeed,{'numeric'},{'scalar','integer','positive'}, ...
         mfilename,'relationPerturbation.graphSeed');
+    if isfield(p,'minChangedFraction')
+        validateattributes(p.minChangedFraction,{'numeric'},{'scalar','>=',0,'<=',1}, ...
+            mfilename,'relationPerturbation.minChangedFraction');
+    end
 end
 assert(ischar(gs.policyFile) && ~isempty(strtrim(gs.policyFile)), ...
     'graphState.policyFile must be a nonempty character vector.');

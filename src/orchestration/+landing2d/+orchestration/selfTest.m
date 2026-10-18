@@ -291,34 +291,80 @@ assert(baselineProfile.parameterCount==6101 ...
 assert(numel(history)>=2 && all(isfinite([history.score])) && sum([history.selected])==1 ...
     && all(diff([history.environmentSteps])>0));
 assert(~isfield(trained.policy,'relation') && ~isfield(trained.value,'relation'));
+% The common PPO loss reaches both R-GAT encoders (pre-clip gradient norms
+% recorded by ppoTrain), and the encoders change.
+last=history(end);
+assert(last.policyEncoderGradNorm>0 && last.valueEncoderGradNorm>0 ...
+    && isfinite(last.approxKL) && isfinite(last.entropy) && last.trainEpisodeLength>0 ...
+    && isnan(history(1).policyEncoderGradNorm));
+assert(~isequal(trained.policy.encoder,agent.policy.encoder) ...
+    && ~isequal(trained.value.encoder,agent.value.encoder));
+% PPO starts from landing2d.rl.initialAgent (the reconstruction used by
+% landing2d.evaluation.trainingDiagnostics): with no update the result is it.
+c0=c; c0.rl.ppoIterations=0;
+untrained=landing2d.rl.trainAgent(c0,@landing2d.rl.ppoTrain);
+initial=landing2d.rl.initialAgent(c0);
+assert(isequal(untrained.policy,initial.policy) && isequal(untrained.value,initial.value));
 end
 
 function checkRelationAttention()
 % input_dependent_v1: alpha follows the node features (different inputs give
-% different coefficients, each destination's incoming alpha sums to one) and
-% receives gradients; the 6,101-parameter readout has no raw bypass.
-c=landing2d.graphstate.applyStateRepresentation(baseConfig(),'context_rgat');
-agent=landing2d.rl.agentInit(c.rl,RandStream('threefry','Seed',77),c.graphState);
-spec=agent.encoderSpec;
-assert(strcmp(spec.readout,'grouped_factorized') && strcmp(spec.attentionMode,'input_dependent_v1') ...
-    && ~isfield(agent.policy,'relation') && ~isfield(agent.value,'relation'));
-S1=reshape(linspace(-0.9,0.9,spec.stateDim),[],1);
-S2=flipud(S1);
-[g1,cache1]=landing2d.graphstate.encoderForward(agent.policy.encoder,spec,S1,'policy');
-[~,cache2]=landing2d.graphstate.encoderForward(agent.policy.encoder,spec,S2,'policy');
-alpha=cache1.cache1.alpha(:,1);
-assert(~isequal(alpha,cache2.cache1.alpha(:,1)));
-sums=accumarray(spec.T.dst(:),alpha);
-assert(max(abs(sums-1))<1e-6);
-[grads,~]=landing2d.graphstate.encoderBackward(agent.policy.encoder,spec,cache1,ones(size(g1)));
-assert(norm(grads.a1(:))>0 && norm(grads.E1(:))>0 && norm(grads.W1(:))>0);
-% Finite-difference check of the attention parameters (a1) through the encoder.
-loss=@(p)sum(landing2d.graphstate.encoderForward(p,spec,S1,'policy'),'all');
-p=agent.policy.encoder; idx=find(abs(grads.a1)>1e-6,1); h=1e-6;
-pp=p; pp.a1(idx)=pp.a1(idx)+h; pm=p; pm.a1(idx)=pm.a1(idx)-h;
-numeric=(loss(pp)-loss(pm))/(2*h);
-assert(abs(numeric-grads.a1(idx))<1e-4*max(1,abs(numeric)), ...
-    'Attention gradient mismatch: analytic %.6g, numeric %.6g.',grads.a1(idx),numeric);
+% different coefficients) and receives gradients; the 6,101-parameter readout
+% has no raw bypass. Relation operators typed_v1 (default of the R-GAT arms):
+% the propagating edges (incl. self) and the modulating edges are two
+% attention graphs whose alpha each sum to one per destination; the gate is
+% exactly 1 at nodes without modulating edges; analytic gradients of every
+% parameter group match central differences. additive_v1 keeps one graph.
+base=landing2d.graphstate.applyStateRepresentation(baseConfig(),'context_rgat');
+assert(strcmp(base.graphState.relationOperators,'typed_v1'));
+for mode=["typed_v1","additive_v1"]
+    c=base; c.graphState.relationOperators=char(mode);
+    agent=landing2d.rl.agentInit(c.rl,RandStream('threefry','Seed',77),c.graphState);
+    spec=agent.encoderSpec;
+    assert(strcmp(spec.readout,'grouped_factorized') && strcmp(spec.attentionMode,'input_dependent_v1') ...
+        && strcmp(spec.relationOperators,mode) ...
+        && ~isfield(agent.policy,'relation') && ~isfield(agent.value,'relation'));
+    assert(landing2d.rl.profileAgent(agent,c,1,1).parameterCount==6101);
+    S1=reshape(linspace(-0.9,0.9,spec.stateDim),[],1);
+    S2=flipud(S1);
+    [g1,cache1]=landing2d.graphstate.encoderForward(agent.policy.encoder,spec,S1,'policy');
+    [~,cache2]=landing2d.graphstate.encoderForward(agent.policy.encoder,spec,S2,'policy');
+    alpha=cache1.cache1.alpha(:,1);
+    assert(~isequal(alpha,cache2.cache1.alpha(:,1)));
+    if mode=="typed_v1"
+        schema=spec.schema;
+        modulating=ismember(schema.rel,find(strcmp(schema.relationOperators,'modulate')));
+        assert(isequal(spec.modEdges(:),find(modulating(:))) && numel(spec.addEdges)+numel(spec.modEdges)==spec.T.nEdges);
+        sumsAdd=accumarray(spec.T.dst(~modulating)',alpha(~modulating),[spec.nNodes,1]);
+        sumsMod=accumarray(spec.T.dst(modulating)',alpha(modulating),[spec.nNodes,1]);
+        hasMod=accumarray(spec.T.dst(modulating)',1,[spec.nNodes,1])>0;
+        assert(max(abs(sumsAdd-1))<1e-6 && max(abs(sumsMod(hasMod)-1))<1e-6 ...
+            && all(cache1.M(:,~hasMod)==0,'all'));
+    else
+        sums=accumarray(spec.T.dst(:),alpha);
+        assert(max(abs(sums-1))<1e-6);
+    end
+    [grads,~]=landing2d.graphstate.encoderBackward(agent.policy.encoder,spec,cache1,ones(size(g1)));
+    assert(norm(grads.a1(:))>0 && norm(grads.E1(:))>0 && norm(grads.W1(:))>0);
+    % Central differences through the encoder (attention, relation weights of
+    % every relation type, local path).
+    loss=@(p)sum(landing2d.graphstate.encoderForward(p,spec,S1,'policy'),'all');
+    p=agent.policy.encoder; h=1e-6;
+    picks={'a1',find(abs(grads.a1)>1e-6,1);'W0',find(abs(grads.W0)>1e-6,1)};
+    for r=1:spec.schema.nRelations
+        Wr=zeros(size(grads.W1)); Wr(:,:,r)=abs(grads.W1(:,:,r));
+        picks(end+1,:)={'W1',find(Wr>1e-6,1)}; %#ok<AGROW>
+    end
+    for k=1:size(picks,1)
+        name=picks{k,1}; idx=picks{k,2};
+        assert(~isempty(idx),'No gradient for %s (%s).',name,mode);
+        pp=p; pp.(name)(idx)=pp.(name)(idx)+h; pm=p; pm.(name)(idx)=pm.(name)(idx)-h;
+        numeric=(loss(pp)-loss(pm))/(2*h);
+        assert(abs(numeric-grads.(name)(idx))<1e-4*max(1,abs(numeric)), ...
+            'Gradient mismatch %s (%s): analytic %.6g, numeric %.6g.',name,mode, ...
+            grads.(name)(idx),numeric);
+    end
+end
 end
 
 function checkEvaluation()
@@ -351,6 +397,21 @@ assert(d.Seeds==3 && abs(d.Delta_WindowAimErrorRMS_m-200)<1e-12 ...
     && d.Delta_WindowAimErrorRMS_m_positive==3);
 one=landing2d.evaluation.seedSummary(R(R.TrainSeed==1,:),{'Case'},{'WindowAimErrorRMS_m'});
 assert(all(isnan(one.WindowAimErrorRMS_m_ci)));
+% Seed quartiles (type 7) and the episode total behind the run means.
+assert(abs(row.WindowAimErrorRMS_m_median-212.5)<1e-12 ...
+    && abs(row.WindowAimErrorRMS_m_q25-162.5)<1e-12 ...
+    && abs(row.WindowAimErrorRMS_m_q75-262.5)<1e-12 && row.Episodes==12);
+% Failure classes: per-run fractions over a fixed class list.
+T.FailureClass=repmat("SUCCESS",height(T),1);
+T.FailureClass(T.Case=="S4" & T.MethodId=="ppo")="TIMEOUT_TRACKING";
+[FR,FS]=landing2d.evaluation.failureTable(T,{'Case'});
+classes=landing2d.evaluation.failureClasses();
+assert(height(FR)==2*3*4*numel(classes) && all(abs(splitapply(@sum,FR.Fraction, ...
+    findgroups(FR(:,{'Case','MethodId','TrainSeed'})))-1)<1e-12));
+f=FS(FS.Case=="S4" & FS.MethodId=="ppo" & FS.Class=="TIMEOUT_TRACKING",:);
+assert(f.Fraction==1 && f.Seeds==3);
+unknown=T; unknown.FailureClass(:)="CRASH";
+assertThrows(@()landing2d.evaluation.failureTable(unknown,{'Case'}),'landing2d:FailureClass');
 % Factorial effects: S_k values r + 10 k -> dropout|CV = 10, motion|clean = 20,
 % interaction = 0; unsuitable descent only in S4 -> interaction 1.
 c=baseConfig();
@@ -360,14 +421,20 @@ assert(all(abs(ppo.WindowAimErrorRMS_m(ppo.Effect=="Dropout|CV")-10)<1e-12) ...
     && all(abs(ppo.WindowAimErrorRMS_m(ppo.Effect=="Motion|clean")-20)<1e-12) ...
     && all(abs(ppo.WindowAimErrorRMS_m(ppo.Effect=="Interaction"))<1e-12) ...
     && all(ppo.UnsuitableDescent_s(ppo.Effect=="Interaction")==1));
-% Probe set: nominal replay = environment; stale replays predict.
+% Probe set: nominal replay = environment; stale replays predict; noise
+% replicates replay the same physical trajectory with other noise tables.
 c.evaluation.probes.episodes=1; c.evaluation.probes.stride=15;
+c.evaluation.probes.noiseReplicates=2;
 P=landing2d.evaluation.buildProbeSet(c);
 assert(~isempty(P.velocity));
 dv=c.evaluation.probes.velocityDelta;
 v=P.velocity(1);
 assert(abs(v.plus.ugv.velocityXZ(1)-v.minus.ugv.velocityXZ(1)-2*dv)<1e-12 ...
     && isequal(v.plus.ugv.positionXZ,v.minus.ugv.positionXZ));
+assert(numel(P.noise)==numel(P.velocity) && numel(P.noise(1).O)==3 ...
+    && isequal(P.noise(1).O{1}.ugv.positionXZ,v.plus.ugv.positionXZ) ...
+    && ~isequal(P.noise(1).O{2}.ugv.positionXZ,P.noise(1).O{1}.ugv.positionXZ) ...
+    && P.noise(1).decision==v.decision);
 for i=1:numel(P.update)
     assert(~P.update(i).stale.ugv.visionUpdated && P.update(i).fresh.ugv.visionUpdated ...
         && P.update(i).stale.ugv.visionAge>=c.evaluation.probes.staleAge-1e-9);
@@ -408,6 +475,10 @@ h0=env.physicalState.z-env.pad.z;
 assert(abs(env.physicalState.x-(env.pad.x+h0*tan(sensor.cameraPitchOffset) ...
     +env.scenario.initialPositionOffsetApplied))<1e-12 ...
     && env.physicalState.x<env.pad.x && info.packet.trackInitialized);
+% The evaluation aim error uses the reward's aim point: at the start it is
+% exactly minus the applied position offset (0 at the aim point itself).
+assert(abs(landing2d.evaluation.aimError(env.pad.x,env.physicalState.x,h0,c) ...
+    +env.scenario.initialPositionOffsetApplied)<1e-12);
 assert(O.ugv.estimateInitialized && O.ugv.visionUpdated && ~env.episodeStatus.landingInhibited);
 % Vector: x relative to the current drone x (drone_x = 0), z/velocity scaled.
 x=landing2d.observation.toVector(O,G);
@@ -554,10 +625,11 @@ end
 
 function checkRelationShuffle()
 % Fixed edge-relation shuffle: same nodes/src/dst/counts/per-relation counts,
-% self edges protected, never the canonical assignment or its supports<->
-% inhibits renaming, reproducible per graph seed, distinct hashes, identical
-% initial weights, the stored graph used from pretraining through PPO and
-% inference, and checkpoints that cannot be swapped between graphs.
+% self edges protected, never the canonical assignment or a global renaming
+% of it, at least minChangedFraction of the semantic edges retyped,
+% reproducible per graph seed, distinct hashes, identical initial weights,
+% the stored graph used through PPO and inference, and checkpoints that
+% cannot be swapped between graphs.
 base=baseConfig();
 onto=landing2d.config.applyMethod(base,'onto_rgat_ppo');
 [paramsO,specO]=landing2d.graphstate.encoderInit(onto.graphState, ...
@@ -583,10 +655,16 @@ end
 assert(numel(unique(hashes))==3);
 schema=landing2d.graphstate.contextSchema('context_rgat',2,'commonObservation');
 T=landing2d.rgat.topology(schema);
-for g=4:60
-    gs=struct('relationPerturbation',struct('type','edge_relation_shuffle','graphSeed',g));
+registry=landing2d.config.methodRegistry();
+semantic=find(canonical~=selfId);
+minChanged=ceil(registry.relationShuffle.minChangedFraction*numel(semantic)-1e-9);
+assert(minChanged==10 && sh.graphState.relationPerturbation.minChangedFraction== ...
+    registry.relationShuffle.minChangedFraction);
+for g=1:60
+    gs=struct('relationPerturbation',struct('type','edge_relation_shuffle','graphSeed',g, ...
+        'minChangedFraction',registry.relationShuffle.minChangedFraction));
     [~,Tg]=landing2d.rgat.applyRelationPerturbation(schema,T,gs);
-    assert(~isequal(Tg.rel,canonical));
+    assert(~isequal(Tg.rel,canonical) && sum(Tg.rel(semantic)~=canonical(semantic))>=minChanged);
 end
 % The typed graph changes the encoder computation for the same input.
 sh=landing2d.config.applyMethod(base,'shuffled_rgat_ppo',1,1);

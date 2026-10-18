@@ -36,6 +36,16 @@ schema.nodeClasses = {'ObservationQuality','TargetMotion','RelativeState', ...
     'RelativeState','OwnMotion','VisibilityContext','LandingContext'};
 schema.relationNames = {'qualifiesEstimate','informsMotion', ...
     'affectsVisibility','conditionsLanding','self'};
+% Operator class of each relation type (graphState.relationOperators =
+% 'typed_v1', landing2d.graphstate.encoderForward), read from the relation
+% meaning:
+%   modulate   "A qualifies / conditions B": A changes how much B's own
+%              evidence counts -> multiplicative gate on B's node state
+%   propagate  "A informs / affects B" (and self): A adds to B's state
+%              -> additive message
+% The class belongs to the relation type, so the shuffled control applies the
+% same operators to the edges that carry those labels after the permutation.
+schema.relationOperators = {'modulate','propagate','propagate','modulate','propagate'};
 edges = { ...
     'VisionQuality','PadVelocity','qualifiesEstimate'; ...
     'VisionQuality','RelativePosition','qualifiesEstimate'; ...
