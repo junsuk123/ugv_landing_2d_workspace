@@ -7,7 +7,9 @@ function S = graphSchema(agent)
 % meaning table (landing2d.trace.labels) is written for tosm7_v1, so any
 % change of nodes, edges, relation types, operator classes or a relation
 % permutation fails here (landing2d:TraceSchema) instead of drawing stale
-% arrows. The trace is defined for the canonical TOSM graph (onto_rgat_ppo).
+% arrows. The trace is defined for the canonical TOSM graph (onto_rgat_ppo),
+% for the rgat_v2 encoder (two layers, one cross-relation attention pool per
+% node) and the archived single-layer rgat_v1 encoders.
 spec = agent.encoderSpec;
 assert(isfield(spec,'mode') && strcmp(spec.mode,'context_rgat'), ...
     'landing2d:TraceSchema','The decision trace needs an R-GAT agent (context_rgat).');
@@ -62,11 +64,20 @@ if isfield(spec,'graph') && ~isempty(spec.graph), storedGraph = spec.graph; end
 if ~strcmp(storedGraph.perturbation,'none') || ~isequal(double(storedGraph.rel),double(storedGraph.canonicalRel))
     fail('relation-perturbed graph (the trace explains the canonical TOSM graph only)');
 end
+% rgat_v2: L layers, one attention pool per destination over every incoming
+% edge (no operator classes). rgat_v1: one layer, typed_v1 pools or one pool.
+encoderVersion = fieldOr(spec,'encoderVersion','rgat_v1');
+layers = fieldOr(spec,'layers',1);
 relationOperators = 'additive_v1';
 if isfield(spec,'relationOperators'), relationOperators = spec.relationOperators; end
 operatorOfEdge = repmat({'propagate'},1,T.nEdges);
 pool = ones(1,T.nEdges);
-if strcmp(relationOperators,'typed_v1')
+poolNames = {'propagate','modulate'};
+if strcmp(encoderVersion,'rgat_v2')
+    relationOperators = 'none';
+    operatorOfEdge = repmat({'message'},1,T.nEdges);
+    poolNames = {'all'};
+elseif strcmp(relationOperators,'typed_v1')
     operatorOfEdge = schema.relationOperators(T.rel);
     isMod = strcmp(operatorOfEdge,'modulate');
     if ~isequal(spec.modEdges(:)',find(isMod)) || ~isequal(spec.addEdges(:)',find(~isMod))
@@ -87,7 +98,7 @@ S = struct('version','trace_graph_schema_v1','nodeNames',{schema.nodeNames}, ...
     'relationOperatorNames',{schema.relationOperators},'src',double(T.src), ...
     'dst',double(T.dst),'rel',double(T.rel),'nEdges',T.nEdges,'nNodes',N, ...
     'semanticEdges',semantic,'selfEdges',selfEdges,'edgeOperator',{operatorOfEdge}, ...
-    'edgePool',pool,'poolNames',{{'propagate','modulate'}}, ...
+    'edgePool',pool,'poolNames',{poolNames},'encoderVersion',encoderVersion,'layers',layers, ...
     'edgePurpose',{schema.edgePurpose(:)'},'edgePurposeKo',{purposeKo(:)'}, ...
     'edgeLabel',{edgeLabel},'relationOperators',relationOperators, ...
     'relationParameterSharing',fieldOr(spec,'relationParameterSharing',''), ...

@@ -219,7 +219,7 @@ classdef TosmTraceDashboard < handle
             S = struct('decision',obj.Decision,'phase',obj.Phase, ...
                 'displayTime',obj.DisplayTime,'focus',obj.Focus, ...
                 'mode',obj.H.mode.Text,'banner',string(obj.H.banner.Value), ...
-                'chain',string(obj.H.chain.Value),'alphaBars',obj.H.alphaBars.YData(:), ...
+                'chain',string(obj.H.chain.Value),'alphaBars',reshape(vertcat(obj.H.alphaBars.YData)',[],1), ...
                 'X',obj.H.xImage.CData,'H',obj.H.hImage.CData,'gate',obj.H.gateImage.CData, ...
                 'g',obj.H.gBars.YData(:),'action',obj.H.actionBars.YData(:), ...
                 'activeSegments',{obj.activeSegmentIds()}, ...
@@ -247,6 +247,12 @@ classdef TosmTraceDashboard < handle
 
     methods (Access = private)
         function dt = policyDt(obj), dt = obj.Trace.context.policyDt; end
+        function tf = isV2(obj)
+            tf = isfield(obj.Trace.schema,'encoderVersion') && strcmp(obj.Trace.schema.encoderVersion,'rgat_v2');
+        end
+        function L = layerCount(obj)
+            L = 1; if isfield(obj.Trace.schema,'layers'), L = obj.Trace.schema.layers; end
+        end
 
         function tick(obj)
             try
@@ -334,7 +340,9 @@ classdef TosmTraceDashboard < handle
             uibutton(side,'Text','전체 근거 사슬 (Expand All)','ButtonPushedFcn',@(~,~)obj.expandAll());
             uibutton(side,'Text','LandingCondition 사슬','ButtonPushedFcn',@(~,~)obj.select("node:7"));
             uibutton(side,'Text','선택 해제','ButtonPushedFcn',@(~,~)obj.clearSelection());
-            obj.H.legend = uitextarea(side,'Editable','off','FontSize',9.5,'Value',L.legend);
+            legendLines = L.legend;
+            if obj.isV2() && isfield(L,'legendV2'), legendLines = L.legendV2; end
+            obj.H.legend = uitextarea(side,'Editable','off','FontSize',9.5,'Value',legendLines);
             obj.clearSelection();
         end
 
@@ -542,7 +550,7 @@ classdef TosmTraceDashboard < handle
                 'LineWidth',0.3,'HitTest','off');
             colormap(ax,diverging()); ax.CLim = [-1 1];
             [obj.H.readout,rt] = obj.drawBox(ax,G.readout,G.boxSize,sprintf('그래프 리드아웃\ng_A (16)'),[1 0.97 0.86],9);
-            [obj.H.actor,at] = obj.drawBox(ax,G.actor,G.boxSize,sprintf('액터 MLP\n38-42 → μ'),[1 0.97 0.86],9);
+            [obj.H.actor,at] = obj.drawBox(ax,G.actor,G.boxSize,sprintf('액터 MLP\n→ μ (tanh 이전)'),[1 0.97 0.86],9);
             [obj.H.action,actText] = obj.drawBox(ax,G.action,G.boxSize,'가속도 명령',[1 0.97 0.86],9);
             obj.H.actionText = actText;
             for pair = {{obj.H.readout,rt,"readout"},{obj.H.actor,at,"actor"},{obj.H.action,actText,"action"}}
@@ -582,13 +590,25 @@ classdef TosmTraceDashboard < handle
             hold(ax,'on');
             colors = repmat(obj.Colors.propagate,S.nEdges,1);
             colors(S.edgePool==2,:) = repmat(obj.Colors.modulate,sum(S.edgePool==2),1);
-            obj.H.alphaBars = bar(ax,1:S.nEdges,zeros(1,S.nEdges),'FaceColor','flat','CData',colors, ...
-                'EdgeColor','none');
+            nLayers = obj.layerCount();
+            if nLayers == 1
+                obj.H.alphaBars = bar(ax,1:S.nEdges,zeros(1,S.nEdges),'FaceColor','flat','CData',colors, ...
+                    'EdgeColor','none');
+            else
+                obj.H.alphaBars = bar(ax,1:S.nEdges,zeros(S.nEdges,nLayers),'grouped','EdgeColor','none');
+                shades = [obj.Colors.propagate;0.45*obj.Colors.propagate;0.7*[1 1 1]];
+                for l = 1:nLayers, obj.H.alphaBars(l).FaceColor = shades(min(l,3),:); end
+            end
             ax.XTick = 1:S.nEdges; ax.XTickLabel = S.edgeLabel; ax.XTickLabelRotation = 60;
             ax.FontSize = 7.5; ax.YLim = [0 1.05];
             ax.Title.String = '어텐션 계수 α_ij (청록 = 전파+자기 루프 풀, 보라 = 조절 풀; 도착 노드별 합 1)';
+            if obj.isV2()
+                ax.Title.String = '어텐션 계수 α_ij — 밝은 막대 층 1, 어두운 막대 층 2 (층마다 도착 노드별 모든 간선 합 1)';
+            end
             ax.Title.FontSize = 8.5; obj.H.alphaAxes = ax;
-            obj.H.alphaBars.ButtonDownFcn = @(src,event)obj.select("edge:"+round(event.IntersectionPoint(1)));
+            for b = obj.H.alphaBars(:)'
+                b.ButtonDownFcn = @(src,event)obj.select("edge:"+round(event.IntersectionPoint(1)));
+            end
             ax = uiaxes(actorGrid); obj.quiet(ax); ax.Layout.Row = 2; ax.Layout.Column = 1;
             obj.H.xImage = imagesc(ax,zeros(6,7)); ax.CLim = [-1 1]; colormap(ax,diverging());
             obj.styleMatrix(ax,'노드 특징 X_t (6×7)',S.nodeShort,{'f1','f2','f3','f4','f5','id'});
@@ -598,6 +618,12 @@ classdef TosmTraceDashboard < handle
             ax = uiaxes(actorGrid); obj.quiet(ax); ax.Layout.Row = 3; ax.Layout.Column = 1;
             obj.H.gateImage = imagesc(ax,ones(16,7)); ax.CLim = [0 2]; colormap(ax,diverging());
             obj.styleMatrix(ax,'조절 게이트 1+tanh(Z_mod) (1 = 조절 없음)',S.nodeShort,[]);
+            if obj.isV2()
+                ax.CLim = [-1 1];
+                ax.Title.String = '층 1 노드 임베딩 H^1 (16×7) — rgat_v2에는 게이트 없음';
+                obj.H.hImage.Parent.CLim = [-1 1];
+                obj.H.hImage.Parent.Title.String = '최종 노드 임베딩 H^2 (16×7, 리드아웃 입력)';
+            end
             ax = uiaxes(actorGrid); obj.quiet(ax); ax.Layout.Row = 3; ax.Layout.Column = 2;
             obj.H.gBars = bar(ax,zeros(1,S.graphDim),'FaceColor',obj.Colors.readout,'EdgeColor','none');
             ax.YLim = [-1 1]; ax.FontSize = 7.5; ax.Title.String = '액터 그래프 임베딩 g_t^A (16)';
@@ -622,14 +648,15 @@ classdef TosmTraceDashboard < handle
         function updatePanels(obj,k)
             r = obj.Trace.records(k); S = obj.Trace.schema; A = r.actor;
             switch obj.StrengthMode
-                case 'message', barValues = A.weightedMessageNorm(:)';
-                otherwise, barValues = A.alpha(:)';
+                case 'message', barValues = A.weightedMessageNormLayers;
+                otherwise, barValues = A.alphaLayers;
             end
-            obj.H.alphaBars.YData = barValues;
-            obj.H.alphaAxes.YLim = [0 max(1.05,1.05*max(barValues))];
+            for l = 1:numel(obj.H.alphaBars), obj.H.alphaBars(l).YData = barValues(:,l)'; end
+            obj.H.alphaAxes.YLim = [0 max(1.05,1.05*max(barValues,[],'all'))];
             obj.H.xImage.CData = r.graph.X;
             obj.H.hImage.CData = A.H;
             obj.H.gateImage.CData = A.gate;
+            if obj.isV2(), obj.H.gateImage.CData = A.layerH{1}; end
             obj.H.gBars.YData = A.g(:)';
             obj.H.actionBars.YData = r.command.requestedAcceleration(:)';
             obj.H.actionInfo.Value = { ...
@@ -675,8 +702,8 @@ classdef TosmTraceDashboard < handle
                 s = obj.segIndex(sprintf('e%02d',e));
                 switch obj.StrengthMode
                     case 'uniform', w = 1.6;
-                    case 'message', w = 0.6+5*A.weightedMessageNorm(e)/max(A.weightedMessageNorm);
-                    otherwise, w = 0.6+4*A.alpha(e);
+                    case 'message', w = 0.6+5*mean(A.weightedMessageNormLayers(e,:))/max(mean(A.weightedMessageNormLayers,2));
+                    otherwise, w = 0.6+4*mean(A.alphaLayers(e,:));
                 end
                 obj.H.seg(s).LineWidth = w;
                 isSelf = S.src(e)==S.dst(e);
@@ -739,16 +766,23 @@ classdef TosmTraceDashboard < handle
 
         function updateClock(obj,k,phase)
             r = obj.Trace.records(k);
+            names = obj.PhaseNames;
+            if obj.isV2(), names{6} = sprintf('5 R-GAT 순전파 (층 1 → 층 %d)',obj.layerCount()); end
             if obj.Staged && phase >= 0
                 obj.H.time.Text = sprintf('결정 #%d  t_k = %.2f s | 설명용 단계 %s (같은 결정 시각, 물리 지연 아님)', ...
-                    k,r.time,obj.PhaseNames{phase+1});
+                    k,r.time,names{phase+1});
             else
                 obj.H.time.Text = sprintf('표시 t = %.2f s | 결정 #%d (t_k = %.2f s) | %gx', ...
                     obj.DisplayTime,k,r.time,obj.Speed);
             end
+            simultaneous = '같은 결정 시각의 계산은 동시에 표시 (R-GAT 간선 메시지는 단일 층 동시 집계)';
+            if obj.isV2()
+                simultaneous = sprintf(['같은 결정 시각의 계산은 동시에 표시 (R-GAT %d개 층, 층마다 모든 간선 ' ...
+                    '동시 집계; 펄스 앞 절반 = 층 1, 뒤 절반 = 층 2)'],obj.layerCount());
+            end
             obj.H.phaseText.String = ternary(obj.Staged && phase >= 0, ...
-                ['단계 ',obj.PhaseNames{max(phase,0)+1},' — 같은 결정 시각 t_k의 계산을 펼친 설명용 순서'], ...
-                '같은 결정 시각의 계산은 동시에 표시 (R-GAT 간선 메시지는 단일 층 동시 집계)');
+                ['단계 ',names{max(phase,0)+1},' — 같은 결정 시각 t_k의 계산을 펼친 설명용 순서'], ...
+                simultaneous);
             if ~isvalid(obj.H.slider), return; end
             limits = obj.H.slider.Limits;
             obj.H.slider.Value = min(max(r.time,limits(1)),limits(2));
@@ -766,6 +800,11 @@ classdef TosmTraceDashboard < handle
                 if ~active, continue; end
                 if phase >= 0 && seg(i).phase ~= phase, continue; end
                 u = progress;
+                % rgat_v2: the same edge carries a layer-1 message (first
+                % half of the edge interval) and a layer-2 message (second).
+                if seg(i).phase == 5 && obj.layerCount() > 1
+                    u = mod(progress*obj.layerCount(),1);
+                end
                 point = pointAt(seg(i).path,u);
                 buckets.(bucket)(end+1,:) = point;
                 if strcmp(bucket,'modulate') && u > 0.75
@@ -809,12 +848,13 @@ classdef TosmTraceDashboard < handle
                     bucket = ternary(status.code(k)=="measured",'accepted','predicted');
                 case 'navChannel', active = s.navigation.valid; bucket = 'navigation';
                 case 'derived', bucket = 'derived';
-                case {'propagate','modulate'}
+                case {'propagate','modulate','message'}
                     e = sscanf(sg.id,'e%d');
                     isSelf = S.src(e)==S.dst(e);
                     active = (~isSelf || obj.ShowSelf) && (strcmp(obj.RelationFilter,'all') ...
                         || strcmp(obj.RelationFilter,S.relationNames{S.rel(e)}));
                     bucket = kind;
+                    if strcmp(kind,'message'), bucket = 'propagate'; end
                 case 'readout', bucket = 'readout';
             end
             active = logical(active);
@@ -876,7 +916,7 @@ classdef TosmTraceDashboard < handle
                 obj.H.chan(k).EdgeColor = ternary(lit && ~isempty(obj.Focus),[0 0 0],[.7 .7 .7]);
             end
             for n = 1:S.nNodes
-                lit = on(compose("x:%d",n)) || on(compose("h:%d",n));
+                lit = on(compose("x:%d",n)) || any(arrayfun(@(l)on(compose("h%d:%d",l,n)),1:obj.layerCount()));
                 obj.H.nodeText(n).Color = ternary(lit,C.text,[.7 .7 .7]);
                 obj.H.node(n).EdgeColor = ternary(lit && ~isempty(obj.Focus),[0 0 0],[.3 .3 .3]);
                 obj.H.node(n).LineWidth = ternary(lit && ~isempty(obj.Focus),2.4,1.2);
@@ -890,11 +930,11 @@ classdef TosmTraceDashboard < handle
 
         function lit = segmentLit(obj,id,on,S)
             if startsWith(id,'e')
-                e = sscanf(id,'e%d'); lit = on(compose("e:%02d",e));
+                e = sscanf(id,'e%d'); lit = any(arrayfun(@(l)on(compose("e%d:%02d",l,e)),1:obj.layerCount()));
             elseif startsWith(id,'ch')
                 v = sscanf(id,'ch%d-x%d'); lit = on(compose("ch:%02d",v(1))) && on(compose("x:%d",v(2)));
             elseif startsWith(id,'h')
-                n = sscanf(id,'h%d'); lit = on(compose("h:%d",n)) && on("readout");
+                n = sscanf(id,'h%d'); lit = on(compose("h%d:%d",obj.layerCount(),n)) && on("readout");
             elseif any(strcmp(id,{'readout-actor','actor-action'}))
                 lit = on("actor");
             elseif contains(id,'-ch')
@@ -922,7 +962,7 @@ classdef TosmTraceDashboard < handle
                 case 'kfChannel', color = C.accepted; lineWidth = 0.8;
                 case 'navChannel', color = C.navigation; lineWidth = 0.6;
                 case 'derived', color = C.derived; style = '--'; lineWidth = 0.6;
-                case 'propagate', color = C.propagate; lineWidth = 1.6;
+                case {'propagate','message'}, color = C.propagate; lineWidth = 1.6;
                 case 'modulate', color = C.modulate; style = '--'; lineWidth = 1.6;
                 otherwise, color = C.readout; lineWidth = 1;
             end
@@ -952,11 +992,14 @@ classdef TosmTraceDashboard < handle
                         if dist < best, best = dist; e = i; end
                     end
                     if best < 1.6
-                        label = sprintf(['간선 %02d %s → %s\n관계 유형 %s: %s\n연산군 %s 풀\n어텐션 계수 α = %.3f\n' ...
-                            '|W x_src| = %.3f, |α W x_src| = %.3f\n최근 순전파 t = %.2f s (결정 #%d)\n' ...
-                            '구조적 도달: H_%s → 리드아웃 (비인과)'],e,S.nodeNames{S.src(e)},S.nodeNames{S.dst(e)}, ...
-                            S.relationNames{S.rel(e)},S.edgePurposeKo{e},S.edgeOperator{e},A.alpha(e), ...
-                            A.projectedMessageNorm(e),A.weightedMessageNorm(e),r.time,k,S.nodeShort{S.dst(e)});
+                        layerText = strjoin(arrayfun(@(l)sprintf('층 %d: α = %.3f, |W h| = %.3f, |α W h| = %.3f', ...
+                            l,A.alphaLayers(e,l),A.projectedMessageNormLayers(e,l), ...
+                            A.weightedMessageNormLayers(e,l)),1:size(A.alphaLayers,2),'UniformOutput',false),newline);
+                        label = sprintf(['간선 %02d %s → %s\n관계 유형 %s: %s\n연산 %s, 풀 %s\n%s\n' ...
+                            '최근 순전파 t = %.2f s (결정 #%d)\n구조적 도달: H_%s → 리드아웃 (비인과)'], ...
+                            e,S.nodeNames{S.src(e)},S.nodeNames{S.dst(e)},S.relationNames{S.rel(e)}, ...
+                            S.edgePurposeKo{e},S.edgeOperator{e},S.poolNames{S.edgePool(e)},layerText, ...
+                            r.time,k,S.nodeShort{S.dst(e)});
                     end
                 end
                 if isempty(label), obj.H.tooltip.Visible = 'off'; return; end
@@ -1075,7 +1118,7 @@ for i = 1:numel(keys), out.(keys{i}) = in.(keys{i}); end
 end
 
 function tf = isTypedEdge(kind)
-tf = any(strcmp(kind,{'propagate','modulate'}));
+tf = any(strcmp(kind,{'propagate','modulate','message'}));
 end
 
 function v = unit(v)

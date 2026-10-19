@@ -96,35 +96,66 @@ end
 sec4 = [sec4,conditionLines];
 % 5. declared relations -------------------------------------------------------
 sec5 = {};
+isV2 = isfield(S,'encoderVersion') && strcmp(S.encoderVersion,'rgat_v2');
 for rel = 1:numel(S.relationNames)-1
     edges = find(S.rel==rel);
     names = strjoin(S.edgeLabel(edges),', ');
+    if isV2
+        how = '관계별 가중치 W_r, 메시지';
+    else
+        how = operatorText(S.relationOperatorNames{rel});
+    end
     sec5{end+1} = sprintf('%s %s [%s]: %s — %s',q.relation,L.relations(rel).label, ...
-        operatorText(S.relationOperatorNames{rel}),names,L.relations(rel).meaning); %#ok<AGROW>
+        how,names,L.relations(rel).meaning); %#ok<AGROW>
 end
-sec5{end+1} = sprintf(['%s 자기 루프 7개 [전파]. 관계 구조는 고정이며 매 시점 바뀌는 것은 노드 특징뿐. ' ...
+sec5{end+1} = sprintf(['%s 자기 루프 7개. 관계 구조는 고정이며 매 시점 바뀌는 것은 노드 특징뿐. ' ...
     '선언된 관계는 상태 표현의 구조적 사전지식이지 논리 추론(OWL/SWRL)이 아님.'],q.relation);
 % 6. learned graph operation --------------------------------------------------
-sec6 = {sprintf(['%s 단일 R-GAT 층 (%s, %s): 각 도착 노드는 직접 들어오는 1-홉 간선의 메시지만 ' ...
-    '모은 뒤 7개 노드 임베딩 전체가 그래프 리드아웃으로 들어감.'],q.computed, ...
-    S.relationOperators,S.attentionMode)};
 gateMean = mean(A.gate,1);
-for j = 1:S.nNodes
-    incoming = find(S.dst==j);
-    parts = strings(1,numel(incoming));
-    for m = 1:numel(incoming)
-        e = incoming(m);
-        parts(m) = sprintf('%s %s α=%.3f |αWx|=%.3f',S.edgeLabel{e}, ...
-            ternary(S.edgePool(e)==2,'조절','전파'),A.alpha(e),A.weightedMessageNorm(e));
+if isV2
+    sec6 = {sprintf(['%s R-GAT %d개 층 (rgat_v2, %s): 층마다 각 노드가 들어오는 모든 간선(관계 유형·자기 루프 ' ...
+        '포함)을 하나의 softmax로 모은다. 관계는 최대 %d홉까지 합성되고, 마지막 층의 7개 노드 임베딩 전체가 ' ...
+        '그래프 리드아웃으로 들어간다. 게이트·우회 경로 없음.'],q.computed,S.layers,S.attentionMode,S.layers)};
+    for l = 1:S.layers
+        Hl = A.layerH{l};
+        for j = 1:S.nNodes
+            incoming = find(S.dst==j);
+            parts = strings(1,numel(incoming));
+            for m = 1:numel(incoming)
+                e = incoming(m);
+                parts(m) = sprintf('%s(%s) α=%.3f |αWh|=%.3f',S.edgeLabel{e},S.relationNames{S.rel(e)}, ...
+                    A.alphaLayers(e,l),A.weightedMessageNormLayers(e,l));
+            end
+            sec6{end+1} = sprintf('%s 층 %d → %s: %s; |H^%d| = %.3f',q.computed,l,S.nodeNames{j}, ...
+                strjoin(parts,'; '),l,norm(Hl(:,j))); %#ok<AGROW>
+        end
     end
-    sec6{end+1} = sprintf('%s → %s: %s; 게이트 1+tanh(Z_mod) 평균 %.3f [%.3f, %.3f]; |H| = %.3f', ...
-        q.computed,S.nodeNames{j},strjoin(parts,'; '),gateMean(j),min(A.gate(:,j)), ...
-        max(A.gate(:,j)),norm(A.H(:,j))); %#ok<AGROW>
+else
+    sec6 = {sprintf(['%s 단일 R-GAT 층 (%s, %s): 각 도착 노드는 직접 들어오는 1-홉 간선의 메시지만 ' ...
+        '모은 뒤 7개 노드 임베딩 전체가 그래프 리드아웃으로 들어감.'],q.computed, ...
+        S.relationOperators,S.attentionMode)};
+    for j = 1:S.nNodes
+        incoming = find(S.dst==j);
+        parts = strings(1,numel(incoming));
+        for m = 1:numel(incoming)
+            e = incoming(m);
+            parts(m) = sprintf('%s %s α=%.3f |αWx|=%.3f',S.edgeLabel{e}, ...
+                ternary(S.edgePool(e)==2,'조절','전파'),A.alpha(e),A.weightedMessageNorm(e));
+        end
+        sec6{end+1} = sprintf('%s → %s: %s; 게이트 1+tanh(Z_mod) 평균 %.3f [%.3f, %.3f]; |H| = %.3f', ...
+            q.computed,S.nodeNames{j},strjoin(parts,'; '),gateMean(j),min(A.gate(:,j)), ...
+            max(A.gate(:,j)),norm(A.H(:,j))); %#ok<AGROW>
+    end
 end
 sec6{end+1} = sprintf(['%s 액터 그래프 임베딩 g_A (16차원) |g_A| = %.3f; 노드별 리드아웃 사전활성 항 크기 ' ...
     '%s (행동 기여도 아님).'],q.computed,norm(A.g),mat2str(round(A.readoutTermNorm,3)));
-sec6{end+1} = ['[해석 주의] 어텐션 계수 α는 연산군 풀(전파+자기 루프 / 조절) 안에서 도착 노드 기준 ' ...
-    '합이 1인 집계 가중치이며 인과적 중요도·신뢰 확률이 아님. 조절 게이트는 α가 아님.'];
+if isV2
+    sec6{end+1} = ['[해석 주의] 어텐션 계수 α는 층마다 도착 노드로 들어오는 모든 간선의 합이 1인 집계 가중치이며 ' ...
+        '인과적 중요도·신뢰 확률이 아님.'];
+else
+    sec6{end+1} = ['[해석 주의] 어텐션 계수 α는 연산군 풀(전파+자기 루프 / 조절) 안에서 도착 노드 기준 ' ...
+        '합이 1인 집계 가중치이며 인과적 중요도·신뢰 확률이 아님. 조절 게이트는 α가 아님.'];
+end
 % 7. action -------------------------------------------------------------------
 a = r.command.requestedAcceleration;
 sec7 = {sprintf('%s 액터 평균 μ (tanh 이전) = [%+.4f, %+.4f].',q.action,A.mu)};
@@ -191,7 +222,7 @@ facts = struct('time',t,'decisionIndex',k,'frameCaptured',s.camera.frameCaptured
     'markerIds',s.camera.markerIds,'pnpAttempted',s.pnp.attempted,'pnpValid',s.pnp.valid, ...
     'kfUpdate',s.kf.update,'visionAge',est.visionAge,'navigationStamp',nav.stamp, ...
     'estimate',est,'fovMargin',ev.fovMargin,'touchdownLimitRatio',ev.touchdownLimitRatio, ...
-    'landingCondition',ev.landingCondition,'alpha',A.alpha','gateMean',gateMean, ...
+    'landingCondition',ev.landingCondition,'alpha',A.alphaLayers','gateMean',gateMean, ...
     'mu',A.mu','requestedAcceleration',a','injectedDropout_evalOnly',r.evaluation.injectedDropout);
 X = struct('banner',banner,'sections',{sections},'facts',facts);
 end

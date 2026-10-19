@@ -5,9 +5,9 @@ function output = runTrace(caseId,options)
 %   landing2d.orchestration.runTrace([],struct('replay',file))       % replay, no policy call
 % Entry point: run_scenario(caseId,struct('trace',true,...)) and
 % run_scenario([],struct('replay',file)). Options:
-%   trainSeed      onto_rgat_ppo checkpoint (default registry.trainSeeds.
-%                  confirmatory(1) = 11, the first v1.1 confirmatory seed; fixed
-%                  before looking at any trace, never chosen from S1-S4 results)
+%   trainSeed      onto_rgat_ppo checkpoint (default registry.trainSeeds.v2(1)
+%                  = 16, the first relational-policy-v2.0 seed; fixed before
+%                  looking at any trace, never chosen from S1-S4 results)
 %   replicate      noise replicate r of the case (episode seed = factorial
 %                  seed + r - 1, default 1, landing2d.evaluation.replicateSeeds)
 %   deterministic  evaluation policy (default true); false also records the
@@ -26,7 +26,7 @@ function output = runTrace(caseId,options)
 % signature and graph hash verified); nothing is trained.
 if nargin < 2, options = struct(); end
 registry = landing2d.config.methodRegistry();
-defaults = struct('trace',true,'replay','','trainSeed',registry.trainSeeds.confirmatory(1), ...
+defaults = struct('trace',true,'replay','','trainSeed',registry.trainSeeds.v2(1), ...
     'replicate',1,'deterministic',true,'visible',true,'live',[],'speed',1,'staged',false, ...
     'outputDir','','png',true,'video',false,'mock',false);
 unknown = setdiff(fieldnames(options),fieldnames(defaults));

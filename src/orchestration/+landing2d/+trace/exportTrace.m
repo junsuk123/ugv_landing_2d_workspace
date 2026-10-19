@@ -47,9 +47,12 @@ s = [R.sensing]; cam = [s.camera]; pnp = [s.pnp]; kf = [s.kf];
 T.FrameCaptured = [cam.frameCaptured]'; T.MarkerCount = [cam.markerCount]';
 T.PnpAttempted = [pnp.attempted]'; T.PnpValid = [pnp.valid]';
 T.KfUpdate = string({kf.update})'; T.KfLastUpdate_s = [kf.lastUpdateTime]';
-actor = [R.actor]; alpha = [actor.alpha]';
-for e = 1:decisionTrace.schema.nEdges
-    T.(sprintf('alpha_%02d_%s',e,strrep(decisionTrace.schema.edgeLabel{e},'→','_'))) = alpha(:,e);
+actor = [R.actor];
+for l = 1:size(actor(1).alphaLayers,2)
+    alpha = cell2mat(arrayfun(@(a)a.alphaLayers(:,l),actor,'UniformOutput',false))';
+    for e = 1:decisionTrace.schema.nEdges
+        T.(sprintf('alpha_L%d_%02d_%s',l,e,strrep(decisionTrace.schema.edgeLabel{e},'→','_'))) = alpha(:,e);
+    end
 end
 mu = [actor.mu]'; u = [actor.preTanhAction]'; a = [R.command]; req = [a.requestedAcceleration]';
 app = [a.appliedAccelerationIntervalMean]';

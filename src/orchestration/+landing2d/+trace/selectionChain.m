@@ -25,9 +25,15 @@ r = decisionTrace.records(min(k,numel(decisionTrace.records))); S = decisionTrac
 L = decisionTrace.labels; status = landing2d.trace.channelStatus(decisionTrace,k);
 content = {sprintf('선택: %s — 결정 #%d, t = %.2f s',strjoin(arrayfun(@(x)vertexLabel(x,S,P,L), ...
     focus,'UniformOutput',false),', '),k,r.time)};
+if D.layers == 1
+    hopText = ['단일 R-GAT 층은 직접 들어오는 1-홉 간선만 모은 뒤 전체 노드 임베딩을 ' ...
+        '리드아웃한다(다중 홉 추론 아님).'];
+else
+    hopText = sprintf(['R-GAT %d개 층이 층마다 들어오는 간선을 모으므로 관계는 최대 %d홉까지 합성된다. ' ...
+        '논리 추론이 아니라 층별 집계이며, 마지막 층의 7개 노드 임베딩 전체가 리드아웃된다.'],D.layers,D.layers);
+end
 content{end+1} = ['[구조적 도달성] 강조된 경로는 모델 구조·데이터 출처상 연결된 요소이며 수치적 인과 ' ...
-    '기여나 단일 원인이 아님. 단일 R-GAT 층은 직접 들어오는 1-홉 간선만 모은 뒤 전체 노드 임베딩을 ' ...
-    '리드아웃한다(다중 홉 추론 아님).'];
+    '기여나 단일 원인이 아님. ',hopText];
 s = r.sensing;
 for p = find(closure(1:D.nProcessors))
     content{end+1} = ['[원천] ',sourceLine(P.processors{p},s,L)]; %#ok<AGROW>
@@ -44,26 +50,32 @@ for n = find(closure(offset+(1:D.nNodes)))
     content{end+1} = sprintf('[노드 특징 X_%d] %s (%s, %s): %s',n,S.nodeNames{n}, ...
         S.nodePerspective{n},L.nodes(n).label,strjoin(parts,', ')); %#ok<AGROW>
 end
-offset = offset+D.nNodes;
 A = r.actor; gateMean = mean(A.gate,1);
-for e = find(closure(offset+(1:D.nEdges)))
-    pool = S.poolNames{S.edgePool(e)};
-    gateText = '';
-    if S.edgePool(e) == 2
-        gateText = sprintf(', 도착 노드 게이트 1+tanh(Z_mod) 평균 %.3f',gateMean(S.dst(e)));
+for l = 1:D.layers
+    edgeIds = compose("e%d:%02d",l,(1:D.nEdges)');
+    for e = find(arrayfun(@(id)closure(D.ids==id),edgeIds'))
+        pool = S.poolNames{S.edgePool(e)};
+        gateText = '';
+        if S.edgePool(e) == 2
+            gateText = sprintf(', 도착 노드 게이트 1+tanh(Z_mod) 평균 %.3f',gateMean(S.dst(e)));
+        end
+        peers = find(S.dst==S.dst(e) & S.edgePool==S.edgePool(e));
+        content{end+1} = sprintf(['[간선 %02d · 층 %d] %s %s [%s]: 어텐션 점수 e = %+.3f, 어텐션 계수 α = %.3f ' ...
+            '(%s 풀, 도착 노드 입력 %d개 합 1), |W h_src| = %.3f, |α W h_src| = %.3f%s — %s'], ...
+            e,l,S.edgeLabel{e},S.relationNames{S.rel(e)},pool,A.attentionScoreLayers(e,l), ...
+            A.alphaLayers(e,l),pool,numel(peers),A.projectedMessageNormLayers(e,l), ...
+            A.weightedMessageNormLayers(e,l),gateText,S.edgePurposeKo{e}); %#ok<AGROW>
     end
-    peers = find(S.dst==S.dst(e) & S.edgePool==S.edgePool(e));
-    content{end+1} = sprintf(['[간선 %02d] %s %s [%s]: 어텐션 점수 e = %+.3f, 어텐션 계수 α = %.3f ' ...
-        '(%s 풀, 도착 노드 입력 %d개 합 1), |W x_src| = %.3f, |α W x_src| = %.3f%s — %s'], ...
-        e,S.edgeLabel{e},S.relationNames{S.rel(e)},pool,A.attentionScore(e),A.alpha(e), ...
-        pool,numel(peers),A.projectedMessageNorm(e),A.weightedMessageNorm(e),gateText, ...
-        S.edgePurposeKo{e}); %#ok<AGROW>
-end
-offset = offset+D.nEdges;
-for n = find(closure(offset+(1:D.nNodes)))
-    content{end+1} = sprintf(['[노드 임베딩 H_%d] %s: |H| = %.3f, 게이트 평균 %.3f, 리드아웃 사전활성 ' ...
-        '항 크기 %.3f (액터 그래프 리드아웃에 참여)'],n,S.nodeNames{n},norm(A.H(:,n)), ...
-        gateMean(n),A.readoutTermNorm(n)); %#ok<AGROW>
+    nodeIds = compose("h%d:%d",l,(1:D.nNodes)');
+    for n = find(arrayfun(@(id)closure(D.ids==id),nodeIds'))
+        Hl = A.layerH{l};
+        readoutText = '';
+        if l == D.layers
+            readoutText = sprintf(', 리드아웃 사전활성 항 크기 %.3f (액터 그래프 리드아웃에 참여)',A.readoutTermNorm(n));
+        end
+        content{end+1} = sprintf('[노드 임베딩 H^%d_%d] %s: |H| = %.3f%s',l,n,S.nodeNames{n}, ...
+            norm(Hl(:,n)),readoutText); %#ok<AGROW>
+    end
 end
 if closure(D.ids=="readout")
     content{end+1} = sprintf('[그래프 리드아웃] 액터 그래프 임베딩 g_A (16): |g_A| = %.3f, 7개 노드 임베딩 전체 사용',norm(A.g));
@@ -90,9 +102,9 @@ for x = focus(:)'
     switch parts(1)
         case "source", out(end+1) = "src:"+parts(2); %#ok<AGROW>
         case "channel", out(end+1) = compose("ch:%02d",str2double(parts(2))); %#ok<AGROW>
-        case "node", out = [out,compose("x:%d",str2double(parts(2))), ...
-                compose("h:%d",str2double(parts(2)))]; %#ok<AGROW>
-        case "edge", out(end+1) = compose("e:%02d",str2double(parts(2))); %#ok<AGROW>
+        case "node", n = str2double(parts(2)); out = [out,compose("x:%d",n), ...
+                compose("h%d:%d",(1:D.layers)',n)']; %#ok<AGROW>
+        case "edge", out = [out,compose("e%d:%02d",(1:D.layers)',str2double(parts(2)))']; %#ok<AGROW>
         otherwise, out(end+1) = x; %#ok<AGROW>
     end
 end
@@ -114,11 +126,16 @@ switch parts(1)
     case "src", label = L.sources(strcmp({L.sources.id},parts(2))).label;
     case "ch", label = "o_t "+P.channelNames{str2double(parts(2))};
     case "x", label = "노드 특징 "+S.nodeNames{str2double(parts(2))};
-    case "h", label = "노드 임베딩 "+S.nodeNames{str2double(parts(2))};
-    case "e", e = str2double(parts(2)); label = "간선 "+S.edgeLabel{e}+" ("+S.relationNames{S.rel(e)}+")";
-    case "readout", label = "액터 그래프 리드아웃 g_A";
-    case "actor", label = "액터 MLP";
-    otherwise, label = "가속도 명령 [a_x, a_z]";
+    otherwise
+        if startsWith(parts(1),"h")
+            label = "노드 임베딩(층 "+extractAfter(parts(1),1)+") "+S.nodeNames{str2double(parts(2))};
+        elseif startsWith(parts(1),"e")
+            e = str2double(parts(2));
+            label = "간선(층 "+extractAfter(parts(1),1)+") "+S.edgeLabel{e}+" ("+S.relationNames{S.rel(e)}+")";
+        elseif parts(1)=="readout", label = "액터 그래프 리드아웃 g_A";
+        elseif parts(1)=="actor", label = "액터 MLP";
+        else, label = "가속도 명령 [a_x, a_z]";
+        end
 end
 label = char(label);
 end

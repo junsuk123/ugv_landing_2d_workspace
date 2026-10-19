@@ -28,6 +28,10 @@ params = agent.policy.encoder;
 [value,valueCache] = landing2d.rl.valueForward(agent,policyInput);
 N = spec.nNodes; dh = spec.hiddenDim; T = spec.T; nE = T.nEdges;
 X = reshape(policyInput,spec.inDim,N);
+if isfield(spec,'encoderVersion') && strcmp(spec.encoderVersion,'rgat_v2')
+    F = forwardV2(params,spec,cache,X,g,mu,mlpCache,value,valueCache,agent);
+    return;
+end
 local = params.W0*X+params.b0;
 typed = isfield(spec,'relationOperators') && strcmp(spec.relationOperators,'typed_v1');
 pre = zeros(nE,1); alpha = zeros(nE,1); projected = zeros(dh,nE);
@@ -75,6 +79,57 @@ F.relationOperators = char(fieldOr(spec,'relationOperators','additive_v1'));
 F.consistency = struct('propagateTanh',max(abs(tanh(Zprop+local)-A),[],'all'), ...
     'modulateTanh',max(abs(tanh(Zmod)-M),[],'all'), ...
     'embedding',max(abs(gate.*A-H),[],'all'));
+% One layer: the per-layer views equal the fields above.
+F.layers = 1; F.encoderVersion = 'rgat_v1';
+F.alphaLayers = alpha; F.attentionScoreLayers = score;
+F.projectedMessageNormLayers = F.projectedMessageNorm;
+F.weightedMessageNormLayers = F.weightedMessageNorm;
+F.layerH = {H}; F.layerZ = {Zprop};
+end
+
+function F = forwardV2(params,spec,cache,X,g,mu,mlpCache,value,valueCache,agent)
+% rgat_v2: per layer l the attention pre-activation, score e_ij, coefficient
+% alpha_ij (one softmax per destination over all incoming edges), message
+% sizes |W_r h_j| and |alpha W_r h_j|, the aggregate Z_l and H_l = tanh(Z_l + b_l).
+% There is no gate (gate = ones) and no local path (local = zeros).
+L = spec.layers; dh = spec.hiddenDim; N = spec.nNodes; nE = spec.T.nEdges;
+pre = zeros(nE,L); alpha = zeros(nE,L); projectedNorm = zeros(nE,L); weightedNorm = zeros(nE,L);
+layerZ = cell(1,L); consistency = 0;
+for l = 1:L
+    c = cache.layerCaches{l};
+    messages = reshape(c.edgeMessages,dh,[]);
+    pre(:,l) = c.attentionPreActivation(:,1);
+    alpha(:,l) = c.alpha(:,1);
+    projectedNorm(:,l) = vecnorm(messages,2,1)';
+    weighted = messages.*alpha(:,l)';
+    weightedNorm(:,l) = vecnorm(weighted,2,1)';
+    layerZ{l} = weighted*spec.T.Msel';
+    consistency = max(consistency,max(abs(tanh(layerZ{l}+params.(sprintf('b%d',l)))-cache.layerH{l}),[],'all'));
+end
+score = 0.6*pre+0.4*abs(pre);       % leaky ReLU of landing2d.rgat.relationForward
+H = cache.H;
+readoutTerm = params.Wc*H.*params.Wn;
+F = struct('X',X,'local',zeros(dh,N),'Zprop',layerZ{L},'Zmod',zeros(dh,N),'A',H, ...
+    'gate',ones(dh,N),'H',H);
+F.attentionPreActivation = pre(:,1);
+F.attentionScore = score(:,1);
+F.alpha = alpha(:,1);
+F.projectedMessageNorm = projectedNorm(:,1);
+F.weightedMessageNorm = weightedNorm(:,1);
+F.readoutTermNorm = vecnorm(readoutTerm,2,1);
+F.g = g;
+F.mlpHidden = mlpCache(2:end-1).';
+F.mu = mu;
+F.logStd = agent.policy.logStd;
+F.criticG = valueCache.g;
+F.value = value;
+F.relationOperators = 'none';
+F.consistency = struct('propagateTanh',consistency,'modulateTanh',0,'embedding',0);
+F.layers = L; F.encoderVersion = 'rgat_v2';
+F.alphaLayers = alpha; F.attentionScoreLayers = score;
+F.projectedMessageNormLayers = projectedNorm;
+F.weightedMessageNormLayers = weightedNorm;
+F.layerH = cache.layerH; F.layerZ = layerZ;
 end
 
 function value = fieldOr(s,name,default)

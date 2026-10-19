@@ -6,10 +6,12 @@
 - 새 추론 모델이 아니다. 시뮬레이션과 신경망은 기존 함수가 계산한다. 이 도구는 그 값을 읽어서 보여 줄 뿐이다.
 - attention 계수·하이라이트 경로는 기술적 진단이다. 인과적 중요도, 원인 증명, 착륙 승인, 안전 보장으로 해석하지 않는다.
 
+> 2026-10-20부터 기본 인코더가 `rgat_v2`다(2층, 관계 간 attention, 게이트 없음, `RGAT_V2_DESIGN_KO.md`). 그래서 기본 체크포인트는 학습 시드 16이다. 대시보드는 층별 α, 층 1·최종 노드 임베딩, 2홉 근거 사슬을 보여 준다. 아래 S4 수치 예와 시험 기록은 v1.1(`typed_v1`, 시드 11)로 만든 것이다.
+
 ## 실행
 
 ```matlab
-run_scenario('S4',struct('trace',true))                    % 실시간 대시보드 (학습된 M2, 기본 학습 시드 11)
+run_scenario('S4',struct('trace',true))                    % 실시간 대시보드 (학습된 M2, 기본 학습 시드 16)
 run_scenario('S1',struct('trace',true,'visible',false))    % 화면 없이 기록 + 내보내기
 run_scenario('S4',struct('trace',true,'staged',true,'speed',0.5))   % 설명용 단계 재생
 run_scenario([],struct('replay','results/trace/S4_onto_rgat_ppo_s11_r01.mat'))  % 재생 (정책 재실행 없음)
@@ -20,7 +22,7 @@ run_check('trace')                                         % 수용 시험 A01�
 
 | 옵션 | 기본값 | 내용 |
 |---|---|---|
-| `trainSeed` | 11 | M2 체크포인트 학습 시드 |
+| `trainSeed` | 16 | M2 체크포인트 학습 시드 (v2.0 첫 시드) |
 | `replicate` | 1 | 통제 사례 잡음 반복(에피소드 시드 = 43001 + r − 1) |
 | `deterministic` | true | 평가와 같은 평균 행동. false면 확률적 표본을 쓰고, 평균 기반 미리보기를 따로 기록한다 |
 | `live` | `visible`과 같음 | 에피소드를 진행하면서 결정마다 대시보드에 보낸다 |

@@ -7,9 +7,9 @@
 - 비교군 3개 고정, 단일 정의 `landing2d.config.methodRegistry`
   - `ppo`
   - `onto_rgat_ppo`
-  - `shuffled_rgat_ppo`: 관계 유형 고정 순열, self 보존, 그래프 시드 = 학습 시드, 의미 간선 13개 중 10개 이상 유형 변경 및 `typed_v1` 연산군(modulate/propagate) 변경(`registry.relationShuffle.minChangedFraction = 0.7`, `minOperatorChangedFraction = 0.7`)
+  - `shuffled_rgat_ppo`: 관계 유형 고정 순열, self 보존, 그래프 시드 = 학습 시드, 의미 간선 13개 중 10개 이상 유형 변경(`registry.relationShuffle.minChangedFraction = 0.7`). registry v6부터 연산군 규칙은 없다(`rgat_v2`에는 연산군이 없음)
 - 비교군을 추가하려면 registry 등록과 문서 근거가 필요하다. Semantic-Flat·R-GCN·PPO-LSTM은 미포함이며, 이들과의 비교는 주장하지 않는다
-- 공통 계약: 동일 환경·센서·보상·행동·종료·PPO 손실·예산·검증 일정·파라미터 수(6,101). 핵심 차이는 Actor/Critic 상태 표현뿐
+- 공통 계약: 동일 환경·센서·보상·행동·종료·PPO 손실·예산·검증 일정·조기 종료 규칙·파라미터 수(6,101). 핵심 차이는 Actor/Critic 상태 표현뿐
 - direct-policy: 안전 감독기·착륙 승인·SAFE_ABORT 가드 없음. 접촉은 기계적 조건만 판정
 - 공간 차원 2차원 x–z 전용, 학습 백엔드 MATLAB PPO
 
@@ -37,11 +37,20 @@
   - 2026-10-17 R-GAT 전용 명령 평활화 항 삭제
   - 손실 기울기는 `landing2d.rl.policyLossGradient`·`valueLossGradient` 단일 경로(PPO 갱신과 학습 진단이 공유)
   - 갱신 진단(손실·엔트로피·KL·clip 비율·기울기 노름)은 읽기만 한다. 진단 추가로 학습 수치가 바뀌면 안 된다(바뀌면 `algorithmVersion` 갱신)
-- R-GAT
-  - 단일 층, 입력 의존 attention(`input_dependent_v1`), 노드별 국소 경로, `grouped_factorized` readout, graph embedding 16
-  - 관계 연산자 `typed_v1`(2026-10-18): 조절 관계(`qualifiesEstimate`, `conditionsLanding`)는 곱셈 게이트, 전파 관계(`informsMotion`, `affectsVisibility`, self)는 덧셈 메시지. 연산자는 관계 유형에 붙어 교란 대조군에서도 라벨을 따라간다. `additive_v1`은 선택지로 유지
-  - `operator_shared_v1`: modulate/propagate 연산군별 `W1`·`a1`·`E1` 공유. Actor 38-42, Critic 40-36으로 재배치해 총 6,101개 유지
-  - `fixed_relation_v1`은 같은 파라미터의 선택지로만 유지
+- R-GAT (`relational-policy-v2.0`, 2026-10-20, `docs/RGAT_V2_DESIGN_KO.md`)
+  - 기본 인코더 `rgat_v2`
+    - 표준 관계형 그래프 어텐션 2층
+    - 관계별 가중치 $W_r=\sum_b C_{rb}V_b$(기저 2개)
+    - 입력 의존 attention(`input_dependent_v1`)을 도착 노드의 모든 입력 간선(관계 유형·self 포함)에 대해 한 번 정규화
+    - tanh 노드 갱신, LeCun 초기화
+    - `grouped_factorized` readout, graph embedding 16
+  - 금지: 곱셈 게이트·연산군·국소 우회 경로·손으로 고른 readout 시작점·특정 비교군이나 시드에 맞춘 튜닝. 성능은 온톨로지 그래프, R-GAT 구조, 정책 입력 경로로만 검증한다
+  - 파라미터: 인코더당 1,540개, Actor 30-30, Critic 29-33으로 총 6,101개
+  - `rgat_v1`(단일 층 `typed_v1`/`additive_v1`, v1.x 기록 재현용)은 선택지로만 유지
+- 공통 학습 규칙
+  - 조기 종료 `validation_plateau_v1`: 최근 검증 3회 착륙 ≥ 95%, 150 update 이상. 750 update가 상한
+  - learning AUC: 업데이트 축 [0, 750], 조기 종료 뒤 마지막 값 유지
+  - `concurrentRuns`(스레드 풀 동시 학습)는 실행 옵션이다. 직렬과 비트 단위 동일함을 확인했다
 - 그래프(`docs/TOSM7_ONTOLOGY_KO.md`)
   - 7노드·4관계+self·20간선·6채널
   - 모든 특징은 $o_t$와 공개 보정 상수의 결정론적 함수
@@ -55,7 +64,7 @@
 - 시드 계약
   - 환경 시드 < 1e6
   - split 서로소: validation 2001–2200, test 3001–3200, stress 9001–9200, 고정 사례 41001–49999, PPO 학습 에피소드 100001–999999 (`validatePrimaryConfig`가 검사)
-  - 학습 시드 s → `rl.seed = base + s − 1`. 기본 1–5, v4 확장 1–10, v5 대조군 수정 확인 11–15
+  - 학습 시드 s → `rl.seed = base + s − 1`. 기본 1–5, v4 확장 1–10, v5 대조군 수정 확인 11–15, v2.0 확인 16–20(`registry.trainSeeds.v2`, 학습 전 사전 등록)
 - 체크포인트 선택은 validation만 사용
   - test·stress·고정 사례·probe 결과로 체크포인트·임계값·사례를 고르는 것은 금지
 - 통제 사례 S1–S4(`landing2d.evaluation.factorialCases`)
@@ -86,7 +95,7 @@
   - 진단 도구다. 평가 지표가 아니며, 체크포인트·사례·임계값 선택에 쓰지 않는다
   - 읽기 전용이다. 루프는 `rolloutEpisodeV2`와 같은 순서·같은 함수를 쓴다. 센서 경로 재실행과 Actor 캐시가 환경·정책 값과 비트 단위로 같아야 한다(`landing2d:TraceReplay`, `landing2d:TraceForward`). 환경·보상·PPO·R-GAT 파일은 이 도구 때문에 바꾸지 않는다
   - 그래프는 체크포인트 `encoderSpec.T`에서 읽는다. `tosm7_v1`과 다르면 `landing2d:TraceSchema`로 멈춘다. 그래프 정의를 바꾸면 `+trace/labels.m`·`graphSchema.m`의 의미 표도 함께 고친다
-  - 기본 체크포인트는 `onto_rgat_ppo` 학습 시드 11이다. 학습되지 않은 가중치는 `mock`으로만 쓰고, 출력에 `TEST ONLY` 표시를 붙인다
+  - 기본 체크포인트는 `onto_rgat_ppo` 학습 시드 16(v2.0 첫 시드)이다. 학습되지 않은 가중치는 `mock`으로만 쓰고, 출력에 `TEST ONLY` 표시를 붙인다
 - 결과 생성 없는 수치·그림 작성 금지
 - 체크포인트: `results/checkpoints/<method>_sNN[_gNN].mat`
   - 학습 서명(알고리즘 버전·rl·experiment·graphState) 불일치 시 재학습
@@ -98,8 +107,9 @@
 run_check                    % self-test + smoke
 run_check('learnability')    % 새 환경에서 과제 학습 가능성 사전 점검
 run                          % 3 비교군 × 학습 시드 1–5
+run(struct('trainSeeds',16:20,'concurrentRuns',8,'concurrentPool','threads'))   % v2.0 확인 실험
 run_scenario('S4')
-run_scenario('S4',struct('trace',true))    % 결정 추적 대시보드 (학습된 M2, 시드 11)
+run_scenario('S4',struct('trace',true))    % 결정 추적 대시보드 (학습된 M2, 시드 16)
 run_scenario([],struct('replay','results/trace/S4_onto_rgat_ppo_s11_r01.mat'))
 run_check('trace')                         % 결정 추적 수용 시험 A01–A13
 ```
@@ -119,6 +129,6 @@ run_check('trace')                         % 결정 추적 수용 시험 A01–A
 - `landing2d.orchestration.selfTest`: 14개 검사
   - contract, seeds, scenario-family, factorial-cases, causal-boundary, scenario-dynamics, termination
   - context-graph, ppo-smoke, relation-attention, common-observation, relation-shuffle, probe-replay, evaluation
-- 결정 추적 시험 `landing2d.trace.selfTest`(A01–A13)는 위 14개와 별도다. `run_check('trace')`로 실행하며 시드 11 체크포인트가 필요하다
+- 결정 추적 시험 `landing2d.trace.selfTest`(A01–A13)는 위 14개와 별도다. `run_check('trace')`로 실행하며 시드 16 체크포인트가 필요하다
 - 구조 변경 후에는 `run_check`(self-test + smoke) 실행. `+trace`·대시보드·그래프·관측 경로를 바꿨으면 `run_check('trace')`도 실행
 - 실제 MATLAB을 실행하지 않았으면 통과를 주장하지 않는다

@@ -53,32 +53,39 @@ R-GAT 비교군(`onto_rgat_ppo`, `shuffled_rgat_ppo`)의 상태 표현이다. 12
 상대 위치 변화에 영향을 준다는 뜻이다. 현재 상대 위치를 상대 속도만으로 정한다는 뜻은 아니다.
 관계 구조는 고정되어 있고, 매 시점 바뀌는 것은 노드 특징뿐이다.
 
-## 관계 연산자 (`typed_v1`, 기본값)
+## 인코더 (`rgat_v2`, 기본값, 2026-10-20)
 
-관계 유형은 가중치만이 아니라 메시지의 연산 형태를 정한다(`schema.relationOperators`).
+설계 근거와 사전 등록은 `RGAT_V2_DESIGN_KO.md`에 있다.
 
-- 조절(modulate): `qualifiesEstimate`, `conditionsLanding`. "A가 B를 조건 짓는다/한정한다"는 뜻이므로, A의 메시지가 B의 노드 상태에 곱셈 게이트 $(1+\tanh(\cdot))\in(0,2)$로 작용한다.
-- 전파(propagate): `informsMotion`, `affectsVisibility`, self. "A가 B를 바꾼다"는 뜻이므로 덧셈 메시지다.
-- 두 종류는 각각 도착 노드 기준으로 정규화된 attention 그래프이고, `operator_shared_v1`에서는 연산군별 파라미터를 공유한다. 교란 대조군에서는 연산자가 순열된 라벨을 따라간다.
-- 근거와 진단은 `EXPERIMENT_DESIGN_KO.md` §2.1에 있다. 모든 관계가 덧셈인 이전 인코더는 `relationOperators = 'additive_v1'`로 고를 수 있다.
-
-## 인코더와 모델 용량
-
-- 단일 R-GAT 층: modulate/propagate별 공유 사영 $W_r$, 관계 임베딩 $E_r$, **입력 의존 attention**(`input_dependent_v1`)
-  $lpha^{(r)}_{ij}(X_t)$, 도착 노드 기준 softmax. 노드 상태 16차원.
-- 노드별 국소 경로 $W_0X+b_0$. 초기값은 앞 채널 항등이고 학습된다. 원시 관측 우회 경로는 없다.
+- 표준 관계형 그래프 어텐션 2층을 쓴다. 층마다 모든 간선(의미 13 + self 7)이 관계별 가중치 $W_r$로 메시지 $W_r h_j$를 보낸다.
+- 도착 노드는 들어오는 모든 간선(모든 관계 유형과 self)에 대해 입력 의존 attention 하나로 메시지를 모은다. 그래서 입력이 하나뿐인 관계 풀이 α = 1에 고정되지 않는다.
+- 노드 갱신은 $h^{(l)}_i=\tanh(\sum_j\alpha_{ij}W_{r(ij)}h^{(l-1)}_j+b^{(l)})$이다.
+- 관계 가중치는 공유 기저 2개의 조합 $W_r=\sum_b C_{rb}V_b$다.
+- 2층이라 리드아웃 전에 관계가 최대 2홉까지 합성된다. 예: `qualifiesEstimate` 다음 `conditionsLanding`.
+- 곱셈 게이트, 연산군(modulate/propagate), 국소 우회 경로 $W_0$, 손으로 고른 readout 시작점(`readoutInit`)은 없다. 초기화는 LeCun 정규 분포다.
 - `grouped_factorized` readout: 노드 × 채널 분해로 16차원 graph embedding을 만든다.
-  초기값은 `schema.readoutInit`의 온톨로지 좌표에서 시작한다.
-- Actor MLP 38-42, Critic MLP 40-36. 전체 학습 파라미터는 **6,101개로 일반 PPO(MLP 48-48)와 같다**
-  (selfTest `contract`, `ppo-smoke`가 검증).
-- 이전의 `fixed_relation_v1`(관측과 무관한 관계별 고정 가중치)도 같은 파라미터로 선택할 수 있다. 다만 이번 설계의
-  기본값은 아니다.
+- 파라미터:
+  - 인코더 하나 1,540개, Actor MLP 30-30, Critic MLP 29-33
+  - 전체 6,101개로 일반 PPO(MLP 48-48)와 같다(selfTest `contract`, `relation-attention`)
+- `schema.relationOperators`(modulate/propagate)는 v1.x 기록을 위한 서술용 메타데이터다. `rgat_v2` 계산에는 쓰이지 않는다.
+
+### 이전 인코더 (`rgat_v1`, v1.x 기록 재현용)
+
+- 단일 층, 노드별 국소 경로 $W_0X+b_0$(앞 채널 항등 초기화), `readoutInit` 시작점을 썼다.
+- `typed_v1`(2026-10-18, v1.1 기본값)
+  - 조절 관계(`qualifiesEstimate`, `conditionsLanding`)는 곱셈 게이트 $(1+\tanh(\cdot))$로 작용했다.
+  - 전파 관계(`informsMotion`, `affectsVisibility`, self)는 덧셈 메시지였다.
+  - `operator_shared_v1`이 연산군별 파라미터를 공유했고, 헤드는 Actor 38-42, Critic 40-36이었다.
+  - 결함: PadVelocity·RelativePosition·RelativeVelocity의 조절 입력이 VisionQuality 하나뿐이라 세 노드의 게이트가 항상 같았다(`RGAT_V2_DESIGN_KO.md` §1).
+- `additive_v1`: 모든 관계가 덧셈 메시지였다.
+- `fixed_relation_v1`: 관측과 무관한 관계별 고정 가중치다.
+- 모두 `graphState.encoderVersion = 'rgat_v1'`로 고를 수 있다.
 
 ## 관계 교란 대조군 (`shuffled_rgat_ppo`)
 
 - `landing2d.rgat.applyRelationPerturbation`이 의미 간선 13개의 관계 유형을 고정 순열로 바꾼다. self 간선은 보호하고,
   원래 배치와 전역 이름 치환 배치(`qualifiesEstimate` ↔ `informsMotion`, 둘 다 3개)는 거부한다.
-- 의미 간선 중 10개 이상(`registry.relationShuffle.minChangedFraction = 0.7`)의 유형이 바뀐 순열만 받는다.
+- 의미 간선 중 10개 이상(`registry.relationShuffle.minChangedFraction = 0.7`)의 유형이 바뀐 순열만 받는다. registry v5에서 더했던 연산군 변경 규칙은 v6(`rgat_v2`)에서 뺐다. 연산군이 없기 때문이다.
   제약 없는 순열은 평균 3.6개 간선의 TOSM 유형을 우연히 유지하므로, 대조군이 TOSM 배치의 상당 부분을 갖지 않게 한다.
   run별 실제 교란 비율과 간선별 유형은 `training_relations.csv`, `training_edges.csv`에 저장된다.
 - 노드·간선(src/dst)·관계별 간선 수·파라미터 초기값은 TOSM과 같다. 그래프 해시와 학습 서명은 다르다.

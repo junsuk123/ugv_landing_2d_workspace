@@ -9,10 +9,11 @@ function report = selfTest(options)
 % exact unless a tolerance is stated.
 if nargin < 1, options = struct(); end
 registry = landing2d.config.methodRegistry();
-if ~isfield(options,'trainSeed'), options.trainSeed = registry.trainSeeds.confirmatory(1); end
+if ~isfield(options,'trainSeed'), options.trainSeed = registry.trainSeeds.v2(1); end
 if ~isfield(options,'glossary'), options.glossary = ''; end
 root = landing2d.orchestration.projectRoot();
 cfg = landing2d.config.primaryConfig(root);
+if isfield(options,'outputDir') && ~isempty(options.outputDir), cfg.outputDir = options.outputDir; end
 arm = landing2d.config.applyMethod(cfg,'onto_rgat_ppo',options.trainSeed);
 [agent,~,file] = landing2d.rl.loadCheckpoint(arm);
 agentBefore = agent;
@@ -166,16 +167,19 @@ function detail = checkOperators(F)
 S = F.S4.schema; worst = 0;
 for r = [F.S1.records,F.S4.records]
     A = r.actor;
-    for pool = 1:2
-        edges = find(S.edgePool==pool);
-        sums = accumarray(S.dst(edges)',A.alpha(edges),[7,1]);
-        has = accumarray(S.dst(edges)',1,[7,1]) > 0;
-        worst = max(worst,max(abs(sums(has)-1)));
-        e = exp(A.attentionScore(edges));
-        den = accumarray(S.dst(edges)',e,[7,1])+1e-9;
-        assert(max(abs(e./den(S.dst(edges))-A.alpha(edges))) < 1e-12,'softmax(score) differs from alpha.');
+    for l = 1:size(A.alphaLayers,2)
+        for pool = unique(S.edgePool)
+            edges = find(S.edgePool==pool);
+            alpha = A.alphaLayers(edges,l);
+            sums = accumarray(S.dst(edges)',alpha,[7,1]);
+            has = accumarray(S.dst(edges)',1,[7,1]) > 0;
+            worst = max(worst,max(abs(sums(has)-1)));
+            e = exp(A.attentionScoreLayers(edges,l));
+            den = accumarray(S.dst(edges)',e,[7,1])+1e-9;
+            assert(max(abs(e./den(S.dst(edges))-alpha)) < 1e-12,'softmax(score) differs from alpha.');
+        end
+        assert(max(abs(A.weightedMessageNormLayers(:,l)-A.alphaLayers(:,l).*A.projectedMessageNormLayers(:,l))) < 1e-12);
     end
-    assert(max(abs(A.weightedMessageNorm-A.alpha.*A.projectedMessageNorm)) < 1e-12);
     c = A.consistency;
     assert(c.propagateTanh < 1e-12 && c.modulateTanh < 1e-12 && c.embedding < 1e-12, ...
         'Recomputed Z_prop/Z_mod do not reproduce the encoder cache.');
@@ -188,8 +192,10 @@ cleanup = onCleanup(@()delete(dash));
 for k = [1,32,numel(F.S4.records)]
     dash.seek(F.S4.records(k).time);
     s = dash.snapshot(); r = F.S4.records(k);
-    assert(s.decision==k && isequal(s.alphaBars,r.actor.alpha) && isequal(s.X,r.graph.X) ...
-        && isequal(s.H,r.actor.H) && isequal(s.gate,r.actor.gate) && isequal(s.g,r.actor.g) ...
+    thirdPanel = r.actor.gate;
+    if strcmp(S.encoderVersion,'rgat_v2'), thirdPanel = r.actor.layerH{1}; end
+    assert(s.decision==k && isequal(s.alphaBars,r.actor.alphaLayers(:)) && isequal(s.X,r.graph.X) ...
+        && isequal(s.H,r.actor.H) && isequal(s.gate,thirdPanel) && isequal(s.g,r.actor.g) ...
         && isequal(s.action,r.command.requestedAcceleration),'Dashboard numbers differ at decision %d.',k);
 end
 r = F.S4.records(32);
@@ -204,17 +210,32 @@ function detail = checkHonestAnimation(F)
 dash = landing2d.viz.TosmTraceDashboard(F.S4,struct('visible',false));
 cleanup = onCleanup(@()delete(dash));
 legendText = strjoin(dash.snapshot().legend,' ');
-for key = ["실제 센서 사건","결정론적 파생","메시지 전달 간선 아님","단일 R-GAT 층","동시 계산", ...
-        "설명용 순서","물리적 지연","다중 홉 추론이 아님"]
+D = landing2d.trace.dependencyGraph(F.S4); L = D.layers;
+keys = ["실제 센서 사건","결정론적 파생","메시지 전달 간선 아님","단일 R-GAT 층","동시 계산", ...
+        "설명용 순서","물리적 지연","다중 홉 추론이 아님"];
+if strcmp(F.S4.schema.encoderVersion,'rgat_v2')
+    keys = ["실제 센서 사건","결정론적 파생","메시지 전달 간선 아님","2층 R-GAT","동시 계산", ...
+        "설명용 순서","물리적 지연","최대 2홉","게이트 없음"];
+end
+for key = keys
     assert(contains(legendText,key),'Legend lacks "%s".',key);
 end
 dash.setStaged(true); dash.step(1);
 assert(contains(dash.snapshot().phaseLabel,'물리 지연 아님'),'Staged playback is not labeled.');
-D = landing2d.trace.dependencyGraph(F.S4);
-assert(~any(D.A(D.kind=="h",D.kind=="e"),'all'),'An embedding feeds an edge (multi-hop).');
+% Layer l embeddings feed only layer l+1 edges; the last layer feeds none.
+for l = 1:L
+    for m = 1:L
+        feeds = any(D.A(D.kind=="h" & D.layer==l,D.kind=="e" & D.layer==m),'all');
+        assert(feeds == (m==l+1),'Layer-%d embeddings feed layer-%d edges.',l,m);
+    end
+end
 chain = landing2d.trace.selectionChain(F.S4,10,"node:7",D);
-assert(any(contains(chain.lines,'다중 홉 추론 아님')));
-detail = 'legend layers, staged label and single-layer DAG verified';
+if L == 1
+    assert(any(contains(chain.lines,'다중 홉 추론 아님')));
+else
+    assert(any(contains(chain.lines,sprintf('최대 %d홉',L))));
+end
+detail = sprintf('legend layers, staged label and a %d-layer DAG (at most %d relations per path)',L,L);
 end
 
 function detail = checkFullChain(F)
@@ -230,12 +251,13 @@ for focus = ["source:camera","node:1","edge:13","node:7","action"]
     assert(~any(contains(C.lines,'NaN')),'Chain of %s prints NaN.',focus);
 end
 C = landing2d.trace.selectionChain(T,k,"node:7",D);
-inChain = @(id)any(C.vertices==id);
-assert(all(arrayfun(inChain,compose("e:%02d",[9:13,20])))&& ~any(arrayfun(inChain,compose("e:%02d",1:8))), ...
-    'LandingCondition chain is not exactly its incoming edges (single layer).');
+inChain = @(id)any(C.vertices==id); L = D.layers;
+assert(all(arrayfun(inChain,compose("e%d:%02d",L,[9:13,20]))) ...
+    && ~any(arrayfun(inChain,compose("e%d:%02d",L,1:8))), ...
+    'LandingCondition chain: last-layer edges must be exactly its incoming edges.');
 assert(any(contains(C.lines,'conditionsLanding')) && any(contains(C.lines,'시간 갱신')));
 A = landing2d.trace.selectionChain(T,k,"action",D);
-assert(sum(D.kind(A.mask)=="e")==20 && sum(D.kind(A.mask)=="src")==5);
+assert(sum(D.kind(A.mask)=="e")==20*D.layers && sum(D.kind(A.mask)=="src")==5);
 X = landing2d.trace.explainDecision(T,k);
 assert(size(X.sections,1)==8 && contains(X.banner,'[관측]') && contains(X.banner,'[추정]') ...
     && contains(X.banner,'[예측]') && contains(X.banner,'[행동]'));
@@ -243,7 +265,8 @@ broken = T; broken.records(k).graph.estimate.ugvVx = NaN; broken.records(k).grap
 Y = landing2d.trace.explainDecision(broken,k);
 assert(contains(Y.banner,'알 수 없음') && ~contains(Y.banner,'NaN') && ~contains(Y.banner,'Inf'), ...
     'Unknown values are not printed as UNKNOWN.');
-detail = sprintf('5 selections at %s, LandingCondition chain = 5 conditionsLanding + self edges',stamp);
+detail = sprintf(['5 selections at %s, LandingCondition chain: last-layer edges = 5 ' ...
+    'conditionsLanding + self'],stamp);
 end
 
 function detail = checkNoSafetyClaim(F)
@@ -411,7 +434,7 @@ for k = 1:numel(T.records)
     end
 end
 C = landing2d.trace.selectionChain(T,1,"action");
-assert(any(contains(C.lines,'노드 특징 X_')) && any(contains(C.lines,'노드 임베딩 H_')) ...
+assert(any(contains(C.lines,'노드 특징 X_')) && any(contains(C.lines,'노드 임베딩 H')) ...
     && any(contains(C.lines,'어텐션 점수 e')) && any(contains(C.lines,'어텐션 계수 α')));
 detail = sprintf('%d label pairs, KF wording per decision',size(pairs,1));
 if ~isempty(F.options.glossary) && isfile(F.options.glossary)

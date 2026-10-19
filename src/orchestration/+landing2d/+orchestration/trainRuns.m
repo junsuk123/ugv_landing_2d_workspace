@@ -64,6 +64,10 @@ agents = cell(1,n); infos = cell(1,n); files = cell(1,n);
 parfor j = 1:n
     [agents{j},infos{j},files{j}] = landing2d.rl.loadOrTrainAgent(configs{j},@landing2d.rl.ppoTrain);
 end
+% Evaluation then runs on the usual episode pool (landing2d.rl.ensurePool),
+% exactly as after serial training.
+delete(gcp('nocreate'));
+landing2d.rl.ensurePool(cfg.rl);
 runs = [];
 for j = 1:n
     runs = [runs,makeRun(arms(j),agents{j},infos{j},files{j})]; %#ok<AGROW>
@@ -78,8 +82,15 @@ if ~isempty(pool)
     if pool.NumWorkers == workers && isThreads == wantThreads, return; end
     delete(pool);
 end
+% A thread pool cannot exceed the NumWorkers of the user's Threads profile
+% (default 8); it then opens with the profile maximum. The Processes cap is
+% raised on the in-memory cluster object only (saveProfile is not called).
 if wantThreads
-    parpool('Threads',workers);
+    try
+        parpool('Threads',workers);
+    catch
+        parpool('Threads');
+    end
 else
     cluster = parcluster('Processes');
     if cluster.NumWorkers < workers, cluster.NumWorkers = workers; end
