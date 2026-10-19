@@ -29,6 +29,25 @@ gs.operatorSharedPolicyHiddenSizes = [38,42];
 gs.operatorSharedValueHiddenSizes = [40,36];
 gs.initScale = 0.12;
 gs.encoderLearnRate = 1e-4;
+% Encoder version (relational-policy-v2.0, 2026-10-20). 'rgat_v2' is a
+% standard relational graph-attention network: L = 2 layers, every edge a
+% message W_r h_j with relation-specific weights W_r = sum_b C_rb V_b
+% (basis decomposition, Schlichtkrull et al. 2018), input-dependent attention
+% normalized over ALL incoming edges of a node across relation types
+% (ARGAT-style, Busbridge et al. 2019; self edges included), tanh node
+% update, variance-preserving (LeCun normal) initialization and the
+% grouped_factorized readout. No multiplicative gate, operator class, local
+% bypass path or hand-picked readout start: what reaches the policy is
+% decided only by the ontology graph, the R-GAT and the readout. Two layers
+% let relations compose (e.g. qualifiesEstimate then conditionsLanding).
+% Parameters: 1,540 per encoder; heads 30-30 / 29-33 keep the 6,101 total.
+% 'rgat_v1' selects the archived single-layer encoders (relationOperators
+% typed_v1 / additive_v1) of relational-policy-v1.x.
+gs.encoderVersion = 'rgat_v2';
+gs.layers = 2;
+gs.relationBases = 2;
+gs.v2PolicyHiddenSizes = [30,30];
+gs.v2ValueHiddenSizes = [29,33];
 % Input-dependent attention: alpha_ij^(r)(X_t) follows the current node
 % features. 'fixed_relation_v1' (observation-independent relation logits,
 % same parameters) remains available for a deliberate comparison.

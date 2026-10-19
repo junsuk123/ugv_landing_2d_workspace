@@ -14,7 +14,10 @@ valueHiddenSizes = [rl.hiddenSize,rl.hiddenSize];
 if ~strcmp(spec.mode,'baseline')
     policyHiddenSizes = gs.policyHiddenSizes;
     valueHiddenSizes = gs.valueHiddenSizes;
-    if isfield(spec,'relationParameterSharing') ...
+    if isfield(spec,'encoderVersion') && strcmp(spec.encoderVersion,'rgat_v2')
+        policyHiddenSizes = gs.v2PolicyHiddenSizes;
+        valueHiddenSizes = gs.v2ValueHiddenSizes;
+    elseif isfield(spec,'relationParameterSharing') ...
             && strcmp(spec.relationParameterSharing,'operator_shared_v1')
         policyHiddenSizes = gs.operatorSharedPolicyHiddenSizes;
         valueHiddenSizes = gs.operatorSharedValueHiddenSizes;

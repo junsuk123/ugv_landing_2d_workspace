@@ -36,7 +36,11 @@ policyEncoderOptimizerState = landing2d.util.adamInit(agent.policy.encoder);
 valueEncoderOptimizerState = landing2d.util.adamInit(agent.value.encoder);
 patience = 0;
 if isfield(rl,'earlyStopPatience'), patience = rl.earlyStopPatience; end
+% Progress lines carry the run name (concurrent runs interleave output).
+tag = '';
+if isfield(c,'comparisonRun'), tag = [c.comparisonRun.runName,' ']; end
 environmentSteps = 0; episodes = 0; wall = tic; evaluationsWithoutImprovement = 0;
+stopReason = 'budget';
 window = emptyWindow();
 % validationReturn: mean episode return on the validation episodes;
 % info.selectionScore: the outcome-ordered score that selects the checkpoint.
@@ -45,8 +49,8 @@ history = historyRow(0,validationReturn,info,NaN,NaN,0,0,0,windowDiagnostics(win
 best = agent; bestValidationReturn = validationReturn;
 bestSelectionScore = info.selectionScore; bestIndex = 1;
 if rl.verbose
-    fprintf('  [INIT] return %8.2f | select %8.2f | landing %3.0f%%\n', ...
-        validationReturn,info.selectionScore,100*info.landingRate);
+    fprintf('  %s[INIT] return %8.2f | select %8.2f | landing %3.0f%%\n', ...
+        tag,validationReturn,info.selectionScore,100*info.landingRate);
 end
 for iteration = 1:rl.ppoIterations
     episodeSeed = randi(episodeRs,seedRange,rl.episodesPerIteration,1);
@@ -116,14 +120,23 @@ for iteration = 1:rl.ppoIterations
             evaluationsWithoutImprovement = evaluationsWithoutImprovement+1;
         end
         if rl.verbose
-            fprintf(['  [%3d/%3d] train %8.2f | land %3.0f%% | validation %8.2f | ' ...
+            fprintf(['  %s[%3d/%3d] train %8.2f | land %3.0f%% | validation %8.2f | ' ...
                 'select %8.2f | land %3.0f%% | unsafe %3.0f%% | timeout %3.0f%%\n'], ...
-                iteration,rl.ppoIterations,trainReturn,100*trainLandingRate,validationReturn, ...
+                tag,iteration,rl.ppoIterations,trainReturn,100*trainLandingRate,validationReturn, ...
                 info.selectionScore,100*info.landingRate,100*info.unsafeRate, ...
                 100*info.timeoutRate);
         end
         window = emptyWindow();
+        if landing2d.rl.plateauReached(history,iteration,rl)
+            stopReason = 'validation_plateau_v1';
+            if rl.verbose
+                fprintf('  %searly stop: last %d validations landed >= %.0f%% (%d/%d).\n', ...
+                    tag,rl.earlyStop.window,100*rl.earlyStop.minimumLandingRate,iteration,rl.ppoIterations);
+            end
+            break;
+        end
         if patience > 0 && evaluationsWithoutImprovement >= patience
+            stopReason = 'patience';
             if rl.verbose
                 fprintf('  early stop: no improvement in %d evaluations (%d/%d).\n', ...
                     evaluationsWithoutImprovement,iteration,rl.ppoIterations);
@@ -134,11 +147,12 @@ for iteration = 1:rl.ppoIterations
 end
 history(bestIndex).selected = true;
 best.trainingSelection = struct('iteration',history(bestIndex).iteration, ...
-    'selectionScore',bestSelectionScore);
+    'selectionScore',bestSelectionScore,'lastIteration',history(end).iteration, ...
+    'stopReason',stopReason);
 agent = best;
 if rl.verbose
-    fprintf('  selected update %d: validation return %.2f | selection score %.2f\n', ...
-        history(bestIndex).iteration,bestValidationReturn,bestSelectionScore);
+    fprintf('  %sselected update %d: validation return %.2f | selection score %.2f\n', ...
+        tag,history(bestIndex).iteration,bestValidationReturn,bestSelectionScore);
 end
 end
 

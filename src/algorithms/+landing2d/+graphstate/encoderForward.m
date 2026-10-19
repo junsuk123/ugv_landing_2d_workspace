@@ -20,6 +20,10 @@ if strcmp(spec.mode,'baseline')
     cache = struct('mode',spec.mode);
     return;
 end
+if isfield(spec,'encoderVersion') && strcmp(spec.encoderVersion,'rgat_v2')
+    [g,cache] = forwardV2(params,spec,policyInput);
+    return;
+end
 B = size(policyInput,2); N = spec.nNodes; dh = spec.hiddenDim;
 X = reshape(policyInput,spec.inDim,N,B);
 Xf = reshape(X,spec.inDim,N*B);
@@ -55,4 +59,35 @@ cache = struct('mode',spec.mode,'B',B,'N',N,'dh',dh,'cache1',cache1, ...
 if typed
     cache.cacheAdd = cacheAdd; cache.cacheMod = cacheMod; cache.A = A; cache.M = M;
 end
+end
+
+function [g,cache] = forwardV2(params,spec,policyInput)
+% rgat_v2: H^l = tanh(sum_{j->i} alpha_ij W_r(ij) H^{l-1}_j + b_l), alpha
+% normalized over every incoming edge of i (all relation types incl. self),
+% W_r = sum_b C(r,b) V_b; then g = tanh(sum_k (Wc H^L_k) .* Wn(:,k) + bg).
+B = size(policyInput,2); N = spec.nNodes; dh = spec.hiddenDim; L = spec.layers;
+previous = reshape(policyInput,spec.inDim,N,B);
+layerCaches = cell(1,L); layerH = cell(1,L);
+for l = 1:L
+    V = params.(sprintf('V%d',l)); C = params.(sprintf('C%d',l));
+    W = landing2d.graphstate.basisWeights(V,C);
+    [Z,layerCaches{l}] = landing2d.rgat.relationForward(previous,W, ...
+        params.(sprintf('a%d',l)),params.(sprintf('E%d',l)),spec.T,[],spec.attentionMode);
+    layerH{l} = tanh(reshape(Z,dh,N,B)+params.(sprintf('b%d',l)));
+    previous = layerH{l};
+end
+H = previous;
+K = spec.groupCount;
+grouped = zeros(dh,K,B);
+channel = zeros(spec.graphDim,K,B);
+for b = 1:B
+    grouped(:,:,b) = H(:,:,b)*spec.groupMatrix';
+    channel(:,:,b) = params.Wc*grouped(:,:,b);
+end
+g = tanh(reshape(sum(channel.*params.Wn,2),spec.graphDim,B)+params.bg);
+% cache1 = first layer (the attention diagnostics read cache1.alpha).
+cache = struct('mode',spec.mode,'encoderVersion','rgat_v2','B',B,'N',N,'dh',dh, ...
+    'cache1',layerCaches{1},'layerCaches',{layerCaches},'layerH',{layerH}, ...
+    'Xf',reshape(policyInput,spec.inDim,N*B),'H',H,'grouped',grouped, ...
+    'channel',channel,'g',g);
 end

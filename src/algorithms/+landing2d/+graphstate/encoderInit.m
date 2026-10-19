@@ -27,6 +27,11 @@ assert(strcmp(mode,'context_rgat') && strcmp(gs.readout,'grouped_factorized'), .
 [schema,T,graph] = landing2d.rgat.applyRelationPerturbation(schema,T,gs);
 dh = gs.hiddenDim;
 spec.schema = schema; spec.T = T; spec.graph = graph;
+if isfield(gs,'encoderVersion') && strcmp(gs.encoderVersion,'rgat_v2')
+    [params,spec] = initV2(gs,schema,spec,rs);
+    return;
+end
+spec.encoderVersion = 'rgat_v1';
 % Relation operators: additive_v1 = one attention layer over every edge;
 % typed_v1 = the edges whose (possibly shuffled) relation type is a
 % 'modulate' relation form a second attention graph whose message gates the
@@ -91,6 +96,45 @@ if dh >= schema.inDim-1 && gs.graphDim >= size(schema.readoutInit,1)
         params.Wn(row,schema.readoutInit(row,1)) = 0.25;
     end
 end
+end
+
+function [params,spec] = initV2(gs,schema,spec,rs)
+% rgat_v2: L relational graph-attention layers over all 20 typed edges, one
+% attention softmax per destination across relation types, relation-specific
+% weights W_r = sum_b C(r,b) V_b, tanh node update with bias, then the
+% grouped factorized readout. LeCun-normal initialization (variance 1/fan_in,
+% the rule of landing2d.rl.mlpInit) for every weight; zero biases. No local
+% bypass path, no gate and no hand-picked readout start.
+N = schema.nNodes; R = schema.nRelations; Bb = gs.relationBases; dh = gs.hiddenDim;
+attentionWidth = 2*dh+gs.relationDim;
+spec.encoderVersion = 'rgat_v2';
+spec.layers = gs.layers; spec.relationBases = Bb;
+spec.inDim = schema.inDim; spec.nNodes = N; spec.hiddenDim = dh;
+spec.graphStateDim = schema.inDim*N;
+spec.rawDim = spec.graphStateDim; spec.stateDim = spec.graphStateDim;
+spec.groupMatrix = schema.groupMatrix;
+spec.groupNames = schema.groupNames;
+spec.groupCount = size(schema.groupMatrix,1);
+spec.graphDim = gs.graphDim;
+spec.parameterRelationCount = R;
+dims = [schema.inDim,repmat(dh,1,gs.layers)];
+params = struct();
+for l = 1:gs.layers
+    name = layerNames(l);
+    params.(name.V) = randn(rs,dh,dims(l),Bb)/sqrt(dims(l));
+    params.(name.C) = randn(rs,R,Bb)/sqrt(Bb);
+    params.(name.a) = randn(rs,1,attentionWidth,R)/sqrt(attentionWidth);
+    params.(name.E) = randn(rs,gs.relationDim,R);
+    params.(name.b) = zeros(dh,1);
+end
+params.Wc = randn(rs,gs.graphDim,dh)/sqrt(dh);
+params.Wn = randn(rs,gs.graphDim,spec.groupCount)/sqrt(spec.groupCount);
+params.bg = zeros(gs.graphDim,1);
+end
+
+function name = layerNames(l)
+name = struct('V',sprintf('V%d',l),'C',sprintf('C%d',l),'a',sprintf('a%d',l), ...
+    'E',sprintf('E%d',l),'b',sprintf('b%d',l));
 end
 
 function s = subgraph(schema,keep,relationId,nRelations)

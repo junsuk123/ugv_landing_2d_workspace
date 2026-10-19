@@ -8,13 +8,24 @@ function runs = trainRuns(cfg,options)
 %                     training signature matches, otherwise it is retrained)
 % options.smoke       true: one bounded PPO iteration per run, nothing saved
 %                     (integration check, not a performance result)
+% options.concurrentRuns  K > 1 trains K runs at the same time on a pool of K
+%                     workers, each run collecting its episodes serially
+%                     (execution only: every episode and minibatch stream is
+%                     seeded per run, rl.parallelEpisodes/parallelWorkers are
+%                     outside the training signature; default 1)
+% options.concurrentPool  'processes' (default) or 'threads'
 % Seeds are the outer loop, so every method of seed 1 finishes before seed 2.
 % Methods with the same seed share the training-episode sequence.
 registry = landing2d.config.methodRegistry();
 defaults = struct('methods',{{registry.methods.id}}, ...
-    'trainSeeds',registry.trainSeeds.default,'retrain',false,'smoke',false);
+    'trainSeeds',registry.trainSeeds.default,'retrain',false,'smoke',false, ...
+    'concurrentRuns',1,'concurrentPool','processes');
 options = withDefaults(options,defaults);
 cfg.rl.retrain = logical(options.retrain);
+if options.concurrentRuns > 1 && ~options.smoke
+    runs = trainConcurrently(cfg,options);
+    return;
+end
 runs = [];
 for seed = options.trainSeeds(:)'
     arms = landing2d.config.comparisonArms(cfg,struct('methods',{options.methods}, ...
@@ -30,6 +41,49 @@ for seed = options.trainSeeds(:)'
         end
         runs = [runs,makeRun(arm,agent,info,file)]; %#ok<AGROW>
     end
+end
+end
+
+function runs = trainConcurrently(cfg,options)
+% One parfor iteration per run; inside a worker the episodes of an update
+% are collected serially (rl.parallelEpisodes = false).
+arms = [];
+for seed = options.trainSeeds(:)'
+    arms = [arms,landing2d.config.comparisonArms(cfg,struct('methods',{options.methods}, ...
+        'trainSeed',seed))]; %#ok<AGROW>
+end
+n = numel(arms);
+configs = cell(1,n);
+for j = 1:n
+    configs{j} = arms(j).config;
+    configs{j}.rl.parallelEpisodes = false;
+    fprintf('[train] %-18s seed %d (concurrent)\n',arms(j).id,arms(j).trainSeed);
+end
+openPool(min(options.concurrentRuns,n),options.concurrentPool);
+agents = cell(1,n); infos = cell(1,n); files = cell(1,n);
+parfor j = 1:n
+    [agents{j},infos{j},files{j}] = landing2d.rl.loadOrTrainAgent(configs{j},@landing2d.rl.ppoTrain);
+end
+runs = [];
+for j = 1:n
+    runs = [runs,makeRun(arms(j),agents{j},infos{j},files{j})]; %#ok<AGROW>
+end
+end
+
+function openPool(workers,kind)
+pool = gcp('nocreate');
+wantThreads = strcmpi(kind,'threads');
+if ~isempty(pool)
+    isThreads = isa(pool,'parallel.ThreadPool');
+    if pool.NumWorkers == workers && isThreads == wantThreads, return; end
+    delete(pool);
+end
+if wantThreads
+    parpool('Threads',workers);
+else
+    cluster = parcluster('Processes');
+    if cluster.NumWorkers < workers, cluster.NumWorkers = workers; end
+    parpool(cluster,workers);
 end
 end
 

@@ -13,6 +13,8 @@ function output = runPipeline(options)
 %   runSelfTest  default true
 %   saveResults  default true (false in smoke)
 %   figureVisible default false
+%   concurrentRuns  train this many runs at once (execution only, default 1)
+%   concurrentPool  'processes' (default) or 'threads'
 % Outputs under results/: checkpoints/, evaluation/ (CSV + results.mat),
 % figures/ (PNG). The test, stress and fixed-case seeds never select a
 % checkpoint; checkpoint selection uses the validation split during PPO.
@@ -20,7 +22,8 @@ if nargin < 1, options = struct(); end
 registry = landing2d.config.methodRegistry();
 defaults = struct('trainSeeds',[],'methods',{{registry.methods.id}},'retrain',false, ...
     'sections',{{'learning','training','heldout','factorial','generalization','probes'}}, ...
-    'smoke',false,'runSelfTest',true,'saveResults',[],'figureVisible',false);
+    'smoke',false,'runSelfTest',true,'saveResults',[],'figureVisible',false, ...
+    'concurrentRuns',1,'concurrentPool','processes');
 options = parseOptions(options,defaults);
 if isempty(options.trainSeeds)
     options.trainSeeds = registry.trainSeeds.default;
@@ -41,7 +44,8 @@ tests = table();
 if options.runSelfTest, tests = landing2d.orchestration.selfTest(); end
 
 runs = landing2d.orchestration.trainRuns(cfg,struct('methods',{options.methods}, ...
-    'trainSeeds',options.trainSeeds,'retrain',options.retrain,'smoke',options.smoke));
+    'trainSeeds',options.trainSeeds,'retrain',options.retrain,'smoke',options.smoke, ...
+    'concurrentRuns',options.concurrentRuns,'concurrentPool',options.concurrentPool));
 
 outputDir = '';
 if options.saveResults, outputDir = fullfile(cfg.outputDir,'evaluation'); end

@@ -27,7 +27,15 @@ rl.maxGradNorm = 1.0;
 rl.valueWarmup = 2;            % first updates train the critic only
 % Validation (checkpoint selection, learning curve) every evaluateEvery updates.
 rl.evaluateEvery = 25;
-rl.earlyStopPatience = 0;      % 0 = off (the full budget is always used)
+rl.earlyStopPatience = 0;      % 0 = off (no stop on missing improvement)
+% Common plateau stop (relational-policy-v2.0): a run ends once its `window`
+% most recent validation evaluations (window x validationEpisodeCount
+% episodes) all land at least minimumLandingRate, and at least
+% minimumIterations updates were made. Validation split only; the budget
+% ppoIterations stays the upper limit, so a run that has not converged keeps
+% training. The same rule applies to every method.
+rl.earlyStop = struct('rule','validation_plateau_v1','window',3, ...
+    'minimumLandingRate',0.95,'minimumIterations',150);
 % Episode draws use their own stream rl.seed + episodeStreamSeedOffset.
 rl.episodeStreamSeedOffset = 52001;
 % Execution only (no effect on results; excluded from the training signature).

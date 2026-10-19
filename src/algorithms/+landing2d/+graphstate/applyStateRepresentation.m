@@ -10,7 +10,10 @@ cfg.graphState.stateRepresentation = mode;
 % landing2d.graphstate.contextSchema relationOperators). 'additive_v1' (every
 % relation an additive message, the comparison_registry_v3/v4 encoder) can be
 % set explicitly afterwards. Plain PPO has no relations and no such field.
-if strcmp(mode,'context_rgat') && ~isfield(cfg.graphState,'relationOperators')
+% rgat_v2 (default) has no operator classes; the archived rgat_v1 encoder
+% keeps its typed_v1 / operator_shared_v1 default.
+legacy = isfield(cfg.graphState,'encoderVersion') && strcmp(cfg.graphState.encoderVersion,'rgat_v1');
+if strcmp(mode,'context_rgat') && legacy && ~isfield(cfg.graphState,'relationOperators')
     cfg.graphState.relationOperators = 'typed_v1';
     cfg.graphState.relationParameterSharing = 'operator_shared_v1';
 elseif ~strcmp(mode,'context_rgat') && isfield(cfg.graphState,'relationOperators')

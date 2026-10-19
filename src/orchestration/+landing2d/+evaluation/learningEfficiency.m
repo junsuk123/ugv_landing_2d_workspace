@@ -7,7 +7,13 @@ function out = learningEfficiency(runs,c)
 %   StepsTo<p>   first x with landing rate >= p (c.evaluation.learning.targets);
 %                runs that never reach p are censored at their budget TotalSteps
 %                and Reached<p> = 0 (report both)
-%   AUC          area under the landing-rate curve / TotalSteps (0-1)
+%   AUC          area under the landing-rate curve over the PPO update axis
+%                [0, rl.ppoIterations] / ppoIterations (0-1); after a plateau
+%                stop (landing2d.rl.ppoTrain, validation_plateau_v1) the last
+%                validation value is carried to the budget, so a run that
+%                converged and stopped early is not penalized for stopping
+%   AUCOwnSteps  the earlier definition: area over the run's own
+%                environment-step horizon / TotalSteps (secondary)
 %   FinalValidationSuccess, BestValidationSuccess, SelectedIteration
 %   LateGain     plateau check: mean landing rate over the last
 %                plateauFraction of the evaluations minus the mean over the
@@ -52,7 +58,13 @@ for r = 1:numel(runs)
             row.(['StepsTo',tag]) = x(index); row.(['Reached',tag]) = 1;
         end
     end
-    row.AUC = trapz(x,y)/total;
+    budget = c.rl.ppoIterations; iterations = double([h.iteration]);
+    extendedIterations = iterations; extendedY = y;
+    if iterations(end) < budget
+        extendedIterations = [iterations,budget]; extendedY = [y,y(end)];
+    end
+    row.AUC = trapz(extendedIterations,extendedY)/budget;
+    row.AUCOwnSteps = trapz(x,y)/total;
     row.FinalValidationSuccess = y(end);
     row.BestValidationSuccess = max(y);
     selected = find([h.selected],1);
@@ -64,7 +76,7 @@ end
 R = vertcat(rows{:});
 metrics = [arrayfun(@(p)sprintf('StepsTo%02d',round(100*p)),targets,'UniformOutput',false), ...
     arrayfun(@(p)sprintf('Reached%02d',round(100*p)),targets,'UniformOutput',false), ...
-    {'AUC','FinalValidationSuccess','BestValidationSuccess','SelectedIteration','LateGain'}];
+    {'AUC','AUCOwnSteps','FinalValidationSuccess','BestValidationSuccess','SelectedIteration','LateGain'}];
 out = struct('curves',vertcat(curves{:}),'runs',R, ...
     'summary',landing2d.evaluation.seedSummary(R,{},metrics), ...
     'contrasts',landing2d.evaluation.methodContrasts(R,{},metrics), ...
