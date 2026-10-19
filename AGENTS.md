@@ -3,7 +3,7 @@
 ## 적용 범위
 
 - 실험: `planar_visibility_v2` 계약 위의 `relational_policy_v1` 설계 (`docs/EXPERIMENT_DESIGN_KO.md`)
-- 진입점: `run.m`(학습·평가·그림), `run_check.m`(self-test·smoke·learnability 사전 점검), `run_scenario.m`(통제 사례 하나). 루트에 다른 MATLAB 파일 추가 금지
+- 진입점: `run.m`(학습·평가·그림), `run_check.m`(self-test·smoke·learnability 사전 점검·결정 추적 시험), `run_scenario.m`(통제 사례 하나, 결정 추적 대시보드·재생). 루트에 다른 MATLAB 파일 추가 금지
 - 비교군 3개 고정, 단일 정의 `landing2d.config.methodRegistry`
   - `ppo`
   - `onto_rgat_ppo`
@@ -19,7 +19,8 @@
   - `+config`: 실험·PPO·평가 설정, 비교군, 검증
   - `+orchestration`: 파이프라인, 학습/로드, self-test
   - `+evaluation`: 평가 6종(학습 효율·학습 진단·held-out·S1–S4·일반화·probe), 지표, 실패 분류, 시드 통계
-  - `+viz`: 그림
+  - `+viz`: 그림, 결정 추적 대시보드(`TosmTraceDashboard`)
+  - `+trace`: 결정 추적(기록·센서 경로 재실행·출처·설명·내보내기·시험 A01–A13, `docs/TRACE_DASHBOARD_KO.md`)
   - `+util`
 - `src/simulations/+landing2d`: 환경·동역학·센서·공통 관측(`+observation`)·시나리오·기준 구동기와 측정 재생(`+probe`)
 - `src/algorithms/+landing2d`: PPO(`+rl`), TOSM 그래프·부호기(`+graphstate`), R-GAT(`+rgat`)
@@ -81,6 +82,11 @@
   - 분석 단위 = 학습 시드. 비교군 차이는 학습 시드별 짝 차이
   - 학습 시드 하나로는 방법 간 차이를 주장하지 않는다
   - 명령 변화 감소는 같은 쌍의 추종 오차와 함께만 해석
+- 결정 추적(`+trace`, 2026-10-19)
+  - 진단 도구다. 평가 지표가 아니며, 체크포인트·사례·임계값 선택에 쓰지 않는다
+  - 읽기 전용이다. 루프는 `rolloutEpisodeV2`와 같은 순서·같은 함수를 쓴다. 센서 경로 재실행과 Actor 캐시가 환경·정책 값과 비트 단위로 같아야 한다(`landing2d:TraceReplay`, `landing2d:TraceForward`). 환경·보상·PPO·R-GAT 파일은 이 도구 때문에 바꾸지 않는다
+  - 그래프는 체크포인트 `encoderSpec.T`에서 읽는다. `tosm7_v1`과 다르면 `landing2d:TraceSchema`로 멈춘다. 그래프 정의를 바꾸면 `+trace/labels.m`·`graphSchema.m`의 의미 표도 함께 고친다
+  - 기본 체크포인트는 `onto_rgat_ppo` 학습 시드 11이다. 학습되지 않은 가중치는 `mock`으로만 쓰고, 출력에 `TEST ONLY` 표시를 붙인다
 - 결과 생성 없는 수치·그림 작성 금지
 - 체크포인트: `results/checkpoints/<method>_sNN[_gNN].mat`
   - 학습 서명(알고리즘 버전·rl·experiment·graphState) 불일치 시 재학습
@@ -93,6 +99,9 @@ run_check                    % self-test + smoke
 run_check('learnability')    % 새 환경에서 과제 학습 가능성 사전 점검
 run                          % 3 비교군 × 학습 시드 1–5
 run_scenario('S4')
+run_scenario('S4',struct('trace',true))    % 결정 추적 대시보드 (학습된 M2, 시드 11)
+run_scenario([],struct('replay','results/trace/S4_onto_rgat_ppo_s11_r01.mat'))
+run_check('trace')                         % 결정 추적 수용 시험 A01–A13
 ```
 
 ## 명명 규칙 (2026-10-19, INCSL 용어 DB)
@@ -110,5 +119,6 @@ run_scenario('S4')
 - `landing2d.orchestration.selfTest`: 14개 검사
   - contract, seeds, scenario-family, factorial-cases, causal-boundary, scenario-dynamics, termination
   - context-graph, ppo-smoke, relation-attention, common-observation, relation-shuffle, probe-replay, evaluation
-- 구조 변경 후에는 `run_check`(self-test + smoke) 실행
+- 결정 추적 시험 `landing2d.trace.selfTest`(A01–A13)는 위 14개와 별도다. `run_check('trace')`로 실행하며 시드 11 체크포인트가 필요하다
+- 구조 변경 후에는 `run_check`(self-test + smoke) 실행. `+trace`·대시보드·그래프·관측 경로를 바꿨으면 `run_check('trace')`도 실행
 - 실제 MATLAB을 실행하지 않았으면 통과를 주장하지 않는다

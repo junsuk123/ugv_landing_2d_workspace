@@ -13,6 +13,10 @@ run_check                    % self-test + bounded smoke of every stage
 run_check('learnability')    % pre-check: can plain PPO learn the easy corner?
 run                          % 3 methods x training seeds 1-5: train, evaluate, figures
 run_scenario('S4')           % one controlled case (needs trained checkpoints)
+run_scenario('S4',struct('trace',true))   % decision-trace dashboard of the trained TOSM R-GAT Actor
+run_check('trace')           % decision-trace acceptance tests A01-A13 (headless)
 ```
+
+The decision trace (`docs/TRACE_DASHBOARD_KO.md`, Korean) is a read-only diagnostic of one episode, not an evaluation metric. It shows sensor events, o_t, the TOSM node features, the single R-GAT layer, the readout and the commanded acceleration.
 
 All summaries are means and 95% t intervals over training seeds. Method contrasts are paired by training seed. Outputs go to `results/` (checkpoints, evaluation CSV/MAT, figures).

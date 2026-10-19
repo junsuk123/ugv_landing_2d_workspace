@@ -7,12 +7,19 @@ function output = runCheck(mode)
 %                            itself is learnable (validation landing rate >=
 %                            learnabilityThreshold). Run this before trusting
 %                            any method comparison on a new environment.
+%   runCheck('trace')        only the decision-trace acceptance tests A01-A13
+%                            (landing2d.trace.selfTest; needs the trained
+%                            onto_rgat_ppo seed-11 checkpoint, headless GUI)
 % The learnability check is a feasibility test of the environment, not a fourth
 % comparison arm; its checkpoint is saved under checkpoints/precheck_*.
 if nargin < 1 || isempty(mode), mode = 'smoke'; end
 mode = char(mode);
-assert(ismember(mode,{'smoke','learnability'}),'landing2d:CheckMode', ...
-    'mode must be smoke or learnability.');
+assert(ismember(mode,{'smoke','learnability','trace'}),'landing2d:CheckMode', ...
+    'mode must be smoke, learnability or trace.');
+if strcmp(mode,'trace')
+    output = struct('trace',landing2d.trace.selfTest());
+    return;
+end
 learnabilityThreshold = 0.7;
 tests = landing2d.orchestration.selfTest();
 smoke = landing2d.orchestration.runPipeline(struct('smoke',true,'runSelfTest',false));

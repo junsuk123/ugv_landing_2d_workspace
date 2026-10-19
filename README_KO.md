@@ -18,6 +18,8 @@ run_check                    % self-test 14개 + 모든 단계 smoke (수 분, �
 run_check('learnability')    % 일반 PPO가 쉬운 조건에서 착륙을 배우는지 사전 점검 (약 1시간)
 run                          % 3 비교군 × 학습 시드 1–5: 학습 → 평가 → 그림 (수 시간)
 run_scenario('S4')           % 통제 사례 하나의 궤적 (학습된 체크포인트 필요)
+run_scenario('S4',struct('trace',true))   % 결정 추적 대시보드: 센서 사건 → o_t → TOSM 노드 → R-GAT → 가속도 명령
+run_check('trace')           % 결정 추적 수용 시험 A01–A13 (headless)
 ```
 
 - `run`은 학습 서명이 맞는 체크포인트를 재사용하므로, 중단 후 다시 실행하면 이어서 진행한다.
@@ -44,7 +46,8 @@ src/orchestration/+landing2d/
   +config         실험·PPO·평가 설정, 비교군 등록
   +orchestration  파이프라인, 학습/로드, self-test
   +evaluation     평가 6종, 지표, 실패 분류, 시드 통계
-  +viz            결과 그림
+  +viz            결과 그림, 결정 추적 대시보드
+  +trace          결정 추적: 기록·출처·설명·내보내기·시험 (진단 전용)
   +util           Adam, 해시 등
 src/simulations/+landing2d/     환경·동역학·센서·공통 관측·기준 구동기
 src/algorithms/+landing2d/      PPO, TOSM 그래프, R-GAT
@@ -52,4 +55,4 @@ docs/                           설계·관측·온톨로지·보상·기호
 results/                        checkpoints, evaluation, figures (생성물)
 ```
 
-문서: [실험 설계](docs/EXPERIMENT_DESIGN_KO.md) · [공통 관측](docs/COMMON_OBSERVATION_KO.md) · [TOSM 온톨로지](docs/TOSM7_ONTOLOGY_KO.md) · [보상](docs/REWARD_KO.md) · [기호](docs/NOTATION_KO.md)
+문서: [실험 설계](docs/EXPERIMENT_DESIGN_KO.md) · [공통 관측](docs/COMMON_OBSERVATION_KO.md) · [TOSM 온톨로지](docs/TOSM7_ONTOLOGY_KO.md) · [보상](docs/REWARD_KO.md) · [기호](docs/NOTATION_KO.md) · [결정 추적 대시보드](docs/TRACE_DASHBOARD_KO.md)

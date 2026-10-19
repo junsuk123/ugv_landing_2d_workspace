@@ -6,9 +6,19 @@ function output = runScenario(caseId,options)
 % options.replicates  noise replicates (default 1)
 % options.methods     registry ids (default all)
 % options.visible     show the figure (default true)
+% options.trace       true: decision-trace dashboard of the trained TOSM R-GAT
+%                     Actor instead (landing2d.orchestration.runTrace; its
+%                     options trainSeed, replicate, live, speed, staged, png,
+%                     video, mock, outputDir pass through)
+% options.replay      a saved trace file: replay it (no simulation, no policy)
 % A look at trajectories only; the study numbers come from run.
 if nargin < 1 || isempty(caseId), caseId = 'S4'; end
 if nargin < 2, options = struct(); end
+if (isfield(options,'trace') && options.trace) || (isfield(options,'replay') && ~isempty(options.replay))
+    output = landing2d.orchestration.runTrace(caseId,options);
+    return;
+end
+if isfield(options,'trace'), options = rmfield(options,'trace'); end
 registry = landing2d.config.methodRegistry();
 defaults = struct('trainSeeds',1,'replicates',1,'methods',{{registry.methods.id}}, ...
     'visible',true);
