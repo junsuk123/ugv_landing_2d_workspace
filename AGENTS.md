@@ -42,10 +42,10 @@
     - 표준 관계형 그래프 어텐션 2층
     - 관계별 가중치 $W_r=\sum_b C_{rb}V_b$(기저 2개)
     - 입력 의존 attention(`input_dependent_v1`)을 도착 노드의 모든 입력 간선(관계 유형·self 포함)에 대해 한 번 정규화
-    - tanh 노드 갱신, LeCun 초기화
+    - 층마다 R-GCN root(self-connection) 가중치 $W_0$(무작위 초기화), tanh 노드 갱신, LeCun 초기화
     - `grouped_factorized` readout, graph embedding 16
-  - 금지: 곱셈 게이트·연산군·국소 우회 경로·손으로 고른 readout 시작점·특정 비교군이나 시드에 맞춘 튜닝. 성능은 온톨로지 그래프, R-GAT 구조, 정책 입력 경로로만 검증한다
-  - 파라미터: 인코더당 1,540개, Actor 30-30, Critic 29-33으로 총 6,101개
+  - 금지: 곱셈 게이트·연산군·항등 초기화 경로·손으로 고른 readout 시작점·특정 비교군이나 시드에 맞춘 튜닝. 성능은 온톨로지 그래프, R-GAT 구조, 정책 입력 경로로만 검증한다
+  - 파라미터: 인코더당 1,892개, Actor 27-26, Critic 25-24로 총 6,101개
   - `rgat_v1`(단일 층 `typed_v1`/`additive_v1`, v1.x 기록 재현용)은 선택지로만 유지
 - 공통 학습 규칙
   - 조기 종료 `validation_plateau_v1`: 최근 검증 3회 착륙 ≥ 95%, 150 update 이상. 750 update가 상한
