@@ -30,17 +30,32 @@ spec.schema = schema; spec.T = T; spec.graph = graph;
 % Relation operators: additive_v1 = one attention layer over every edge;
 % typed_v1 = the edges whose (possibly shuffled) relation type is a
 % 'modulate' relation form a second attention graph whose message gates the
-% destination state (landing2d.graphstate.encoderForward). Both graphs use
-% the same W1/a1/E1 (each relation's parameters act on its own edges only),
-% so the parameter count does not change.
+% destination state (landing2d.graphstate.encoderForward). The default
+% operator_shared_v1 bank has one W1/a1/E1 set per operator class; the
+% legacy relation_specific_v1 bank has one set per semantic relation.
 spec.relationOperators = 'additive_v1';
 if isfield(gs,'relationOperators'), spec.relationOperators = gs.relationOperators; end
+spec.relationParameterSharing = 'relation_specific_v1';
+if isfield(gs,'relationParameterSharing')
+    spec.relationParameterSharing = gs.relationParameterSharing;
+end
+parameterRelations = schema.nRelations;
 if strcmp(spec.relationOperators,'typed_v1')
     modulating = find(strcmp(schema.relationOperators,'modulate'));
     isMod = ismember(schema.rel,modulating);
     spec.modEdges = find(isMod); spec.addEdges = find(~isMod);
-    spec.Tadd = landing2d.rgat.topology(subgraph(schema,~isMod));
-    spec.Tmod = landing2d.rgat.topology(subgraph(schema,isMod));
+    if strcmp(spec.relationParameterSharing,'operator_shared_v1')
+        % Parameter relation 1 = propagate, 2 = modulate. The ontology's
+        % four semantic labels still determine which operator receives an
+        % edge, but cannot become four independent capacity buckets that
+        % relearn an arbitrary shuffled assignment.
+        parameterRelations = 2;
+        spec.Tadd = landing2d.rgat.topology(subgraph(schema,~isMod,1,2));
+        spec.Tmod = landing2d.rgat.topology(subgraph(schema,isMod,2,2));
+    else
+        spec.Tadd = landing2d.rgat.topology(subgraph(schema,~isMod));
+        spec.Tmod = landing2d.rgat.topology(subgraph(schema,isMod));
+    end
 end
 spec.inDim = schema.inDim; spec.nNodes = schema.nNodes; spec.hiddenDim = dh;
 spec.graphStateDim = schema.inDim*schema.nNodes;
@@ -50,7 +65,8 @@ spec.groupNames = schema.groupNames;
 spec.groupCount = size(schema.groupMatrix,1);
 spec.graphDim = gs.graphDim;
 scale = gs.initScale;
-R = schema.nRelations;
+R = parameterRelations;
+spec.parameterRelationCount = R;
 params.W1 = scale*randn(rs,dh,schema.inDim,R);       % relation messages
 params.a1 = scale*randn(rs,1,2*dh+gs.relationDim,R); % attention vectors
 params.E1 = scale*randn(rs,gs.relationDim,R);        % relation embeddings
@@ -77,8 +93,12 @@ if dh >= schema.inDim-1 && gs.graphDim >= size(schema.readoutInit,1)
 end
 end
 
-function s = subgraph(schema,keep)
+function s = subgraph(schema,keep,relationId,nRelations)
 % The same nodes and relation ids with only the KEEP edges.
 s = schema;
 s.src = schema.src(keep); s.dst = schema.dst(keep); s.rel = schema.rel(keep);
+if nargin >= 3
+    s.rel = relationId*ones(size(s.rel));
+    s.nRelations = nRelations;
+end
 end

@@ -297,8 +297,16 @@ last=history(end);
 assert(last.policyEncoderGradNorm>0 && last.valueEncoderGradNorm>0 ...
     && isfinite(last.approxKL) && isfinite(last.entropy) && last.trainEpisodeLength>0 ...
     && isnan(history(1).policyEncoderGradNorm));
-assert(~isequal(trained.policy.encoder,agent.policy.encoder) ...
-    && ~isequal(trained.value.encoder,agent.value.encoder));
+% Validation is allowed to retain the initial checkpoint after one update.
+% Gradients above prove the update path; parameter inequality is required
+% only when that updated checkpoint is the one validation selected.
+if trained.trainingSelection.iteration>0
+    assert(~isequal(trained.policy.encoder,agent.policy.encoder) ...
+        && ~isequal(trained.value.encoder,agent.value.encoder));
+else
+    assert(isequal(trained.policy.encoder,agent.policy.encoder) ...
+        && isequal(trained.value.encoder,agent.value.encoder));
+end
 % PPO starts from landing2d.rl.initialAgent (the reconstruction used by
 % landing2d.evaluation.trainingDiagnostics): with no update the result is it.
 c0=c; c0.rl.ppoIterations=0;
@@ -316,9 +324,13 @@ function checkRelationAttention()
 % exactly 1 at nodes without modulating edges; analytic gradients of every
 % parameter group match central differences. additive_v1 keeps one graph.
 base=landing2d.graphstate.applyStateRepresentation(baseConfig(),'context_rgat');
-assert(strcmp(base.graphState.relationOperators,'typed_v1'));
+assert(strcmp(base.graphState.relationOperators,'typed_v1') ...
+    && strcmp(base.graphState.relationParameterSharing,'operator_shared_v1'));
 for mode=["typed_v1","additive_v1"]
     c=base; c.graphState.relationOperators=char(mode);
+    if mode=="additive_v1"
+        c.graphState=rmfield(c.graphState,'relationParameterSharing');
+    end
     agent=landing2d.rl.agentInit(c.rl,RandStream('threefry','Seed',77),c.graphState);
     spec=agent.encoderSpec;
     assert(strcmp(spec.readout,'grouped_factorized') && strcmp(spec.attentionMode,'input_dependent_v1') ...
@@ -351,7 +363,7 @@ for mode=["typed_v1","additive_v1"]
     loss=@(p)sum(landing2d.graphstate.encoderForward(p,spec,S1,'policy'),'all');
     p=agent.policy.encoder; h=1e-6;
     picks={'a1',find(abs(grads.a1)>1e-6,1);'W0',find(abs(grads.W0)>1e-6,1)};
-    for r=1:spec.schema.nRelations
+    for r=1:spec.parameterRelationCount
         Wr=zeros(size(grads.W1)); Wr(:,:,r)=abs(grads.W1(:,:,r));
         picks(end+1,:)={'W1',find(Wr>1e-6,1)}; %#ok<AGROW>
     end
@@ -626,7 +638,8 @@ end
 function checkRelationShuffle()
 % Fixed edge-relation shuffle: same nodes/src/dst/counts/per-relation counts,
 % self edges protected, never the canonical assignment or a global renaming
-% of it, at least minChangedFraction of the semantic edges retyped,
+% of it, at least minChangedFraction of the semantic edges retyped and at
+% least minOperatorChangedFraction moved between modulate and propagate,
 % reproducible per graph seed, distinct hashes, identical initial weights,
 % the stored graph used through PPO and inference, and checkpoints that
 % cannot be swapped between graphs.
@@ -658,13 +671,23 @@ T=landing2d.rgat.topology(schema);
 registry=landing2d.config.methodRegistry();
 semantic=find(canonical~=selfId);
 minChanged=ceil(registry.relationShuffle.minChangedFraction*numel(semantic)-1e-9);
-assert(minChanged==10 && sh.graphState.relationPerturbation.minChangedFraction== ...
-    registry.relationShuffle.minChangedFraction);
+minOperatorChanged=ceil(registry.relationShuffle.minOperatorChangedFraction* ...
+    numel(semantic)-1e-9);
+canonicalOperators=specO.schema.relationOperators(canonical(semantic));
+assert(minChanged==10 && minOperatorChanged==10 ...
+    && sh.graphState.relationPerturbation.minChangedFraction== ...
+        registry.relationShuffle.minChangedFraction ...
+    && sh.graphState.relationPerturbation.minOperatorChangedFraction== ...
+        registry.relationShuffle.minOperatorChangedFraction);
 for g=1:60
     gs=struct('relationPerturbation',struct('type','edge_relation_shuffle','graphSeed',g, ...
-        'minChangedFraction',registry.relationShuffle.minChangedFraction));
-    [~,Tg]=landing2d.rgat.applyRelationPerturbation(schema,T,gs);
-    assert(~isequal(Tg.rel,canonical) && sum(Tg.rel(semantic)~=canonical(semantic))>=minChanged);
+        'minChangedFraction',registry.relationShuffle.minChangedFraction, ...
+        'minOperatorChangedFraction',registry.relationShuffle.minOperatorChangedFraction));
+    [shuffledSchema,Tg]=landing2d.rgat.applyRelationPerturbation(schema,T,gs);
+    shuffledOperators=shuffledSchema.relationOperators(Tg.rel(semantic));
+    assert(~isequal(Tg.rel,canonical) ...
+        && sum(Tg.rel(semantic)~=canonical(semantic))>=minChanged ...
+        && sum(~strcmp(shuffledOperators,canonicalOperators))>=minOperatorChanged);
 end
 % The typed graph changes the encoder computation for the same input.
 sh=landing2d.config.applyMethod(base,'shuffled_rgat_ppo',1,1);

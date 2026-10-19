@@ -8,7 +8,7 @@ function [g,cache] = encoderForward(params,spec,policyInput,head)
 % context_rgat, relation operators additive_v1: H = tanh(RGAT(X) + W0 X + b0)
 % per node. typed_v1: the 'propagate' edges (and self) form the additive
 % attention graph, the 'modulate' edges a second attention graph over the
-% same W1/a1/E1, and
+% the W1/a1/E1 parameter bank registered by encoderInit, and
 %   H = (1 + tanh(RGAT_mod(X))) .* tanh(RGAT_prop(X) + W0 X + b0),
 % a gate in (0, 2) that is 1 for nodes without modulating edges and starts
 % near 1. Then the grouped factorized readout

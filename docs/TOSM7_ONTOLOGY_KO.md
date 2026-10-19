@@ -59,17 +59,17 @@ R-GAT 비교군(`onto_rgat_ppo`, `shuffled_rgat_ppo`)의 상태 표현이다. 12
 
 - 조절(modulate): `qualifiesEstimate`, `conditionsLanding`. "A가 B를 조건 짓는다/한정한다"는 뜻이므로, A의 메시지가 B의 노드 상태에 곱셈 게이트 $(1+\tanh(\cdot))\in(0,2)$로 작용한다.
 - 전파(propagate): `informsMotion`, `affectsVisibility`, self. "A가 B를 바꾼다"는 뜻이므로 덧셈 메시지다.
-- 두 종류는 각각 도착 노드 기준으로 정규화된 attention 그래프이고, 같은 관계별 파라미터를 쓴다(파라미터 수 불변). 교란 대조군에서는 연산자가 순열된 라벨을 따라간다.
+- 두 종류는 각각 도착 노드 기준으로 정규화된 attention 그래프이고, `operator_shared_v1`에서는 연산군별 파라미터를 공유한다. 교란 대조군에서는 연산자가 순열된 라벨을 따라간다.
 - 근거와 진단은 `EXPERIMENT_DESIGN_KO.md` §2.1에 있다. 모든 관계가 덧셈인 이전 인코더는 `relationOperators = 'additive_v1'`로 고를 수 있다.
 
 ## 인코더와 모델 용량
 
-- 단일 R-GAT 층: 관계별 사영 $W_r$, 관계 임베딩 $E_r$, **입력 의존 attention**(`input_dependent_v1`)
+- 단일 R-GAT 층: modulate/propagate별 공유 사영 $W_r$, 관계 임베딩 $E_r$, **입력 의존 attention**(`input_dependent_v1`)
   $lpha^{(r)}_{ij}(X_t)$, 도착 노드 기준 softmax. 노드 상태 16차원.
 - 노드별 국소 경로 $W_0X+b_0$. 초기값은 앞 채널 항등이고 학습된다. 원시 관측 우회 경로는 없다.
 - `grouped_factorized` readout: 노드 × 채널 분해로 16차원 graph embedding을 만든다.
   초기값은 `schema.readoutInit`의 온톨로지 좌표에서 시작한다.
-- Actor MLP 35-38, Critic MLP 35-30. 전체 학습 파라미터는 **6,101개로 일반 PPO(MLP 48-48)와 같다**
+- Actor MLP 38-42, Critic MLP 40-36. 전체 학습 파라미터는 **6,101개로 일반 PPO(MLP 48-48)와 같다**
   (selfTest `contract`, `ppo-smoke`가 검증).
 - 이전의 `fixed_relation_v1`(관측과 무관한 관계별 고정 가중치)도 같은 파라미터로 선택할 수 있다. 다만 이번 설계의
   기본값은 아니다.

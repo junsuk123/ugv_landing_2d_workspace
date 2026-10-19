@@ -13,6 +13,11 @@ function [schema,T,graph] = applyRelationPerturbation(schema,T,gs)
 %   - an assignment changing the relation type of fewer than ceil(f * 13)
 %     semantic edges is rejected and redrawn (no field: no such rule, the
 %     comparison_registry_v3 graphs).
+%   - when minOperatorChangedFraction is present, the same lower bound is
+%     applied to the typed_v1 operator class (modulate versus propagate).
+%     This prevents a shuffle from changing labels while retaining most of
+%     the actual computation. Relation counts, and therefore the 8:5 split
+%     between the two operator classes, remain fixed.
 % The same graphSeed always gives the same assignment, so PPO, validation,
 % test and inference share one typed graph. GRAPH records src/dst/rel, the
 % canonical rel, and a SHA-256 hash of the typed graph.
@@ -25,13 +30,21 @@ if isfield(gs,'relationPerturbation')
     movable = find(schema.rel ~= selfId);
     minChanged = 0;
     if isfield(p,'minChangedFraction'), minChanged = ceil(p.minChangedFraction*numel(movable)-1e-9); end
+    minOperatorChanged = 0;
+    if isfield(p,'minOperatorChangedFraction')
+        minOperatorChanged = ceil(p.minOperatorChangedFraction*numel(movable)-1e-9);
+    end
+    canonicalOperators = schema.relationOperators(canonicalRel(movable));
     rs = RandStream('threefry','Seed',p.graphSeed);
     accepted = false;
     for attempt = 1:1000
         rel = canonicalRel;
         rel(movable) = canonicalRel(movable(randperm(rs,numel(movable))));
+        runOperators = schema.relationOperators(rel(movable));
+        operatorChanged = sum(~strcmp(runOperators,canonicalOperators));
         if ~sameUpToRenaming(rel(movable),canonicalRel(movable)) ...
-                && sum(rel(movable)~=canonicalRel(movable))>=minChanged
+                && sum(rel(movable)~=canonicalRel(movable))>=minChanged ...
+                && operatorChanged>=minOperatorChanged
             accepted = true;
             break;
         end

@@ -7,7 +7,7 @@
 - 비교군 3개 고정, 단일 정의 `landing2d.config.methodRegistry`
   - `ppo`
   - `onto_rgat_ppo`
-  - `shuffled_rgat_ppo`: 관계 유형 고정 순열, self 보존, 그래프 시드 = 학습 시드, 의미 간선 13개 중 10개 이상 유형 변경(`registry.relationShuffle.minChangedFraction = 0.7`)
+  - `shuffled_rgat_ppo`: 관계 유형 고정 순열, self 보존, 그래프 시드 = 학습 시드, 의미 간선 13개 중 10개 이상 유형 변경 및 `typed_v1` 연산군(modulate/propagate) 변경(`registry.relationShuffle.minChangedFraction = 0.7`, `minOperatorChangedFraction = 0.7`)
 - 비교군을 추가하려면 registry 등록과 문서 근거가 필요하다. Semantic-Flat·R-GCN·PPO-LSTM은 미포함이며, 이들과의 비교는 주장하지 않는다
 - 공통 계약: 동일 환경·센서·보상·행동·종료·PPO 손실·예산·검증 일정·파라미터 수(6,101). 핵심 차이는 Actor/Critic 상태 표현뿐
 - direct-policy: 안전 감독기·착륙 승인·SAFE_ABORT 가드 없음. 접촉은 기계적 조건만 판정
@@ -39,7 +39,7 @@
 - R-GAT
   - 단일 층, 입력 의존 attention(`input_dependent_v1`), 노드별 국소 경로, `grouped_factorized` readout, graph embedding 16
   - 관계 연산자 `typed_v1`(2026-10-18): 조절 관계(`qualifiesEstimate`, `conditionsLanding`)는 곱셈 게이트, 전파 관계(`informsMotion`, `affectsVisibility`, self)는 덧셈 메시지. 연산자는 관계 유형에 붙어 교란 대조군에서도 라벨을 따라간다. `additive_v1`은 선택지로 유지
-  - Actor 35-38, Critic 35-30
+  - `operator_shared_v1`: modulate/propagate 연산군별 `W1`·`a1`·`E1` 공유. Actor 38-42, Critic 40-36으로 재배치해 총 6,101개 유지
   - `fixed_relation_v1`은 같은 파라미터의 선택지로만 유지
 - 그래프(`docs/TOSM7_ONTOLOGY_KO.md`)
   - 7노드·4관계+self·20간선·6채널
@@ -54,7 +54,7 @@
 - 시드 계약
   - 환경 시드 < 1e6
   - split 서로소: validation 2001–2200, test 3001–3200, stress 9001–9200, 고정 사례 41001–49999, PPO 학습 에피소드 100001–999999 (`validatePrimaryConfig`가 검사)
-  - 학습 시드 s → `rl.seed = base + s − 1`. 기본 1–5, 확장 1–10
+  - 학습 시드 s → `rl.seed = base + s − 1`. 기본 1–5, v4 확장 1–10, v5 대조군 수정 확인 11–15
 - 체크포인트 선택은 validation만 사용
   - test·stress·고정 사례·probe 결과로 체크포인트·임계값·사례를 고르는 것은 금지
 - 통제 사례 S1–S4(`landing2d.evaluation.factorialCases`)

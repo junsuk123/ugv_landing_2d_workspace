@@ -14,6 +14,11 @@ valueHiddenSizes = [rl.hiddenSize,rl.hiddenSize];
 if ~strcmp(spec.mode,'baseline')
     policyHiddenSizes = gs.policyHiddenSizes;
     valueHiddenSizes = gs.valueHiddenSizes;
+    if isfield(spec,'relationParameterSharing') ...
+            && strcmp(spec.relationParameterSharing,'operator_shared_v1')
+        policyHiddenSizes = gs.operatorSharedPolicyHiddenSizes;
+        valueHiddenSizes = gs.operatorSharedValueHiddenSizes;
+    end
 end
 policyRs = RandStream('threefry','Seed',rl.seed+31001);
 valueRs = RandStream('threefry','Seed',rl.seed+31002);

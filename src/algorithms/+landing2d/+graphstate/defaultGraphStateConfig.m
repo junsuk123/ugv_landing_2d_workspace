@@ -14,13 +14,19 @@ gs.stateRepresentation = 'baseline';
 gs.observationSource = 'commonObservation';
 gs.observationFeatures = 'tosm7_v1';
 % Encoder: 16-D node state, 4-D relation embedding, 16-D graph embedding.
-% Actor 35-38 and Critic 35-30 hidden units make the R-GAT arms exactly
+% Legacy relation-specific heads are 35-38 / 35-30. The default
+% operator-shared encoder uses 38-42 / 40-36 below; both allocations total
 % 6,101 trainable parameters, equal to plain PPO (rl.hiddenSize).
 gs.hiddenDim = 16;
 gs.relationDim = 4;
 gs.graphDim = 16;
 gs.policyHiddenSizes = [35,38];
 gs.valueHiddenSizes = [35,30];
+% typed_v1 shares one trainable message/attention transform per operator
+% class (propagate, modulate). The saved relation parameters are moved to
+% the heads so the graph arms remain exactly parameter-matched to PPO.
+gs.operatorSharedPolicyHiddenSizes = [38,42];
+gs.operatorSharedValueHiddenSizes = [40,36];
 gs.initScale = 0.12;
 gs.encoderLearnRate = 1e-4;
 % Input-dependent attention: alpha_ij^(r)(X_t) follows the current node

@@ -5,5 +5,8 @@ function version = algorithmVersion()
 % identical PPO loss for every method (no R-GAT-only smoothing term),
 % input-dependent attention, reserved training-episode seed range, 2 x 2
 % scenario family with initial relative-motion offsets.
-version = 'relational-policy-v1.0';
+% relational-policy-v1.1 (2026-10-19): typed_v1 shares relation-layer
+% parameters by operator class so shuffled labels cannot be relearned as
+% arbitrary relation-specific capacity buckets. Total parameters stay 6,101.
+version = 'relational-policy-v1.1';
 end

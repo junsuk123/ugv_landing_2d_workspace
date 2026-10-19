@@ -25,7 +25,8 @@ if perturbed
     validateattributes(graphSeed,{'numeric'},{'scalar','integer','positive'},mfilename,'graphSeed');
     cfg.graphState.relationPerturbation = struct('type',method.graphPerturbation, ...
         'graphSeed',graphSeed, ...
-        'minChangedFraction',registry.relationShuffle.minChangedFraction);
+        'minChangedFraction',registry.relationShuffle.minChangedFraction, ...
+        'minOperatorChangedFraction',registry.relationShuffle.minOperatorChangedFraction);
     landing2d.graphstate.validateGraphStateConfig(cfg.graphState);
     name = sprintf('%s_g%02d',name,graphSeed);
 else

@@ -12,8 +12,12 @@ cfg.graphState.stateRepresentation = mode;
 % set explicitly afterwards. Plain PPO has no relations and no such field.
 if strcmp(mode,'context_rgat') && ~isfield(cfg.graphState,'relationOperators')
     cfg.graphState.relationOperators = 'typed_v1';
+    cfg.graphState.relationParameterSharing = 'operator_shared_v1';
 elseif ~strcmp(mode,'context_rgat') && isfield(cfg.graphState,'relationOperators')
     cfg.graphState = rmfield(cfg.graphState,'relationOperators');
+    if isfield(cfg.graphState,'relationParameterSharing')
+        cfg.graphState = rmfield(cfg.graphState,'relationParameterSharing');
+    end
 end
 landing2d.graphstate.validateGraphStateConfig(cfg.graphState);
 cfg.rl.policyFile = sprintf('ppo_%s_planar_visibility_v2.mat',mode);
