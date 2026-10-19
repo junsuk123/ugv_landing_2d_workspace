@@ -46,14 +46,25 @@ grads = orderfields(grads,params);
 end
 
 function [grads,dPolicyInput] = backwardV2(params,spec,cache,grads,dH)
-% Layers in reverse: tanh, relation layer (landing2d.rgat.relationBackward),
-% then the basis decomposition dV_b = sum_r C(r,b) dW_r, dC(r,b) = <dW_r,V_b>.
+% Layers in reverse: tanh, root weight, relation layer
+% (landing2d.rgat.relationBackward), then the basis decomposition
+% dV_b = sum_r C(r,b) dW_r, dC(r,b) = <dW_r,V_b>.
 for l = spec.layers:-1:1
+    if l == 1
+        previous = reshape(cache.Xf,spec.inDim,cache.N,cache.B);
+    else
+        previous = cache.layerH{l-1};
+    end
+    root = params.(sprintf('Wroot%d',l));
     V = params.(sprintf('V%d',l)); C = params.(sprintf('C%d',l));
     [dh,din,Bb] = size(V); R = size(C,1);
     preActivation = dH.*(1-cache.layerH{l}.^2);
     grads.(sprintf('b%d',l)) = reshape(sum(sum(preActivation,3),2),dh,1);
+    flatPre = reshape(preActivation,dh,cache.N*cache.B);
+    flatPrevious = reshape(previous,size(previous,1),cache.N*cache.B);
+    grads.(sprintf('Wroot%d',l)) = flatPre*flatPrevious';
     [dH,g] = landing2d.rgat.relationBackward(preActivation,cache.layerCaches{l});
+    dH = dH+reshape(root'*flatPre,size(previous,1),cache.N,cache.B);
     dW = reshape(g.W,dh*din,R);
     grads.(sprintf('V%d',l)) = reshape(dW*C,dh,din,Bb);
     grads.(sprintf('C%d',l)) = dW'*reshape(V,dh*din,Bb);

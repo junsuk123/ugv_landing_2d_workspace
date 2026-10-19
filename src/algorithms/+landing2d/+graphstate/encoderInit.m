@@ -101,10 +101,11 @@ end
 function [params,spec] = initV2(gs,schema,spec,rs)
 % rgat_v2: L relational graph-attention layers over all 20 typed edges, one
 % attention softmax per destination across relation types, relation-specific
-% weights W_r = sum_b C(r,b) V_b, tanh node update with bias, then the
-% grouped factorized readout. LeCun-normal initialization (variance 1/fan_in,
-% the rule of landing2d.rl.mlpInit) for every weight; zero biases. No local
-% bypass path, no gate and no hand-picked readout start.
+% weights W_r = sum_b C(r,b) V_b, the R-GCN root (self-connection) weight
+% Wroot_l of the canonical layer h_i' = tanh(Wroot h_i + sum alpha W_r h_j + b),
+% then the grouped factorized readout. LeCun-normal initialization (variance
+% 1/fan_in, the rule of landing2d.rl.mlpInit) for every weight; zero biases.
+% No gate, no operator class and no hand-picked (identity) start.
 N = schema.nNodes; R = schema.nRelations; Bb = gs.relationBases; dh = gs.hiddenDim;
 attentionWidth = 2*dh+gs.relationDim;
 spec.encoderVersion = 'rgat_v2';
@@ -125,6 +126,7 @@ for l = 1:gs.layers
     params.(name.C) = randn(rs,R,Bb)/sqrt(Bb);
     params.(name.a) = randn(rs,1,attentionWidth,R)/sqrt(attentionWidth);
     params.(name.E) = randn(rs,gs.relationDim,R);
+    params.(name.root) = randn(rs,dh,dims(l))/sqrt(dims(l));
     params.(name.b) = zeros(dh,1);
 end
 params.Wc = randn(rs,gs.graphDim,dh)/sqrt(dh);
@@ -134,7 +136,7 @@ end
 
 function name = layerNames(l)
 name = struct('V',sprintf('V%d',l),'C',sprintf('C%d',l),'a',sprintf('a%d',l), ...
-    'E',sprintf('E%d',l),'b',sprintf('b%d',l));
+    'E',sprintf('E%d',l),'root',sprintf('Wroot%d',l),'b',sprintf('b%d',l));
 end
 
 function s = subgraph(schema,keep,relationId,nRelations)

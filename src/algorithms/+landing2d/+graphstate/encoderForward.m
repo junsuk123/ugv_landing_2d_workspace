@@ -62,9 +62,10 @@ end
 end
 
 function [g,cache] = forwardV2(params,spec,policyInput)
-% rgat_v2: H^l = tanh(sum_{j->i} alpha_ij W_r(ij) H^{l-1}_j + b_l), alpha
-% normalized over every incoming edge of i (all relation types incl. self),
-% W_r = sum_b C(r,b) V_b; then g = tanh(sum_k (Wc H^L_k) .* Wn(:,k) + bg).
+% rgat_v2: H^l = tanh(Wroot_l H^{l-1}_i + sum_{j->i} alpha_ij W_r(ij) H^{l-1}_j
+% + b_l), alpha normalized over every incoming edge of i (all relation types
+% incl. self), W_r = sum_b C(r,b) V_b (R-GCN root weight + relational
+% attention); then g = tanh(sum_k (Wc H^L_k) .* Wn(:,k) + bg).
 B = size(policyInput,2); N = spec.nNodes; dh = spec.hiddenDim; L = spec.layers;
 previous = reshape(policyInput,spec.inDim,N,B);
 layerCaches = cell(1,L); layerH = cell(1,L);
@@ -73,7 +74,8 @@ for l = 1:L
     W = landing2d.graphstate.basisWeights(V,C);
     [Z,layerCaches{l}] = landing2d.rgat.relationForward(previous,W, ...
         params.(sprintf('a%d',l)),params.(sprintf('E%d',l)),spec.T,[],spec.attentionMode);
-    layerH{l} = tanh(reshape(Z,dh,N,B)+params.(sprintf('b%d',l)));
+    root = reshape(params.(sprintf('Wroot%d',l))*reshape(previous,size(previous,1),N*B),dh,N,B);
+    layerH{l} = tanh(reshape(Z,dh,N,B)+root+params.(sprintf('b%d',l)));
     previous = layerH{l};
 end
 H = previous;

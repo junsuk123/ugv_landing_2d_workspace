@@ -12,8 +12,9 @@ function D = dependencyGraph(decisionTrace)
 %   x_i -> e1 (src = i)      layer-1 message W_r x_i
 %   h<l>_i -> e<l+1> (src=i) message of the next layer
 %   e<l> -> h<l>_dst         aggregation at the destination
-%   x_i -> h1_i              local path W0 (archived rgat_v1 only; rgat_v2 has
-%                            none, its self edges carry a node's own state)
+%   x_i -> h1_i, h<l>_i -> h<l+1>_i   node-own path: rgat_v2 root
+%                            (self-connection) weight Wroot_l of every layer;
+%                            archived rgat_v1 local path W0 (single layer)
 %   h<L> -> readout -> actor -> action   all seven final embeddings
 % A path therefore chains at most L relations (rgat_v2: L = 2, two-hop
 % compositions; rgat_v1: one hop). The attention score of an edge also reads
@@ -22,7 +23,6 @@ function D = dependencyGraph(decisionTrace)
 % Reachability is structural, not a numeric contribution.
 S = decisionTrace.schema; P = decisionTrace.provenance;
 L = 1; if isfield(S,'layers'), L = S.layers; end
-legacyLocal = ~isfield(S,'encoderVersion') || ~strcmp(S.encoderVersion,'rgat_v2');
 processors = P.processors; nP = numel(processors);
 nC = numel(P.channelNames); N = S.nNodes; nE = S.nEdges;
 ids = [strcat("src:",string(processors)), compose("ch:%02d",1:nC), compose("x:%d",1:N)];
@@ -57,7 +57,10 @@ for l = 1:L
     end
 end
 for n = 1:N
-    if legacyLocal, A(index(compose("x:%d",n)),index(compose("h1:%d",n))) = true; end
+    A(index(compose("x:%d",n)),index(compose("h1:%d",n))) = true;
+    for l = 1:L-1
+        A(index(compose("h%d:%d",l,n)),index(compose("h%d:%d",l+1,n))) = true;
+    end
     A(index(compose("h%d:%d",L,n)),index("readout")) = true;
 end
 A(index("readout"),index("actor")) = true;

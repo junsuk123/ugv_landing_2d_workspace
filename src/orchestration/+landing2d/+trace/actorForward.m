@@ -90,11 +90,12 @@ end
 function F = forwardV2(params,spec,cache,X,g,mu,mlpCache,value,valueCache,agent)
 % rgat_v2: per layer l the attention pre-activation, score e_ij, coefficient
 % alpha_ij (one softmax per destination over all incoming edges), message
-% sizes |W_r h_j| and |alpha W_r h_j|, the aggregate Z_l and H_l = tanh(Z_l + b_l).
-% There is no gate (gate = ones) and no local path (local = zeros).
+% sizes |W_r h_j| and |alpha W_r h_j|, the aggregate Z_l, the root
+% (self-connection) term Wroot_l h_i and H_l = tanh(Z_l + Wroot_l h + b_l).
+% There is no gate (gate = ones); local holds the last layer's root term.
 L = spec.layers; dh = spec.hiddenDim; N = spec.nNodes; nE = spec.T.nEdges;
 pre = zeros(nE,L); alpha = zeros(nE,L); projectedNorm = zeros(nE,L); weightedNorm = zeros(nE,L);
-layerZ = cell(1,L); consistency = 0;
+layerZ = cell(1,L); rootTerm = cell(1,L); consistency = 0; previous = X;
 for l = 1:L
     c = cache.layerCaches{l};
     messages = reshape(c.edgeMessages,dh,[]);
@@ -104,12 +105,15 @@ for l = 1:L
     weighted = messages.*alpha(:,l)';
     weightedNorm(:,l) = vecnorm(weighted,2,1)';
     layerZ{l} = weighted*spec.T.Msel';
-    consistency = max(consistency,max(abs(tanh(layerZ{l}+params.(sprintf('b%d',l)))-cache.layerH{l}),[],'all'));
+    rootTerm{l} = params.(sprintf('Wroot%d',l))*previous;
+    consistency = max(consistency,max(abs(tanh(layerZ{l}+rootTerm{l}+params.(sprintf('b%d',l))) ...
+        -cache.layerH{l}),[],'all'));
+    previous = cache.layerH{l};
 end
 score = 0.6*pre+0.4*abs(pre);       % leaky ReLU of landing2d.rgat.relationForward
 H = cache.H;
 readoutTerm = params.Wc*H.*params.Wn;
-F = struct('X',X,'local',zeros(dh,N),'Zprop',layerZ{L},'Zmod',zeros(dh,N),'A',H, ...
+F = struct('X',X,'local',rootTerm{L},'Zprop',layerZ{L},'Zmod',zeros(dh,N),'A',H, ...
     'gate',ones(dh,N),'H',H);
 F.attentionPreActivation = pre(:,1);
 F.attentionScore = score(:,1);

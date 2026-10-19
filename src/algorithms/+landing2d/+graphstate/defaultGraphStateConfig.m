@@ -40,14 +40,20 @@ gs.encoderLearnRate = 1e-4;
 % bypass path or hand-picked readout start: what reaches the policy is
 % decided only by the ontology graph, the R-GAT and the readout. Two layers
 % let relations compose (e.g. qualifiesEstimate then conditionsLanding).
-% Parameters: 1,540 per encoder; heads 30-30 / 29-33 keep the 6,101 total.
+% Each layer also has the R-GCN root (self-connection) weight Wroot_l of the
+% canonical layer. Without it, the attention average and two tanh layers
+% shrink the input signal at initialization: the untrained policy mean was
+% 3-7x less sensitive to relative position/height than plain PPO; with it the
+% sensitivity matches plain PPO (init-only analysis, 2026-10-20, no episode
+% outcome used; docs/RGAT_V2_DESIGN_KO.md).
+% Parameters: 1,892 per encoder; heads 27-26 / 25-24 keep the 6,101 total.
 % 'rgat_v1' selects the archived single-layer encoders (relationOperators
 % typed_v1 / additive_v1) of relational-policy-v1.x.
 gs.encoderVersion = 'rgat_v2';
 gs.layers = 2;
 gs.relationBases = 2;
-gs.v2PolicyHiddenSizes = [30,30];
-gs.v2ValueHiddenSizes = [29,33];
+gs.v2PolicyHiddenSizes = [27,26];
+gs.v2ValueHiddenSizes = [25,24];
 % Input-dependent attention: alpha_ij^(r)(X_t) follows the current node
 % features. 'fixed_relation_v1' (observation-independent relation logits,
 % same parameters) remains available for a deliberate comparison.

@@ -334,8 +334,9 @@ function checkRelationAttention()
 % graph-attention layers over all 20 typed edges, one input-dependent
 % attention softmax per destination across relation types (alpha sums to one
 % at every node in every layer, no single-edge pool forced to alpha = 1),
-% relation weights from a shared basis, no gate / operator class / local
-% bypass / hand-set readout; 6,101 parameters; analytic gradients of every
+% relation weights from a shared basis, the R-GCN root (self-connection)
+% weight, no gate / operator class / identity start / hand-set readout;
+% 6,101 parameters; analytic gradients of every
 % parameter group and of the input match central differences. The archived
 % rgat_v1 encoders (typed_v1, additive_v1) still build and differentiate.
 base=landing2d.graphstate.applyStateRepresentation(baseConfig(),'context_rgat');
@@ -346,7 +347,8 @@ agent=landing2d.rl.agentInit(base.rl,RandStream('threefry','Seed',77),base.graph
 spec=agent.encoderSpec; p=agent.policy.encoder;
 assert(strcmp(spec.encoderVersion,'rgat_v2') && spec.layers==2 && spec.relationBases==2 ...
     && strcmp(spec.readout,'grouped_factorized') && strcmp(spec.attentionMode,'input_dependent_v1') ...
-    && isequal(fieldnames(p)',{'V1','C1','a1','E1','b1','V2','C2','a2','E2','b2','Wc','Wn','bg'}) ...
+    && isequal(fieldnames(p)',{'V1','C1','a1','E1','Wroot1','b1','V2','C2','a2','E2','Wroot2','b2', ...
+        'Wc','Wn','bg'}) ...
     && ~isfield(agent.policy,'relation'));
 assert(landing2d.rl.profileAgent(agent,base,1,1).parameterCount==6101);
 S1=reshape(linspace(-0.9,0.9,spec.stateDim),[],1); S2=flipud(S1);
