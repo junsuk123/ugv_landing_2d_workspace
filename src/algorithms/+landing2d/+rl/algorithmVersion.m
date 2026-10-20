@@ -12,5 +12,8 @@ function version = algorithmVersion()
 % relational graph-attention layers, cross-relation attention, basis
 % decomposition, no gate / operator class / bypass / hand-set readout) and
 % the common validation-plateau early stop of ppoTrain. Total parameters 6,101.
-version = 'relational-policy-v2.0';
+% relational-policy-v2.1 (2026-10-20): common exploration scale
+% rl.initialLogStd -1.0 -> -2.0 (the v2.0 hover trap) and the common
+% validation screen of ppoTrain. Encoder, loss and parameters are unchanged.
+version = 'relational-policy-v2.1';
 end

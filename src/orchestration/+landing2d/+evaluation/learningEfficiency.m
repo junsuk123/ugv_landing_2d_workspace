@@ -23,13 +23,16 @@ function out = learningEfficiency(runs,c)
 % learning speed, they are not held-out performance.
 % curves also carry the training-window diagnostics recorded by
 % landing2d.rl.ppoTrain (return, landing rate, episode length, losses,
-% entropy, approximate KL, clip fraction, gradient norms) when present.
+% entropy, approximate KL, clip fraction, gradient norms) and the number of
+% validation episodes flown (fewer than validationEpisodeCount when the
+% common validation screen stopped the evaluation) when present.
 targets = c.evaluation.learning.targets;
 diagnostics = {'trainReturn','TrainReturn';'trainLandingRate','TrainLandingRate'; ...
     'trainEpisodeLength','TrainEpisodeLength';'policyLoss','PolicyLoss';'valueLoss','ValueLoss'; ...
     'entropy','Entropy';'approxKL','ApproxKL';'clipFraction','ClipFraction'; ...
     'policyHeadGradNorm','ActorHeadGradNorm';'policyEncoderGradNorm','ActorEncoderGradNorm'; ...
-    'valueHeadGradNorm','CriticHeadGradNorm';'valueEncoderGradNorm','CriticEncoderGradNorm'};
+    'valueHeadGradNorm','CriticHeadGradNorm';'valueEncoderGradNorm','CriticEncoderGradNorm'; ...
+    'validationEpisodes','ValidationEpisodes'};
 curves = {}; rows = {};
 for r = 1:numel(runs)
     h = runs(r).history;

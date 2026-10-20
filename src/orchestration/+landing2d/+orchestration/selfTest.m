@@ -46,7 +46,12 @@ assert(strcmp(c.rl.trainingRegime,'direct_ppo_v1') ...
     && c.rl.ppoIterations==750 && c.rl.episodesPerIteration==6);
 % relational-policy-v2.0: rgat_v2 encoder and the common validation-plateau
 % stop (3 validations >= 95% landing, >= 150 updates; budget 750 stays the cap).
-assert(strcmp(landing2d.rl.algorithmVersion(),'relational-policy-v2.0') ...
+% relational-policy-v2.1: common exploration scale initialLogStd -2.0 and the
+% common validation screen (20 episodes, >= 50% landing to fly the rest).
+assert(strcmp(landing2d.rl.algorithmVersion(),'relational-policy-v2.1') ...
+    && c.rl.initialLogStd==-2.0 && c.rl.minimumLogStd==-2.5 ...
+    && strcmp(c.rl.validationScreen.rule,'validation_screen_v1') ...
+    && c.rl.validationScreen.episodes==20 && c.rl.validationScreen.minimumLandingRate==0.5 ...
     && strcmp(c.graphState.encoderVersion,'rgat_v2') ...
     && strcmp(c.rl.earlyStop.rule,'validation_plateau_v1') && c.rl.earlyStop.window==3 ...
     && c.rl.earlyStop.minimumLandingRate==0.95 && c.rl.earlyStop.minimumIterations==150);
@@ -64,6 +69,10 @@ assert(~isfield(c.graphState,'temporalPolicyConsistencyWeight') ...
 registry=landing2d.config.methodRegistry();
 assert(isequal({registry.methods.id},{'ppo','onto_rgat_ppo','shuffled_rgat_ppo'}) ...
     && isequal(registry.trainSeeds.default,1:5));
+% v2.1 confirmatory seeds are fresh: disjoint from every earlier seed plan.
+assert(isequal(registry.trainSeeds.v21,21:30) && isempty(intersect(registry.trainSeeds.v21, ...
+    [registry.trainSeeds.main,registry.trainSeeds.confirmatory,registry.trainSeeds.v2, ...
+    registry.trainSeeds.v21Dev])));
 arms=landing2d.config.comparisonArms(c);
 assert(numel(arms)==3 && isequal([arms.trainSeed],[1 1 1]) && arms(3).graphSeed==1 ...
     && isnan(arms(1).graphSeed));
@@ -303,7 +312,7 @@ assert(baselineProfile.parameterCount==6101 ...
     && abs(graphProfile.parameterCount/baselineProfile.parameterCount-1)<1e-3);
 [trained,history]=landing2d.rl.ppoTrain(agent,c,rs);
 assert(numel(history)>=2 && all(isfinite([history.score])) && sum([history.selected])==1 ...
-    && all(diff([history.environmentSteps])>0));
+    && all(diff([history.environmentSteps])>0) && all([history.validationEpisodes]==1));
 assert(~isfield(trained.policy,'relation') && ~isfield(trained.value,'relation'));
 % The common PPO loss reaches both R-GAT encoders (pre-clip gradient norms
 % recorded by ppoTrain), and the encoders change.
@@ -327,6 +336,27 @@ c0=c; c0.rl.ppoIterations=0;
 untrained=landing2d.rl.trainAgent(c0,@landing2d.rl.ppoTrain);
 initial=landing2d.rl.initialAgent(c0);
 assert(isequal(untrained.policy,initial.policy) && isequal(untrained.value,initial.value));
+% validation_screen_v1: seeds are flown in order and independently, so a
+% passed screen (or one covering every seed) is the unscreened evaluation and
+% a stopped screen is the evaluation of the screen episodes alone.
+seeds=c.experiment.manifest.validationSeeds(1:3);
+[~,~,full]=landing2d.rl.evaluateV2(initial,c,seeds);
+[~,~,first]=landing2d.rl.evaluateV2(initial,c,seeds(1));
+screen=struct('rule','validation_screen_v1','episodes',1,'minimumLandingRate',0);
+[~,~,passed]=landing2d.rl.evaluateV2(initial,c,seeds,struct('screen',screen));
+assert(~passed.screened && passed.episodeCount==3 && ~full.screened && full.episodeCount==3 ...
+    && isequal(passed.returns,full.returns) && passed.selectionScore==full.selectionScore);
+screen.minimumLandingRate=1;
+[~,~,stopped]=landing2d.rl.evaluateV2(initial,c,seeds,struct('screen',screen));
+if first.landingRate<1
+    assert(stopped.screened && stopped.episodeCount==1 && isequal(stopped.returns,first.returns) ...
+        && stopped.selectionScore==first.selectionScore);
+else
+    assert(~stopped.screened && isequal(stopped.returns,full.returns));
+end
+screen.episodes=3;
+[~,~,covering]=landing2d.rl.evaluateV2(initial,c,seeds,struct('screen',screen));
+assert(~covering.screened && isequal(covering.returns,full.returns));
 end
 
 function checkRelationAttention()

@@ -8,9 +8,12 @@ function [agent,history] = ppoTrain(agent,c,rs)
 % trained by the same gradients).
 % Every rl.evaluateEvery updates the deterministic policy flies the first
 % experiment.validationEpisodeCount validation-split episodes
-% (landing2d.rl.evaluateV2); the best selection score is returned (validation
-% only - test, stress and fixed-case seeds never select a checkpoint).
-% history: one row per evaluation with the validation outcome, the training
+% (landing2d.rl.evaluateV2), behind the common validation screen
+% rl.validationScreen when configured; the best selection score is returned
+% (validation only - test, stress and fixed-case seeds never select a
+% checkpoint).
+% history: one row per evaluation with the validation outcome (and the number
+% of validation episodes flown, validationEpisodes), the training
 % window (return, landing rate, episode length), cumulative environment steps
 % (decisions), episodes and wall time, selected = the returned checkpoint, and
 % window means of the update diagnostics: actor surrogate loss, critic MSE,
@@ -44,7 +47,7 @@ stopReason = 'budget';
 window = emptyWindow();
 % validationReturn: mean episode return on the validation episodes;
 % info.selectionScore: the outcome-ordered score that selects the checkpoint.
-[~,validationReturn,info] = landing2d.rl.evaluateV2(agent,c,[]);
+[~,validationReturn,info] = landing2d.rl.evaluateV2(agent,c,[],validationOptions(rl));
 history = historyRow(0,validationReturn,info,NaN,NaN,0,0,0,windowDiagnostics(window));
 best = agent; bestValidationReturn = validationReturn;
 bestSelectionScore = info.selectionScore; bestIndex = 1;
@@ -109,7 +112,7 @@ for iteration = 1:rl.ppoIterations
     if mod(iteration,rl.evaluateEvery) == 0 || isLast
         trainReturn = window.returnSum/max(window.episodes,1);
         trainLandingRate = window.success/max(window.episodes,1);
-        [~,validationReturn,info] = landing2d.rl.evaluateV2(agent,c,[]);
+        [~,validationReturn,info] = landing2d.rl.evaluateV2(agent,c,[],validationOptions(rl));
         history(end+1) = historyRow(iteration,validationReturn,info,trainReturn,trainLandingRate, ...
             environmentSteps,episodes,toc(wall),windowDiagnostics(window)); %#ok<AGROW>
         if info.selectionScore > bestSelectionScore
@@ -164,6 +167,7 @@ function row = historyRow(iteration,validationReturn,info,trainReturn,trainLandi
 row = struct('iteration',iteration,'score',validationReturn,'selectionScore',info.selectionScore, ...
     'landingRate',info.landingRate,'unsafeRate',info.unsafeRate, ...
     'timeoutRate',info.timeoutRate,'captureRate',info.meanCaptureRate, ...
+    'validationEpisodes',info.episodeCount, ...
     'trainReturn',trainReturn,'trainLandingRate',trainLandingRate, ...
     'trainEpisodeLength',d.episodeLength,'policyLoss',d.policyLoss,'valueLoss',d.valueLoss, ...
     'entropy',d.entropy,'approxKL',d.approxKL,'clipFraction',d.clipFraction, ...
@@ -171,6 +175,12 @@ row = struct('iteration',iteration,'score',validationReturn,'selectionScore',inf
     'valueHeadGradNorm',d.valueHeadGradNorm,'valueEncoderGradNorm',d.valueEncoderGradNorm, ...
     'nodeMean',info.nodeMean,'edgeAttentionMean',info.edgeAttentionMean, ...
     'environmentSteps',steps,'episodes',episodes,'wallSeconds',seconds,'selected',false);
+end
+
+function options = validationOptions(rl)
+% The common validation screen (validation_screen_v1) when configured.
+options = struct();
+if isfield(rl,'validationScreen'), options.screen = rl.validationScreen; end
 end
 
 % ------------------------------------------------------ update diagnostics

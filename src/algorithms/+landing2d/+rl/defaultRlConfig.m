@@ -21,7 +21,14 @@ rl.lambda = 0.95;              % GAE
 rl.policyLearnRate = 2e-4;
 rl.valueLearnRate = 5e-4;
 rl.entropyWeight = 0.004;
-rl.initialLogStd = -1.0;       % exploration noise (pre-tanh command)
+% Exploration noise of the pre-tanh command (relational-policy-v2.1). At the
+% former -1.0 (sigma 0.37) even converged landing controllers of all three
+% methods landed 17% and hit unsafe contact 53% of their stochastic episodes,
+% so a landing attempt under the training noise mostly earned the failure
+% terminal and hovering to the timeout was the better return (the hover trap
+% of v2.0). -2.0 (sigma 0.135) is the largest grid value at which those
+% controllers keep unsafe contact <= 20% (docs/RGAT_V2_DESIGN_KO.md section 8).
+rl.initialLogStd = -2.0;
 rl.minimumLogStd = -2.5;
 rl.maxGradNorm = 1.0;
 rl.valueWarmup = 2;            % first updates train the critic only
@@ -36,6 +43,14 @@ rl.earlyStopPatience = 0;      % 0 = off (no stop on missing improvement)
 % training. The same rule applies to every method.
 rl.earlyStop = struct('rule','validation_plateau_v1','window',3, ...
     'minimumLandingRate',0.95,'minimumIterations',150);
+% Validation screen (relational-policy-v2.1): each validation first flies the
+% first `episodes` validation seeds; only when at least minimumLandingRate of
+% them land are the remaining validation seeds flown. A screened validation
+% is recorded (and scored for checkpoint selection) on the screen episodes
+% alone; a passed one is identical to the full evaluation. Validation split
+% only, the same rule for every method.
+rl.validationScreen = struct('rule','validation_screen_v1','episodes',20, ...
+    'minimumLandingRate',0.5);
 % Episode draws use their own stream rl.seed + episodeStreamSeedOffset.
 rl.episodeStreamSeedOffset = 52001;
 % Execution only (no effect on results; excluded from the training signature).

@@ -9,7 +9,7 @@ function report = selfTest(options)
 % exact unless a tolerance is stated.
 if nargin < 1, options = struct(); end
 registry = landing2d.config.methodRegistry();
-if ~isfield(options,'trainSeed'), options.trainSeed = registry.trainSeeds.v2(1); end
+if ~isfield(options,'trainSeed'), options.trainSeed = registry.trainSeeds.v21(1); end
 if ~isfield(options,'glossary'), options.glossary = ''; end
 root = landing2d.orchestration.projectRoot();
 cfg = landing2d.config.primaryConfig(root);
