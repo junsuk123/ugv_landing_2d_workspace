@@ -26,5 +26,9 @@ function version = algorithmVersion()
 % encoder with relation operators fixed by the ontology meaning
 % (graphState.v2Operators = semantic_fixed_v1: modulate relations gate,
 % propagate relations add). Same parameters (6,101), observation and PPO.
-version = 'relational-policy-v2.4';
+% relational-policy-v2.5 (2026-10-21): semantic_bottleneck_v1 shares one
+% trainable parameter bank per fixed operator class and reads the graph only
+% at the LandingCondition ontology sink. Graph-arm heads 24-24 / 24-20 move
+% the removed encoder capacity while keeping 6,101 parameters.
+version = 'relational-policy-v2.5';
 end

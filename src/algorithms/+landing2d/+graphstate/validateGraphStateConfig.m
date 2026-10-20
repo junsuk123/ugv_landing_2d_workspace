@@ -57,8 +57,9 @@ if strcmp(gs.encoderVersion,'rgat_v2')
     end
     % relational-policy-v2.4: relation operators fixed by the ontology meaning.
     if isfield(gs,'v2Operators')
-        assert(ismember(gs.v2Operators,{'none','semantic_fixed_v1'}),'landing2d:V2Operators', ...
-            'graphState.v2Operators must be none or semantic_fixed_v1.');
+        assert(ismember(gs.v2Operators,{'none','semantic_fixed_v1','semantic_bottleneck_v1'}), ...
+            'landing2d:V2Operators', ['graphState.v2Operators must be none, ' ...
+            'semantic_fixed_v1 or semantic_bottleneck_v1.']);
     end
 end
 if isfield(gs,'relationOperators')

@@ -76,8 +76,12 @@ gs.residualMix = 0.5;
 gs.residualRule = 'variance_preserving_v1';
 gs.v2InitGain = 5/3;
 gs.relationBases = 2;
-gs.v2PolicyHiddenSizes = [16,12];
-gs.v2ValueHiddenSizes = [15,13];
+% v2.5 semantic bottleneck: sharing the two semantic operator banks and
+% reading only the ontology sink reduces each encoder to 2,056 parameters.
+% The saved capacity is assigned to the graph-arm heads, symmetrically for
+% TOSM and Shuffled, so every comparison arm still has exactly 6,101.
+gs.v2PolicyHiddenSizes = [24,24];
+gs.v2ValueHiddenSizes = [24,20];
 % Semantic fixed operators (relational-policy-v2.4, 2026-10-21, user decision
 % after the Python 4-layer development study, where the 4-layer TOSM with the
 % relation operators fixed by meaning was the best variant). In every layer
@@ -91,7 +95,14 @@ gs.v2ValueHiddenSizes = [15,13];
 % parameter count is that of v2.3 (6,101). The shuffled arm moves relation
 % types and therefore operator classes (landing2d.config.applyMethod).
 % 'none' = v2.0-v2.3: one attention over all edges, no gate.
-gs.v2Operators = 'semantic_fixed_v1';
+% semantic_bottleneck_v1 (relational-policy-v2.5): retain the v2.4 fixed
+% propagate/modulate computation, but share one trainable transform within
+% each operator class and form the grouped-factorized readout from the
+% ontology sink LandingCondition only. This removes relation-label-specific
+% capacity and the all-node readout bypass that let a shuffled graph relearn
+% or ignore the supplied semantics. Both graph arms use the same rule.
+% 'semantic_fixed_v1' is the archived v2.4 form; 'none' is v2.0-v2.3.
+gs.v2Operators = 'semantic_bottleneck_v1';
 % Input-dependent attention: alpha_ij^(r)(X_t) follows the current node
 % features. 'fixed_relation_v1' (observation-independent relation logits,
 % same parameters) remains available for a deliberate comparison.

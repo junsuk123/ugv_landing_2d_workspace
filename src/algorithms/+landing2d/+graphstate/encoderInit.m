@@ -136,12 +136,28 @@ spec.graphDim = gs.graphDim;
 spec.parameterRelationCount = R;
 spec.v2Operators = 'none';
 if isfield(gs,'v2Operators'), spec.v2Operators = gs.v2Operators; end
-if strcmp(spec.v2Operators,'semantic_fixed_v1')
+typed = ismember(spec.v2Operators,{'semantic_fixed_v1','semantic_bottleneck_v1'});
+if typed
     modulating = find(strcmp(schema.relationOperators,'modulate'));
     isMod = ismember(schema.rel,modulating);
     spec.modEdges = find(isMod); spec.addEdges = find(~isMod);
-    spec.Tadd = landing2d.rgat.topology(subgraph(schema,~isMod));
-    spec.Tmod = landing2d.rgat.topology(subgraph(schema,isMod));
+    if strcmp(spec.v2Operators,'semantic_bottleneck_v1')
+        % Parameter relation 1 = propagate, 2 = modulate. Semantic labels
+        % select the fixed operation, but cannot own independent parameters
+        % that relearn a shuffled label assignment.
+        R = 2; spec.parameterRelationCount = R;
+        spec.Tadd = landing2d.rgat.topology(subgraph(schema,~isMod,1,R));
+        spec.Tmod = landing2d.rgat.topology(subgraph(schema,isMod,2,R));
+        sink = schema.landingConditionNodes;
+        assert(isscalar(sink),'landing2d:OntologySink', ...
+            'semantic_bottleneck_v1 requires one LandingCondition sink.');
+        spec.groupMatrix = zeros(1,N); spec.groupMatrix(sink) = 1;
+        spec.groupNames = schema.nodeNames(sink); spec.groupCount = 1;
+        spec.readoutTargetNodes = sink;
+    else
+        spec.Tadd = landing2d.rgat.topology(subgraph(schema,~isMod));
+        spec.Tmod = landing2d.rgat.topology(subgraph(schema,isMod));
+    end
 end
 dims = [schema.inDim,repmat(dh,1,gs.layers)];
 params = struct();

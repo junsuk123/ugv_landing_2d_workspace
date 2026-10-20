@@ -1,6 +1,6 @@
 # 코드 유지 가이드 (`relational_policy_v1`, 2026-10-17 재설계)
 
-> **진행 중 작업 (2026-10-21 02:05 인계):** 먼저 `docs/HANDOFF_2026-10-21_KO.md`를 읽는다. v2.4 확인 실험(학습 시드 51–60)이 학습 도중 중단돼 있고, 재개 명령과 주의점이 그 문서에 있다.
+> **진행 중 작업 (2026-10-21):** v2.4 확인 실험(학습 시드 51–60)은 완료됐으며 관계 의미 효과를 입증하지 못했다(`docs/RGAT_V2_DESIGN_KO.md` §11.4). v2.5 의미 식별 병목이 §12에 사전 등록되었고, 개발 시드 61–64 게이트 전이다.
 
 ## 적용 범위
 
@@ -50,8 +50,9 @@
     - 네 층이 같은 유형 그래프를 쓴다(Shuffled: 순열 하나를 모든 층에)
     - `grouped_factorized` readout, graph embedding 16
     - v2.4 (2026-10-21, 사용자 결정, §11): 의미별 고정 연산 `v2Operators = semantic_fixed_v1`. 층마다 modulate 관계(qualifiesEstimate·conditionsLanding) 간선이 게이트 그래프, propagate 관계와 self가 덧셈 그래프. $F^l=(1+\tanh Z^{mod})\odot\tanh(Z^{prop}+W^{root}h+b)$, 그래프마다 softmax. 같은 $W_r$·a·E를 써서 파라미터·초기 가중치는 v2.3과 같다. Shuffled는 연산군도 10/13 바뀐다
+    - v2.5 (2026-10-21, §12): `semantic_bottleneck_v1`. propagate/modulate 파라미터를 연산군 내에서 공유하고 `LandingCondition` 종착점만 `grouped_factorized` readout으로 읽어, 셔플 재학습과 전체 노드 우회를 막는다
   - 금지: 항등 초기화 경로·손으로 고른 readout 시작점·특정 비교군이나 시드에 맞춘 튜닝. v2.0–v2.3은 곱셈 게이트·연산군도 금지했고, v2.4는 사용자 결정으로 의미별 고정 연산만 허용한다(학습되는 연산 선택·비교군별 연산은 여전히 금지). 성능은 온톨로지 그래프, R-GAT 구조, 정책 입력 경로로만 검증한다
-  - 파라미터: 인코더당 2,560개(398 + 3 × 614 + 320), Actor 16-12, Critic 15-13으로 총 6,101개
+  - v2.5 파라미터: 인코더당 2,056개, Actor 24-24, Critic 24-20으로 총 6,101개. v2.2–v2.4는 인코더당 2,560개, Actor 16-12, Critic 15-13이다
   - v2.0/v2.1 2층(16-D, 잔차 없음, 1,892개, 27-26/25-24)과 `rgat_v1`(단일 층 `typed_v1`/`additive_v1`, v1.x 기록 재현용)은 선택지로만 유지
   - 4층 명세의 `typed_v1` 게이트·연산군은 v2.2–v2.3에서 쓰지 않았다(§9.2). v2.4가 4층에서 처음 시험한다
 - 공통 학습 규칙 (`relational-policy-v2.1`, 2026-10-20, `docs/RGAT_V2_DESIGN_KO.md` §8)
@@ -73,7 +74,7 @@
 - 시드 계약
   - 환경 시드 < 1e6
   - split 서로소: validation 2001–2200, test 3001–3200, stress 9001–9200, 고정 사례 41001–49999, PPO 학습 에피소드 100001–999999 (`validatePrimaryConfig`가 검사)
-  - 학습 시드 s → `rl.seed = base + s − 1`. 기본 1–5, v4 확장 1–10, v5 대조군 수정 확인 11–15, v2.0 확인 16–20(`registry.trainSeeds.v2`), v2.1 게이트 6–9(`v21Dev`), v2.2(4층) 게이트 6–9(`depth4Dev`, 도중 중단), v2.3 게이트 6–9(`v23Dev`), v2.3 확인 21–30(`v23`; v2.1·v2.2 확인은 학습 전에 취소), v2.4 확인 51–60(`v24`, 게이트 없음). 확인 시드는 학습 전 사전 등록
+  - 학습 시드 s → `rl.seed = base + s − 1`. 기본 1–5, v4 확장 1–10, v5 대조군 수정 확인 11–15, v2.0 확인 16–20(`registry.trainSeeds.v2`), v2.1 게이트 6–9(`v21Dev`), v2.2(4층) 게이트 6–9(`depth4Dev`, 도중 중단), v2.3 게이트 6–9(`v23Dev`), v2.3 확인 21–30(`v23`; v2.1·v2.2 확인은 학습 전에 취소), v2.4 확인 51–60(`v24`), v2.5 개발 61–64(`v25Dev`), v2.5 확인 71–80(`v25`). 확인 시드는 학습 전 사전 등록
 - 체크포인트 선택은 validation만 사용
   - test·stress·고정 사례·probe 결과로 체크포인트·임계값·사례를 고르는 것은 금지
 - 통제 사례 S1–S4(`landing2d.evaluation.factorialCases`)

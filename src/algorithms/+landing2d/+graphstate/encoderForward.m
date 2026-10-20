@@ -77,8 +77,9 @@ eta = 0; if isfield(spec,'residualMix'), eta = spec.residualMix; end
 [keep,mix] = residualWeights(spec,eta);
 previous = reshape(policyInput,spec.inDim,N,B);
 layerCaches = cell(1,L); layerH = cell(1,L); layerF = cell(1,L);
-typed = isfield(spec,'v2Operators') && strcmp(spec.v2Operators,'semantic_fixed_v1');
-operators = 'none'; if typed, operators = 'semantic_fixed_v1'; end
+typed = isfield(spec,'v2Operators') ...
+    && ismember(spec.v2Operators,{'semantic_fixed_v1','semantic_bottleneck_v1'});
+operators = 'none'; if typed, operators = spec.v2Operators; end
 layerAdd = cell(1,L); layerMod = cell(1,L); layerA = cell(1,L); layerM = cell(1,L);
 for l = 1:L
     V = params.(sprintf('V%d',l)); C = params.(sprintf('C%d',l));

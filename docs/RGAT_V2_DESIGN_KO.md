@@ -548,3 +548,26 @@ v2.0 결과(§7)를 본 뒤 정한 새 버전이다. 인코더·그래프·손�
 - 10개 주 비교 모두 Holm 보정 p=1이었고, `Difference`와 `SeedRobust` 판정은 0건이었다. TOSM−Shuffled는 held-out과 dropout에서만 ±5%p 동등이었고 나머지는 결론 없음이었다.
 - **결론:** v2.4는 관계 의미별 고정 연산을 넣어도 올바른 TOSM 관계 배치가 교란 배치보다 낫다는 사전 등록 근거를 만들지 못했다. 학습 범위 안 held-out에서는 두 그래프 비교군이 동등했고, 학습 범위 밖에서는 불확실성이 커 차이도 동등도 입증하지 못했다. 따라서 v2.4로 온톨로지 관계 의미의 효과를 주장하지 않는다.
 - 원시 평가와 판정표는 `results/evaluation/`, 판정표는 `v24_primary_endpoints.csv`, 실행 로그는 `results/v24_confirmatory_log.txt`와 `results/v24_scripts/v24_analysis_log.txt`, 그림은 `results/figures/`에 있다. 이 결과 뒤 구조를 바꾸는 후속 실험은 v2.5 이상과 새 학습 시드를 사용한다.
+
+## 12. v2.5: 관계 의미 식별 병목 (`relational-policy-v2.5`, 2026-10-21, 사전 등록)
+
+### 12.1 v2.4 음성 결과에서 분리한 구조 문제
+
+v2.4의 관계 연산은 고정되어 있지만, 관계별 `$C_r,a_r,E_r$`는 학습되었다. 따라서 Shuffled는 교란된 라벨의 변환을 관계별 용량에 다시 학습할 수 있었다. 또한 `grouped_factorized` readout이 일곱 노드를 모두 직접 읽어, root 경로와 결합하면 의미 간선을 무시할 수 있었다. v2.4의 TOSM−Shuffled AUC `−0.004` 및 held-out 동등은 이 가설과 합치하지만, 원인을 입증하지는 않는다.
+
+v2.5는 두 우회만 동시에 제거하는 구조 가설이다.
+
+- **연산군 파라미터 공유:** 매 층에 propagate와 modulate 파라미터 뱅크를 하나씩만 둔다. 관계 라벨은 고정 연산을 선택하지만 독립 용량을 갖지 않는다. `semantic_bottleneck_v1`.
+- **온톨로지 종착점 readout:** 노드 그룹을 `LandingCondition` 하나로 고정한 `grouped_factorized` readout을 쓴다. Actor/Critic이 다른 노드를 직접 읽지 못하며, 서명 있는 정보는 관계 경로를 통해 종착점에 도달해야 한다. 이는 초기 readout 값을 손으로 고르는 규칙이 아니라, 학습 전에 고정된 정보 병목이다.
+- **공정성:** TOSM과 Shuffled에 같은 병목·head·초기화를 쓴다. 공통 관측, 노드 특징, 보상, 환경, PPO 손실, 학습 예산과 검증 규칙은 바꾸지 않는다.
+- **파라미터:** 인코더당 2,056개, Actor head 24–24, Critic head 24–20으로 세 비교군 모두 6,101개다.
+- `algorithmVersion = relational-policy-v2.5`, `comparison_registry_v11`.
+
+### 12.2 개발 게이트와 확인 실험
+
+- **개발 시드:** `registry.trainSeeds.v25Dev = 61:64`. 구조·기울기·수렴 게이트에만 쓰고 주 결과에 합치지 않는다.
+- **개발 게이트(결과 전 고정):** `run_check` 14/14와 smoke 통과, 두 그래프 비교군 모두 4개 중 3개 이상이 학습 성공률 80%에 도달, TOSM−Shuffled AUC 평균이 양수이고 4개 중 3개 이상에서 같은 방향. 하나라도 실패하면 시드 71–80을 열지 않고 v2.6으로 버전을 올린다.
+- **확인 시드:** `registry.trainSeeds.v25 = 71:80`(n=10). 개발 시드와 이전 모든 실험에서 서로소이며, 이 문장을 쓴 시점에 학습하지 않았다.
+- **확인 분석:** §11.3의 주 평가 변수 5개(held-out, OOD motion/dropout/noise/combined)×대비 2개(TOSM−Shuffled, TOSM−PPO), 시드 짝 차이, 95% 구간, 8/10 방향, ±5%p 동등, Holm 10개를 그대로 쓴다. 임계값·사례·체크포인트를 바꾸지 않는다.
+- **목적 달성 판정:** TOSM−Shuffled의 다섯 주 변수 중 적어도 하나가 `Delta > 0`, Holm 보정 후 `Difference = true`, `SeedRobust = true`(10개 중 8개 이상 같은 방향)를 모두 만족해야 관계 의미의 등록 효과로 판정한다. 하나도 만족하지 못하면 v2.5로 목적을 달성했다고 하지 않는다.
+- **결과 뒤 금지:** 확인 시드 71–80의 test·stress·probe를 본 뒤 v2.5 구조나 판정을 바꾸지 않는다. 바꾸면 v2.6 이상과 새 시드다.
