@@ -1,6 +1,6 @@
-# TOSM 축소 온톨로지 (`tosm7_v1`)
+# TOSM 축소 온톨로지 (`tosm7_v2`)
 
-R-GAT 비교군(`onto_rgat_ppo`, `shuffled_rgat_ppo`)의 상태 표현이다. 12차원 공통 관측 $o_t$
+R-GAT 비교군(`onto_rgat_ppo`, `shuffled_rgat_ppo`)의 상태 표현이다. 10차원 공통 관측 $o_t$
 (`COMMON_OBSERVATION_KO.md`)의 결정론적 함수이고, 새 센서·추정기·참값을 쓰지 않는다. 실험 설계와 주장 범위는
 `EXPERIMENT_DESIGN_KO.md`가 정의한다.
 
@@ -19,22 +19,25 @@ R-GAT 비교군(`onto_rgat_ppo`, `shuffled_rgat_ppo`)의 상태 표현이다. 12
 |---|---|---|---|
 | N1 | `VisionQuality` | Explicit | visionUpdated, visionAge |
 | N2 | `PadVelocity` | Explicit | ugv_vx, ugv_vx² |
-| N3 | `RelativePosition` | Explicit | relative_x, relative_height, 정규화 cross-track $c$, ½($c$²+h²) |
+| N3 | `RelativePosition` | Explicit | relative_x, relative_height |
 | N4 | `RelativeVelocity` | Explicit | relative_vx, relative_vx² |
-| N5 | `DroneMotion` | Explicit | drone_vz, sinθ, pitchRate, navigationValid, navigationAge |
+| N5 | `DroneMotion` | Explicit | drone_vz, sinθ, pitchRate |
 | N6 | `ViewMargin` | Implicit | $(\theta_{FOV}/2-|\hat\beta|)/(\theta_{FOV}/2)$, $\hat\beta/(\theta_{FOV}/2)$ |
 | N7 | `LandingCondition` | Implicit | $r/(1+r)$, $r$ = \|e_x\|, \|v_r\|, \|v_z\|, \|θ\|, \|θ̇\| ÷ 접지 한계 |
 
-- N2–N5의 값은 정규화된 $o_t$ 성분 $x/(\lvert x\rvert+s)$이다. 그래서 N3의 cross-track은 정규화 좌표에서 계산한
-  $s_x(e_x)-m\,s_h(h)$이고, 미터 단위 aim error $e_x-mh$와 같지 않으며 광축 기준점에서 0도 아니다. 코드의 변수와 스키마 라벨 이름은
-  `normalizedCrossTrack`이다(`docs/VARIABLE_NAMING_AUDIT.md` F5). N6·N7은 역정규화한 미터·라디안 값으로 계산한다.
+- N2–N5의 값은 정규화된 $o_t$ 성분 $x/(\lvert x\rvert+s)$이다. N6·N7은 역정규화한 미터·라디안 값으로 계산한다.
+- `tosm7_v1`에서 `tosm7_v2`로 바뀐 것(`relational-policy-v2.3`, 2026-10-20). 결과와 무관하게 결함이 확정된 특징만 뺐고, 빈 채널은 0 패딩이다. 노드·간선·채널 수는 그대로다.
+  - N3 `normalizedCrossTrack` $c=s_x(e_x)-m\,s_h(h)$: 정규화 척도가 다른 두 축을 섞는다. 그래서 미터 단위 aim error $e_x-mh$가 아니고, 광축 기준점에서도 0이 아니었다(`VARIABLE_NAMING_AUDIT.md` F5).
+  - N3 `geometryQuadratic` ½($c$²+h²): 같은 결함이 있는 $c$로 정의된다.
+  - N5 `navigationValid`·`navigationAge`: 구조상 상수(1, 0)이고, $o_t$에서도 뺐다.
+  - 남긴 것: 제곱 특징(ugv_vx², relative_vx²)과 `visionUpdated`. 기반 값의 결정론적 함수이고 새 정보는 없지만, 상수나 정의 결함은 아니다. 효과를 검증하지 않은 채 결과를 보고 빼지 않는다.
 - `typeId`는 노드 식별 코드 node/N(N1 = 1/7 … N7 = 1)이다. `nodeClasses`의 클래스 번호가 아니다. 예를 들어 RelativePosition과
   RelativeVelocity는 클래스(RelativeState)가 같지만 typeId는 다르다.
 - $\hat\beta$는 추정된 상대 위치와 기체 피치, 카메라 장착각으로 계산한다. 계산식은 `landing2d.sensing.projectPad`와 같다.
   이 값은 예상 시야 여유일 뿐 검출 결과가 아니므로 `VisionQuality`와 함께 읽는다.
 - `LandingCondition`은 현재 상태의 착륙 적합성을 나타내는 특징이다. 미래 접촉을 예측하지 않는다.
   각 값이 0.5이면 해당 접지 한계에 있다는 뜻이다. 행동·승인·보상·종료 어디에도 guard로 쓰지 않는다.
-- 측위 유효·경과시간은 `NavigationObservation` 노드를 없애면서 `DroneMotion` 안으로 옮겼다. 그래서 12차원 정보가 모두 남아 있다.
+- `NavigationObservation` 노드는 없다. 항상 유효한 항법 추정에는 유효·경과시간 입력이 없다(v2.3).
   cosθ는 |θ|<90° 범위에서 sinθ로 결정되므로 특징에서 뺐다. 단 ViewMargin과 LandingCondition 계산에는 쓴다.
 - 추정 노드에는 신뢰도 가중을 하지 않는다. 영상 품질은 `qualifiesEstimate` 간선으로만 추정 노드에 전달된다.
   관계 교란 대조군(`shuffled_rgat_ppo`)에서는 이 간선들의 관계 유형이 다른 유형으로 바뀐다.

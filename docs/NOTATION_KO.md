@@ -35,4 +35,4 @@
 | tanh 이전 가우시안 표본 | `preTanhAction` (평균 `mu`), 저장 필드 `traj.command` | 범위 없는 무차원 값. 물리 명령이 아니다 |
 | $u_t\in[-1,1]^2$ | `normalizedAction` $=\tanh(\cdot)$ | — |
 | $a_t$ | `requestedAcceleration` $=$ 한계 × `normalizedAction` [m/s²] | direct-policy에서는 요청값과 적용값이 같다 |
-| $e_{aim}=e_x-mh$ | `aimError` (평가) | TOSM N3 특징 `normalizedCrossTrack`은 정규화 좌표의 결합이라 이 값과 같지 않다 |
+| $e_{aim}=e_x-mh$ | `aimError` (평가) | v2.2까지의 TOSM N3 특징 `normalizedCrossTrack`은 정규화 좌표의 결합이라 이 값과 같지 않았다(v2.3에서 제거) |

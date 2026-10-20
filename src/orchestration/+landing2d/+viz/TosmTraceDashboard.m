@@ -436,7 +436,8 @@ classdef TosmTraceDashboard < handle
             G.readout = [110 66]; G.actor = [110 50]; G.action = [110 32]; G.boxSize = [20 9];
             % layer labels
             text(ax,11,98.5,'(A) 원천·처리기','HorizontalAlignment','center','FontSize',9,'Color',[.4 .4 .4]);
-            text(ax,32,98.5,'(B) o_t 12차원','HorizontalAlignment','center','FontSize',9,'Color',[.4 .4 .4]);
+            text(ax,32,98.5,sprintf('(B) o_t %d차원',numel(obj.Trace.labels.channels)), ...
+                'HorizontalAlignment','center','FontSize',9,'Color',[.4 .4 .4]);
             text(ax,72,98.5,'(C) TOSM 노드 · 관계 간선 20개','HorizontalAlignment','center','FontSize',9,'Color',[.4 .4 .4]);
             text(ax,110,78,'리드아웃 · 액터','HorizontalAlignment','center','FontSize',9,'Color',[.4 .4 .4]);
             % (A) processor dataflow connectors

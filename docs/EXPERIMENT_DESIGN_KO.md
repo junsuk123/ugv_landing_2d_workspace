@@ -4,7 +4,7 @@
 
 ## 1. 연구 질문과 주장 범위
 
-일반 PPO의 MLP도 12차원 관측 $o_t$에서 관측 품질·상대 운동·자세 사이의 비선형 관계를 학습할 수 있다. 따라서 이 연구는 "일반 PPO는 관계를 고려하지 못한다"고 주장하지 않는다.
+일반 PPO의 MLP도 공통 관측 $o_t$(v2.3부터 10차원)에서 관측 품질·상대 운동·자세 사이의 비선형 관계를 학습할 수 있다. 따라서 이 연구는 "일반 PPO는 관계를 고려하지 못한다"고 주장하지 않는다.
 
 검증 대상은 **구조적 사전지식(relational inductive bias)** 이다. TOSM 관계 구조를 R-GAT에 넣으면, 같은 관측·같은 예산에서 다음이 달라지는지를 본다.
 
@@ -56,7 +56,7 @@ TOSM−Shuffled 차이가 이 규칙을 만족할 때만 "의미 관계 배치"�
 
 | id | 상태 표현 | 역할 |
 |---|---|---|
-| `ppo` (M1) | 12차원 $o_t$ → MLP 48-48 | 일반 비선형 정책 표현의 기준 |
+| `ppo` (M1) | 10차원 $o_t$ → MLP 48-51 / 47-50 (v2.2까지 12차원, 48-48) | 일반 비선형 정책 표현의 기준 |
 | `onto_rgat_ppo` (M2) | 같은 $o_t$의 TOSM 7노드 그래프 → R-GAT → MLP 38-42 / 40-36 | 올바른 의미 관계를 쓰는 제안 모델 |
 | `shuffled_rgat_ppo` (M3) | M2와 동일하되 의미 관계 유형을 고정 순열로 교란(self 보존) | 관계 의미가 중요한지 보는 대조군 |
 
@@ -172,7 +172,7 @@ $H = (1+\tanh(\mathrm{RGAT}_{mod}(X)))\odot\tanh(\mathrm{RGAT}_{prop}(X)+W_0X+b_
 
 모든 지표는 rollout이 끝난 뒤 평가 전용 참값으로 계산한다(`landing2d.evaluation.episodeMetrics`). 온톨로지 노드·attention·보상은 지표에 쓰지 않는다.
 
-**추종 오차는 aim error** $e_{aim}=e_x-mh$, $m=\tan(-\theta_C)$다(`landing2d.evaluation.aimError`). $\theta_C=-30°$는 카메라 장착 피치이고, $m$은 공통 보상(`computeReward`, `REWARD_KO.md`의 $e_x^*=mh$)이 쓰는 기울기다. TOSM N3 특징 `normalizedCrossTrack`도 같은 $m$을 쓰지만 정규화 좌표에 적용하므로 $e_{aim}$과 같은 값이 아니다(`TOSM7_ONTOLOGY_KO.md`). 공통 보상이 추종하는 카메라 광축 기준점에서의 수평 오차이며, 착지 시 $e_x$와 같아진다. 고고도에서 $e_x\approx mh$($h=6$ m에서 3.46 m)는 설계된 접근 자세다. 그래서 $e_x$ 자체를 오차로 쓰지 않는다.
+**추종 오차는 aim error** $e_{aim}=e_x-mh$, $m=\tan(-\theta_C)$다(`landing2d.evaluation.aimError`). $\theta_C=-30°$는 카메라 장착 피치이고, $m$은 공통 보상(`computeReward`, `REWARD_KO.md`의 $e_x^*=mh$)이 쓰는 기울기다. v2.2까지의 TOSM N3 특징 `normalizedCrossTrack`은 같은 $m$을 정규화 좌표에 적용해 $e_{aim}$과 같은 값이 아니었고, v2.3(`tosm7_v2`)에서 뺐다(`TOSM7_ONTOLOGY_KO.md`). 공통 보상이 추종하는 카메라 광축 기준점에서의 수평 오차이며, 착지 시 $e_x$와 같아진다. 고고도에서 $e_x\approx mh$($h=6$ m에서 3.46 m)는 설계된 접근 자세다. 그래서 $e_x$ 자체를 오차로 쓰지 않는다.
 
 > **2026-10-18 수정.** 이전 평가 코드는 $e_x-h\tan\theta_C$로 계산해 부호가 반대였다(광축 기준점에서 0이 아니라 $2mh$). 그 이전에 생성된 `AimErrorRMS_m`, `WindowAimErrorRMS_m`, `WindowMaxAbsAimError_m`과 aim error 그림은 무효이며 재평가해야 한다. 학습·보상·관측은 이 오류와 무관하다.
 

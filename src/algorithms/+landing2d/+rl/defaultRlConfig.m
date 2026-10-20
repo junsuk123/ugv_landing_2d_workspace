@@ -5,9 +5,14 @@ function rl = defaultRlConfig()
 % actionInterval and gamma are derived from the experiment in primaryConfig.
 rl.seed = 20240501;            % base seed; training seed s uses seed + s - 1
 rl.trainingRegime = 'direct_ppo_v1';
-rl.hiddenSize = 48;            % plain-PPO MLP width (2 layers); R-GAT arms use
-                               % graphState.policy/valueHiddenSizes (same 6,101 parameters)
-rl.observationDim = 12;
+rl.hiddenSize = 48;            % legacy plain-PPO width (12-D o_t: 48-48 / 48-48)
+% Plain-PPO MLP widths for the 10-D o_t (relational-policy-v2.3): Actor 48-51,
+% Critic 47-50 restore exactly 6,101 parameters after the two constant
+% navigation inputs were removed (48-48 would give 5,909). R-GAT arms use
+% graphState.v2Policy/ValueHiddenSizes.
+rl.baselinePolicyHiddenSizes = [48,51];
+rl.baselineValueHiddenSizes = [47,50];
+rl.observationDim = 10;
 rl.actionDim = 2;              % [a_x, a_z] before tanh scaling to the limits
 rl.actionInterval = 10;
 % Budget: 750 updates x 6 episodes = 4,500 episodes per run.

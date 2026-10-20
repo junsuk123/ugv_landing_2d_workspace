@@ -1,5 +1,7 @@
 function observationVector = toVector(O,G)
-% TOVECTOR Convert the registered sensor estimate to the minimal 12-D input.
+% TOVECTOR Convert the registered sensor estimate to the minimal 10-D input
+% (landing2d.observation.vectorSchema; the constant navigation validity/age
+% entries are not part of it since relational-policy-v2.3).
 % ex, h [m] and relativeVx [m/s] are physical values before the bounded
 % normalization x/(|x|+s) with the scales of Gamma (G.normalization).
 scales = G.normalization;
@@ -11,8 +13,7 @@ observationVector = [signedScale(ex,scales.relativePosition);signedScale(h,scale
     signedScale(relativeVx,scales.vx);signedScale(ugv.velocityXZ(1),scales.vx); ...
     signedScale(drone.velocityXZ(2),scales.vz);drone.pitchSinCos(:); ...
     signedScale(drone.pitchRate,scales.pitchRate);double(ugv.visionUpdated); ...
-    ageScale(ugv.visionAge,scales.age);double(drone.navigationValid); ...
-    ageScale(drone.navigationAge,scales.age)];
+    ageScale(ugv.visionAge,scales.age)];
 if ~ugv.estimateInitialized
     observationVector(1:4) = 0;
 end

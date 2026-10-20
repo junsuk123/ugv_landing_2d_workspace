@@ -11,6 +11,10 @@ if nargin < 3 || isempty(gs), gs = landing2d.graphstate.defaultGraphStateConfig(
 valueEncoder = landing2d.graphstate.encoderInit(gs,rl.observationDim,rs);
 policyHiddenSizes = [rl.hiddenSize,rl.hiddenSize];
 valueHiddenSizes = [rl.hiddenSize,rl.hiddenSize];
+if isfield(rl,'baselinePolicyHiddenSizes')
+    policyHiddenSizes = rl.baselinePolicyHiddenSizes;
+    valueHiddenSizes = rl.baselineValueHiddenSizes;
+end
 if ~strcmp(spec.mode,'baseline')
     policyHiddenSizes = gs.policyHiddenSizes;
     valueHiddenSizes = gs.valueHiddenSizes;

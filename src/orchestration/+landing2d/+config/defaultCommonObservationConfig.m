@@ -1,5 +1,5 @@
 function co = defaultCommonObservationConfig(padHeight)
-% DEFAULTCOMMONOBSERVATIONCONFIG  최소 공통 관측 o_t(12차원)와 부가 정보 Gamma의 기본값.
+% DEFAULTCOMMONOBSERVATIONCONFIG  최소 공통 관측 o_t(10차원, v2.3부터 상수 항법 유효·경과 항목 제외)와 부가 정보 Gamma의 기본값.
 %   G_t  UGV 추정 상태 (6): 위치 x,z, 속도 vx,vz, 영상 보정 여부, 마지막 영상 보정 후 경과시간
 %   D_t  드론 융합 측위 (9): x, z, vx, vz, sin/cos pitch, pitch rate, 측위 유효, 측위 경과시간
 %   H_t  직전 운동 기록 (9): 직전 결정 시점의 UGV·드론 위치·속도, 기록 유효

@@ -4,7 +4,8 @@ function S = graphSchema(agent)
 % Nodes, edges, relation types and operator classes are read from
 % agent.encoderSpec (the typed topology the checkpoint stores and inference
 % uses, verified by landing2d.rl.verifyCheckpointGraph at load). The Korean
-% meaning table (landing2d.trace.labels) is written for tosm7_v1, so any
+% meaning table (landing2d.trace.labels) is written for the tosm7 graph
+% (topology of tosm7_v1 = tosm7_v2; features of tosm7_v2), so any
 % change of nodes, edges, relation types, operator classes or a relation
 % permutation fails here (landing2d:TraceSchema) instead of drawing stale
 % arrows. The trace is defined for the canonical TOSM graph (onto_rgat_ppo),
@@ -33,7 +34,7 @@ expectedEdges = { ...
     'ViewMargin','LandingCondition','conditionsLanding'; ...
     'VisionQuality','LandingCondition','conditionsLanding'};
 fail = @(what)error('landing2d:TraceSchema', ...
-    'Checkpoint graph differs from the tosm7_v1 trace schema: %s.',what);
+    'Checkpoint graph differs from the tosm7 trace schema: %s.',what);
 if ~isequal(schema.nodeNames,expectedNodes), fail('node names'); end
 if ~isequal(schema.relationNames,expectedRelations), fail('relation names'); end
 if ~isequal(schema.relationOperators,expectedOperators), fail('relation operators'); end

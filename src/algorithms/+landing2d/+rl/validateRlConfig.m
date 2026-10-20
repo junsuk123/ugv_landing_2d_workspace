@@ -29,6 +29,12 @@ if isfield(rl,'earlyStop')
     validateattributes(rule.minimumIterations,{'numeric'},{'scalar','integer','nonnegative'}, ...
         mfilename,'earlyStop.minimumIterations');
 end
+if isfield(rl,'baselinePolicyHiddenSizes')
+    for name = {'baselinePolicyHiddenSizes','baselineValueHiddenSizes'}
+        validateattributes(rl.(name{1}),{'numeric'}, ...
+            {'vector','numel',2,'real','finite','positive','integer'},mfilename,name{1});
+    end
+end
 if isfield(rl,'validationScreen')
     screen = rl.validationScreen;
     assert(isstruct(screen) && strcmp(screen.rule,'validation_screen_v1'), ...

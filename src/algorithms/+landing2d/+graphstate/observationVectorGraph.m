@@ -1,11 +1,18 @@
 function [policyInput,detail] = observationVectorGraph(observationVector,G,c)
-% OBSERVATIONVECTORGRAPH Build the planar graph from an existing 12-D vector.
+% OBSERVATIONVECTORGRAPH Build the planar graph from an existing 10-D vector.
 % This is the runtime path: environment.step already returns the vector, so
 % graph policies need not vectorize the same common-observation structure twice.
-% graphState.observationFeatures = 'tosm7_v1' (reduced 7-node TOSM ontology).
+% graphState.observationFeatures = 'tosm7_v2' (reduced 7-node TOSM ontology).
+% tosm7_v2 (relational-policy-v2.3) = tosm7_v1 without the features whose
+% defect was confirmed by construction: the constant navigation validity/age
+% (DroneMotion f4-f5; no longer in o_t) and the normalized cross-track
+% c = x~ - m h~ with its quadratic 0.5(c^2 + h~^2) (RelativePosition f3-f4).
+% c mixes two differently scaled axes, so it is not the metric aim error
+% e_x - m h and is not zero on the aim line. Freed channels stay zero
+% padding; nodes, edges and the 6 channels are unchanged.
 % policyInput is the flattened node-feature matrix X(:) of the R-GAT arms.
 version = c.graphState.observationFeatures;
-assert(strcmp(version,'tosm7_v1'),'landing2d:GraphObservationFeatures', ...
+assert(strcmp(version,'tosm7_v2'),'landing2d:GraphObservationFeatures', ...
     'Unknown planar graph feature version.');
 observationSchema = landing2d.observation.vectorSchema(G);
 observationVector = observationVector(:);
@@ -41,19 +48,12 @@ sinTheta = observationComponent('drone_sinTheta');
 cosTheta = observationComponent('drone_cosTheta');
 normalizedPitchRate = observationComponent('drone_pitchRate');
 visionUpdated = observationComponent('ugv_visionUpdated'); visionAge = observationComponent('ugv_visionAge');
-navValid = observationComponent('drone_navigationValid'); navAge = observationComponent('drone_navigationAge');
-aimSlope = tan(-c.experiment.sensor.cameraPitchOffset);
-% Cross-track of the normalized coordinates along the camera-aim slope m.
-% The two axes use different scales, so this is not the metric aim error
-% e_x - m h (landing2d.evaluation.aimError) and it is not zero on the aim line.
-normalizedCrossTrack = normalizedRelativeX-aimSlope*normalizedHeight;
 N=schema.nNodes; X=zeros(schema.inDim,N);
 put(1,visionUpdated,visionAge,0,0,0);
 put(2,normalizedUgvVx,normalizedUgvVx^2,0,0,0);
-put(3,normalizedRelativeX,normalizedHeight,normalizedCrossTrack, ...
-    0.5*(normalizedCrossTrack^2+normalizedHeight^2),0);
+put(3,normalizedRelativeX,normalizedHeight,0,0,0);
 put(4,normalizedRelativeVx,normalizedRelativeVx^2,0,0,0);
-put(5,normalizedDroneVz,sinTheta,normalizedPitchRate,navValid,navAge);
+put(5,normalizedDroneVz,sinTheta,normalizedPitchRate,0,0);
 % ViewMargin: predicted FOV/2-|beta| of the estimated pad in the body-fixed
 % camera (same projection as landing2d.sensing.projectPad). It is a
 % prediction from the estimate, not a detection result; it is read together
@@ -86,7 +86,7 @@ touchdownLimitRatio = [abs(relativeXMeters)/safety.touchdownPositionTolerance; .
 landingCondition = touchdownLimitRatio./(1+touchdownLimitRatio);
 put(7,landingCondition(1),landingCondition(2),landingCondition(3), ...
     landingCondition(4),landingCondition(5));
-semanticEvidence = struct('normalizedCrossTrack',normalizedCrossTrack,'bearing',bearing, ...
+semanticEvidence = struct('bearing',bearing, ...
     'fovMargin',fovMargin,'touchdownLimitRatio',touchdownLimitRatio', ...
     'landingCondition',landingCondition');
 

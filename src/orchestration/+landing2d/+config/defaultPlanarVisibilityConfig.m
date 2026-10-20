@@ -121,11 +121,11 @@ v2.manifest = struct('trainSeeds',1:2000,'validationSeeds',2001:2200, ...
 % training signature. trainEvaluate reduces these only in smoke mode.
 v2.validationEpisodeCount = 100;
 v2.testEpisodeCount = 200;   % 4 motion x observation cells, about 50 each
-% Policy observation: the registered 12-D common observation for every
+% Policy observation: the registered 10-D common observation for every
 % compared method. The context graph is built from the same o_t; the 26-D
 % causal packet remains an environment-internal record.
 v2.observationSchema = landing2d.observation.vectorSchema(co);
-v2.contextSchemaVersion = 'tosm7_rgat_v1';
+v2.contextSchemaVersion = 'tosm7_rgat_v2';
 % No backup controller rewrites a learned command, and no perception-based
 % landing authorization or SAFE_ABORT guard changes the planar outcome.
 % Contacts are classified only by the common mechanical touchdown limits.

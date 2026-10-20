@@ -23,7 +23,7 @@ for i = 1:numel(names)
     switch names{i}
         case {'relative_x','relative_height','relative_vx','ugv_vx'}
             code(i) = ugv;
-        case {'ugv_visionUpdated','ugv_visionAge','drone_navigationAge'}
+        case {'ugv_visionUpdated','ugv_visionAge'}
             code(i) = "recomputed";
         otherwise
             if navFresh, code(i) = "navigation"; else, code(i) = "recomputed"; end

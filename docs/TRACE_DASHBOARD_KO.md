@@ -1,6 +1,6 @@
 # 결정 추적 대시보드 (`decision_trace_v1`)
 
-학습된 `onto_rgat_ppo`(M2) Actor 한 에피소드를 결정 시각 단위로 기록하고 보여 주는 진단 도구다. 원천별 센서 사건(카메라 프레임, ArUco 마커 검출, PnP, UGV 칼만 필터, UAV 자체 항법 추정)에서 시작해 12차원 $o_t$, TOSM 노드 특징 $X_t$, 단일 R-GAT 층의 관계별 메시지·게이트, 그래프 리드아웃 $g_t^A$를 거쳐 실제 요구 가속도 $[a_x,a_z]$까지 이어지는 경로를 그린다. 결정마다 한국어 상황 설명도 붙인다.
+학습된 `onto_rgat_ppo`(M2) Actor 한 에피소드를 결정 시각 단위로 기록하고 보여 주는 진단 도구다. 원천별 센서 사건(카메라 프레임, ArUco 마커 검출, PnP, UGV 칼만 필터, UAV 자체 항법 추정)에서 시작해 공통 관측 $o_t$(v2.3부터 10차원), TOSM 노드 특징 $X_t$, R-GAT 층들의 관계별 메시지(층 수는 체크포인트에서 읽음, v2.2부터 4층), 그래프 리드아웃 $g_t^A$를 거쳐 실제 요구 가속도 $[a_x,a_z]$까지 이어지는 경로를 그린다. 결정마다 한국어 상황 설명도 붙인다.
 
 - 평가 지표가 아니다. 체크포인트·사례·임계값을 고르는 데 쓰지 않는다(`EXPERIMENT_DESIGN_KO.md` §5). 실험 결과의 근거로도 인용하지 않는다.
 - 새 추론 모델이 아니다. 시뮬레이션과 신경망은 기존 함수가 계산한다. 이 도구는 그 값을 읽어서 보여 줄 뿐이다.
@@ -89,12 +89,12 @@ S4, 학습 시드 11, 반복 1(2026-10-19 기록):
 | PadVelocity | ugv_vx | – |
 | RelativePosition | relative_x, relative_height | cameraPitchOffset (cross-track 기울기 $m$) |
 | RelativeVelocity | relative_vx | – |
-| DroneMotion | drone_vz, sinθ, pitchRate, navigationValid, navigationAge (cosθ 없음) | – |
+| DroneMotion | drone_vz, sinθ, pitchRate (cosθ 없음; v2.3에서 상수 항법 유효·경과 제거) | – |
 | ViewMargin | relative_x, relative_height, sinθ, cosθ | cameraPitchOffset, FOV, 위치·고도 정규화 척도 |
 | LandingCondition | relative_x, relative_vx, drone_vz, sinθ, cosθ, pitchRate | 접지 한계 5개, 정규화 척도 4개 |
 
 3. **(C) 체크포인트의 R-GAT 간선 20개.** `encoderSpec.T`에서 읽는다(의미 13 + self 7).
-   - `landing2d.trace.graphSchema`는 노드·간선 끝점·관계 유형·연산군이 `tosm7_v1`과 다르면 오류로 멈춘다. 관계가 교란된 그래프도 거부한다.
+   - `landing2d.trace.graphSchema`는 노드·간선 끝점·관계 유형·연산군이 tosm7 그래프(`tosm7_v1`과 `tosm7_v2`의 위상은 같음)와 다르면 오류로 멈춘다. 관계가 교란된 그래프도 거부한다.
    - 전파(`informsMotion`, `affectsVisibility`, self)는 청록 실선 펄스로, `+` 표시를 붙인다.
    - 조절(`qualifiesEstimate`, `conditionsLanding`)은 보라 파선 ◇ 펄스로 그리고, 도착 노드에 게이트 파문을 그린다.
    - 이어서 7개 노드 임베딩 전체 → 리드아웃 → 액터 MLP → 가속도 명령을 금색으로 그린다. 행동이 LandingCondition 하나만 거쳐 나오지 않는다.
@@ -144,7 +144,7 @@ S4 결정 #32($t=3.10$ s, 외부 주입 누락 첫 프레임) 예:
 - 한정어로 출처를 구분한다: `[관측]`, `[추정]`, `[예측]`, `[착륙 조건]`, `[관계]`, `[R-GAT 계산]`, `[행동]`, `[해석 주의]`, `[주의]`, `[평가 전용]`.
 - 값이 없으면 지어내지 않고 `알 수 없음 (UNKNOWN)`이라고 쓴다.
 - KF 시간 갱신일 때는 UGV 값을 "새 직접 측정이 아닌 예측값"이라고 쓴다. 시뮬레이션 참값에만 있는 UGV 가속을 감지했다고 쓰지 않는다.
-- normalizedCrossTrack은 정규화 좌표 값이다. 미터 단위 광축 aim error가 아니라고 함께 적는다.
+- `tosm7_v2`에는 normalizedCrossTrack이 없다. RelativePosition은 정규화 수평 위치와 고도만 받는다고 적는다.
 - ViewMargin은 추정값 기반 예측이다. 같은 시각의 실제 검출 여부와 따로 적는다.
 - LandingCondition은 현재 추정 상태의 한계비 $r/(1+r)$일 뿐이다(0.5 = 한계값). 착륙 승인·안전 보장·미래 접촉 예측·PPO 행동이 아니다(A08).
 

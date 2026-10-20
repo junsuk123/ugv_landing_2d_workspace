@@ -18,5 +18,9 @@ function version = algorithmVersion()
 % relational-policy-v2.2 (2026-10-20, depth4_v1): rgat_v2 with four layers
 % (12-D nodes, independent parameters per layer, fixed residual mix 0.5 in
 % layers 2-4), heads 16-12 / 15-13; still 6,101 parameters and no gate.
-version = 'relational-policy-v2.2';
+% relational-policy-v2.3 (2026-10-20): 10-D common observation (constant
+% navigation validity/age removed), tosm7_v2 node features (no normalized
+% cross-track / geometryQuadratic / navigation features), plain-PPO widths
+% 48-51 / 47-50 to keep 6,101 parameters. Encoder as v2.2.
+version = 'relational-policy-v2.3';
 end

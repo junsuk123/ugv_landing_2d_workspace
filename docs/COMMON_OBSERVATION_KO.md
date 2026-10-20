@@ -2,11 +2,11 @@
 
 ## 정의
 
-정책 입력은 `landing2d.observation.capture`와 `toVector`가 생성하는 12차원 `minimal_common_observation_v3`.
+정책 입력은 `landing2d.observation.capture`와 `toVector`가 생성하는 10차원 공통 관측이다(`relational-policy-v2.3`부터).
 
 $$
 o_t=[e_x,h,v_{rel,x},\hat v_{G,x},v_z,\sin\theta,\cos\theta,\dot\theta,
-I_G,\tau_G,I_D,\tau_D]^T.
+I_G,\tau_G]^T.
 $$
 
 | 순서 | 필드 | 의미 |
@@ -18,7 +18,11 @@ $$
 | 5 | `drone_vz` | 드론 수직 속도 |
 | 6–8 | `sinTheta`, `cosTheta`, `pitchRate` | 드론 자세 |
 | 9–10 | `visionUpdated`, `visionAge` | 영상 보정 여부·경과시간 |
-| 11–12 | `navigationValid`, `navigationAge` | 융합 측위 유효도·경과시간 |
+
+- v2.2까지 있던 11–12번 `navigationValid`·`navigationAge`(융합 측위 유효도·경과시간)는 v2.3에서 뺐다.
+  - 이 연구의 항법 추정(`landing2d.sensing.navigationEstimate`)은 항상 유효하고 결정 시각에 찍힌다. 그래서 두 값이 구조상 언제나 1과 0이었다. 실측(validation 20 에피소드, 2,988 결정)에서도 상수였다.
+  - 세 비교군 모두에서 정보가 없는 입력이었다. 감지 기록 `O.drone`에는 그대로 남기고, 정책 입력에서만 뺐다.
+- `visionUpdated`는 `visionAge = 0`과 구조상 같은 정보(측정 갱신 여부의 계단 표현)다. 상수가 아니고 결함도 확인되지 않아 유지한다.
 
 ## 생성 경로
 
@@ -36,7 +40,7 @@ $$
 
 금지: UGV 참값, 미래 상태, reward, outcome, 성공 라벨, tracker 판단 특징, 감독기 모드, 착륙 승인, 절대 수평 위치.
 
-일반 PPO는 12차원 벡터를 직접 사용한다. TOSM–R-GAT PPO와 관계 교란 R-GAT PPO는 같은 벡터의 결정론적 7노드×6채널 `tosm7_v1` 그래프만 사용한다(`TOSM7_ONTOLOGY_KO.md`). 추가 센서 입력이나 raw bypass는 없다.
+일반 PPO는 10차원 벡터를 직접 사용한다. MLP 48-51 / 47-50으로 파라미터를 6,101개로 맞췄다. TOSM–R-GAT PPO와 관계 교란 R-GAT PPO는 같은 벡터의 결정론적 7노드×6채널 `tosm7_v2` 그래프만 사용한다(`TOSM7_ONTOLOGY_KO.md`). 추가 센서 입력이나 raw bypass는 없다.
 
 ## 잡음 재현성
 
