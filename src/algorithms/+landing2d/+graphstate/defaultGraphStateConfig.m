@@ -78,6 +78,20 @@ gs.v2InitGain = 5/3;
 gs.relationBases = 2;
 gs.v2PolicyHiddenSizes = [16,12];
 gs.v2ValueHiddenSizes = [15,13];
+% Semantic fixed operators (relational-policy-v2.4, 2026-10-21, user decision
+% after the Python 4-layer development study, where the 4-layer TOSM with the
+% relation operators fixed by meaning was the best variant). In every layer
+% the edges whose relation is a 'modulate' relation (qualifiesEstimate,
+% conditionsLanding) form a second attention graph whose aggregate gates the
+% destination state, and the 'propagate' relations (informsMotion,
+% affectsVisibility) with the self edges form the additive one:
+%   F_l = (1 + tanh(Z_mod,l)) .* tanh(Z_prop,l + Wroot_l h + b_l),
+% each graph with its own softmax per destination. Both graphs use the same
+% basis weights W_r, attention a and embeddings E of the layer, so the
+% parameter count is that of v2.3 (6,101). The shuffled arm moves relation
+% types and therefore operator classes (landing2d.config.applyMethod).
+% 'none' = v2.0-v2.3: one attention over all edges, no gate.
+gs.v2Operators = 'semantic_fixed_v1';
 % Input-dependent attention: alpha_ij^(r)(X_t) follows the current node
 % features. 'fixed_relation_v1' (observation-independent relation logits,
 % same parameters) remains available for a deliberate comparison.

@@ -68,18 +68,37 @@ function [g,cache] = forwardV2(params,spec,policyInput)
 % attention); H^1 = F^1 and, for l >= 2, H^l = (1-eta) H^{l-1} + eta F^l
 % with the fixed spec.residualMix eta (eta = 0: H^l = F^l, v2.0/v2.1); then
 % g = tanh(sum_k (Wc H^L_k) .* Wn(:,k) + bg). layerF holds F^l, layerH H^l.
+% v2Operators 'semantic_fixed_v1' (relational-policy-v2.4): the propagate
+% edges with self (spec.Tadd) and the modulate edges (spec.Tmod) are two
+% attention graphs with the same W_r/a/E, A_l = tanh(Z_prop + Wroot h + b_l),
+% M_l = tanh(Z_mod), F^l = (1 + M_l) .* A_l (gate 1 where no modulate edge).
 B = size(policyInput,2); N = spec.nNodes; dh = spec.hiddenDim; L = spec.layers;
 eta = 0; if isfield(spec,'residualMix'), eta = spec.residualMix; end
 [keep,mix] = residualWeights(spec,eta);
 previous = reshape(policyInput,spec.inDim,N,B);
 layerCaches = cell(1,L); layerH = cell(1,L); layerF = cell(1,L);
+typed = isfield(spec,'v2Operators') && strcmp(spec.v2Operators,'semantic_fixed_v1');
+operators = 'none'; if typed, operators = 'semantic_fixed_v1'; end
+layerAdd = cell(1,L); layerMod = cell(1,L); layerA = cell(1,L); layerM = cell(1,L);
 for l = 1:L
     V = params.(sprintf('V%d',l)); C = params.(sprintf('C%d',l));
     W = landing2d.graphstate.basisWeights(V,C);
-    [Z,layerCaches{l}] = landing2d.rgat.relationForward(previous,W, ...
-        params.(sprintf('a%d',l)),params.(sprintf('E%d',l)),spec.T,[],spec.attentionMode);
+    a = params.(sprintf('a%d',l)); E = params.(sprintf('E%d',l));
     root = reshape(params.(sprintf('Wroot%d',l))*reshape(previous,size(previous,1),N*B),dh,N,B);
-    layerF{l} = tanh(reshape(Z,dh,N,B)+root+params.(sprintf('b%d',l)));
+    if typed
+        [Za,layerAdd{l}] = landing2d.rgat.relationForward(previous,W,a,E,spec.Tadd,[],spec.attentionMode);
+        [Zm,layerMod{l}] = landing2d.rgat.relationForward(previous,W,a,E,spec.Tmod,[],spec.attentionMode);
+        layerA{l} = tanh(reshape(Za,dh,N,B)+root+params.(sprintf('b%d',l)));
+        layerM{l} = tanh(reshape(Zm,dh,N,B));
+        layerF{l} = (1+layerM{l}).*layerA{l};
+        % Attention of every edge in spec.T order (diagnostics read .alpha).
+        alpha = zeros(spec.T.nEdges,B);
+        alpha(spec.addEdges,:) = layerAdd{l}.alpha; alpha(spec.modEdges,:) = layerMod{l}.alpha;
+        layerCaches{l} = struct('alpha',alpha);
+    else
+        [Z,layerCaches{l}] = landing2d.rgat.relationForward(previous,W,a,E,spec.T,[],spec.attentionMode);
+        layerF{l} = tanh(reshape(Z,dh,N,B)+root+params.(sprintf('b%d',l)));
+    end
     if l >= 2 && eta > 0
         layerH{l} = keep*previous+mix*layerF{l};
     else
@@ -100,6 +119,8 @@ g = tanh(reshape(sum(channel.*params.Wn,2),spec.graphDim,B)+params.bg);
 cache = struct('mode',spec.mode,'encoderVersion','rgat_v2','B',B,'N',N,'dh',dh, ...
     'cache1',layerCaches{1},'layerCaches',{layerCaches},'layerH',{layerH}, ...
     'layerF',{layerF},'residualMix',eta,'residualKeep',keep,'residualWeight',mix, ...
+    'v2Operators',operators,'layerAdd',{layerAdd},'layerMod',{layerMod}, ...
+    'layerA',{layerA},'layerM',{layerM}, ...
     'Xf',reshape(policyInput,spec.inDim,N*B),'H',H,'grouped',grouped, ...
     'channel',channel,'g',g);
 end

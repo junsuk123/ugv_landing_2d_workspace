@@ -37,7 +37,7 @@
   - 2026-10-17 R-GAT 전용 명령 평활화 항 삭제
   - 손실 기울기는 `landing2d.rl.policyLossGradient`·`valueLossGradient` 단일 경로(PPO 갱신과 학습 진단이 공유)
   - 갱신 진단(손실·엔트로피·KL·clip 비율·기울기 노름)은 읽기만 한다. 진단 추가로 학습 수치가 바뀌면 안 된다(바뀌면 `algorithmVersion` 갱신)
-- R-GAT (`relational-policy-v2.2`, `depth4_v1`, 2026-10-20, `docs/RGAT_V2_DESIGN_KO.md` §9; v2.3에서 인코더는 그대로, 관측·특징만 정리 §10)
+- R-GAT (`relational-policy-v2.2`, `depth4_v1`, 2026-10-20, `docs/RGAT_V2_DESIGN_KO.md` §9; v2.3에서 인코더는 그대로, 관측·특징만 정리 §10; v2.4에서 의미별 고정 연산 추가 §11)
   - 기본 인코더 `rgat_v2`, 4층
     - 표준 관계형 그래프 어텐션 4층, 층마다 독립 파라미터, 노드 폭 12(`v2HiddenDim`)
     - 관계별 가중치 $W_r=\sum_b C_{rb}V_b$(기저 2개)
@@ -47,10 +47,11 @@
     - LeCun 초기화, tanh로 들어가는 V·W_root에는 tanh 이득 5/3(`v2InitGain`). 명세의 볼록 잔차는 초기 관측 민감도를 PPO의 절반으로 줄여 결과 무관 기준(초기 신호 ≥ PPO)을 통과하지 못했다
     - 네 층이 같은 유형 그래프를 쓴다(Shuffled: 순열 하나를 모든 층에)
     - `grouped_factorized` readout, graph embedding 16
-  - 금지: 곱셈 게이트·연산군·항등 초기화 경로·손으로 고른 readout 시작점·특정 비교군이나 시드에 맞춘 튜닝. 성능은 온톨로지 그래프, R-GAT 구조, 정책 입력 경로로만 검증한다
+    - v2.4 (2026-10-21, 사용자 결정, §11): 의미별 고정 연산 `v2Operators = semantic_fixed_v1`. 층마다 modulate 관계(qualifiesEstimate·conditionsLanding) 간선이 게이트 그래프, propagate 관계와 self가 덧셈 그래프. $F^l=(1+\tanh Z^{mod})\odot\tanh(Z^{prop}+W^{root}h+b)$, 그래프마다 softmax. 같은 $W_r$·a·E를 써서 파라미터·초기 가중치는 v2.3과 같다. Shuffled는 연산군도 10/13 바뀐다
+  - 금지: 항등 초기화 경로·손으로 고른 readout 시작점·특정 비교군이나 시드에 맞춘 튜닝. v2.0–v2.3은 곱셈 게이트·연산군도 금지했고, v2.4는 사용자 결정으로 의미별 고정 연산만 허용한다(학습되는 연산 선택·비교군별 연산은 여전히 금지). 성능은 온톨로지 그래프, R-GAT 구조, 정책 입력 경로로만 검증한다
   - 파라미터: 인코더당 2,560개(398 + 3 × 614 + 320), Actor 16-12, Critic 15-13으로 총 6,101개
   - v2.0/v2.1 2층(16-D, 잔차 없음, 1,892개, 27-26/25-24)과 `rgat_v1`(단일 층 `typed_v1`/`additive_v1`, v1.x 기록 재현용)은 선택지로만 유지
-  - 4층 명세의 `typed_v1` 게이트·연산군은 이 계약과 충돌하므로 쓰지 않는다(§9.2)
+  - 4층 명세의 `typed_v1` 게이트·연산군은 v2.2–v2.3에서 쓰지 않았다(§9.2). v2.4가 4층에서 처음 시험한다
 - 공통 학습 규칙 (`relational-policy-v2.1`, 2026-10-20, `docs/RGAT_V2_DESIGN_KO.md` §8)
   - 탐색 척도 `rl.initialLogStd = −2.0`(σ 0.135). 수렴 정책도 v2.0 값(σ 0.368)에서는 위험 접촉 53%라 공중 정지 함정이 생겼다. σ는 과제 잡음 허용치로만 고르며, 비교군·시드 결과로 고르지 않는다
   - validation 선별 `validation_screen_v1`: 검증마다 첫 20개가 착륙 ≥ 50%일 때만 나머지 80개를 비행한다. 통과한 검증은 100개 평가와 같고, 멈춘 검증은 20개로 기록한다(`validationEpisodes`)
@@ -70,7 +71,7 @@
 - 시드 계약
   - 환경 시드 < 1e6
   - split 서로소: validation 2001–2200, test 3001–3200, stress 9001–9200, 고정 사례 41001–49999, PPO 학습 에피소드 100001–999999 (`validatePrimaryConfig`가 검사)
-  - 학습 시드 s → `rl.seed = base + s − 1`. 기본 1–5, v4 확장 1–10, v5 대조군 수정 확인 11–15, v2.0 확인 16–20(`registry.trainSeeds.v2`), v2.1 게이트 6–9(`v21Dev`), v2.2(4층) 게이트 6–9(`depth4Dev`, 도중 중단), v2.3 게이트 6–9(`v23Dev`), v2.3 확인 21–30(`v23`; v2.1·v2.2 확인은 학습 전에 취소). 확인 시드는 학습 전 사전 등록
+  - 학습 시드 s → `rl.seed = base + s − 1`. 기본 1–5, v4 확장 1–10, v5 대조군 수정 확인 11–15, v2.0 확인 16–20(`registry.trainSeeds.v2`), v2.1 게이트 6–9(`v21Dev`), v2.2(4층) 게이트 6–9(`depth4Dev`, 도중 중단), v2.3 게이트 6–9(`v23Dev`), v2.3 확인 21–30(`v23`; v2.1·v2.2 확인은 학습 전에 취소), v2.4 확인 51–60(`v24`, 게이트 없음). 확인 시드는 학습 전 사전 등록
 - 체크포인트 선택은 validation만 사용
   - test·stress·고정 사례·probe 결과로 체크포인트·임계값·사례를 고르는 것은 금지
 - 통제 사례 S1–S4(`landing2d.evaluation.factorialCases`)
@@ -113,7 +114,8 @@
 run_check                    % self-test + smoke
 run_check('learnability')    % 새 환경에서 과제 학습 가능성 사전 점검
 run                          % 3 비교군 × 학습 시드 1–5
-run(struct('trainSeeds',21:30,'concurrentRuns',8,'concurrentPool','threads'))   % v2.3(4층, 10차원 o_t) 확인 실험
+run(struct('trainSeeds',21:30,'concurrentRuns',8,'concurrentPool','threads'))   % v2.3(4층, 10차원 o_t) 확인 실험 (결과: results/archive/v2.3_s21-30_2026-10-21)
+run(struct('trainSeeds',51:60,'concurrentRuns',8,'concurrentPool','threads'))   % v2.4(의미별 고정 연산) 확인 실험
 run_scenario('S4')
 run_scenario('S4',struct('trace',true))    % 결정 추적 대시보드 (학습된 M2, 시드 21)
 run_scenario([],struct('replay','results/trace/S4_onto_rgat_ppo_s11_r01.mat'))

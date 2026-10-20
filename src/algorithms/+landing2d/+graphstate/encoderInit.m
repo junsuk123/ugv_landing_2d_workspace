@@ -105,7 +105,12 @@ function [params,spec] = initV2(gs,schema,spec,rs)
 % Wroot_l of the canonical layer h_i' = tanh(Wroot h_i + sum alpha W_r h_j + b),
 % then the grouped factorized readout. LeCun-normal initialization (variance
 % 1/fan_in, the rule of landing2d.rl.mlpInit) for every weight; zero biases.
-% No gate, no operator class and no hand-picked (identity) start.
+% No hand-picked (identity) start. v2Operators 'none' (v2.0-v2.3): one
+% attention graph over all edges, no gate. 'semantic_fixed_v1' (v2.4): the
+% edges of the 'modulate' relations form a second attention graph (spec.Tmod)
+% whose aggregate gates the destination state; the rest and the self edges
+% form the additive graph (spec.Tadd). Operator classes follow the possibly
+% shuffled relation types. No extra parameters and no extra random draws.
 % Node width v2HiddenDim (depth4_v1: 12) when set, otherwise hiddenDim (v2.0/v2.1:
 % 16); residualMix (depth4_v1: 0.5) mixes layers 2..L, 0 = plain stacking.
 N = schema.nNodes; R = schema.nRelations; Bb = gs.relationBases; dh = gs.hiddenDim;
@@ -129,6 +134,15 @@ spec.groupNames = schema.groupNames;
 spec.groupCount = size(schema.groupMatrix,1);
 spec.graphDim = gs.graphDim;
 spec.parameterRelationCount = R;
+spec.v2Operators = 'none';
+if isfield(gs,'v2Operators'), spec.v2Operators = gs.v2Operators; end
+if strcmp(spec.v2Operators,'semantic_fixed_v1')
+    modulating = find(strcmp(schema.relationOperators,'modulate'));
+    isMod = ismember(schema.rel,modulating);
+    spec.modEdges = find(isMod); spec.addEdges = find(~isMod);
+    spec.Tadd = landing2d.rgat.topology(subgraph(schema,~isMod));
+    spec.Tmod = landing2d.rgat.topology(subgraph(schema,isMod));
+end
 dims = [schema.inDim,repmat(dh,1,gs.layers)];
 params = struct();
 for l = 1:gs.layers

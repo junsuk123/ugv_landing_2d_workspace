@@ -51,7 +51,9 @@ assert(strcmp(c.rl.trainingRegime,'direct_ppo_v1') ...
 % common validation screen (20 episodes, >= 50% landing to fly the rest).
 % relational-policy-v2.2: the depth4_v1 encoder (checkRelationAttention).
 % relational-policy-v2.3: 10-D o_t, tosm7_v2 features, plain PPO 48-51 / 47-50.
-assert(strcmp(landing2d.rl.algorithmVersion(),'relational-policy-v2.3') ...
+% relational-policy-v2.4: semantic fixed relation operators (checkRelationAttention).
+assert(strcmp(landing2d.rl.algorithmVersion(),'relational-policy-v2.4') ...
+    && strcmp(c.graphState.v2Operators,'semantic_fixed_v1') ...
     && c.rl.initialLogStd==-2.0 && c.rl.minimumLogStd==-2.5 ...
     && strcmp(c.rl.validationScreen.rule,'validation_screen_v1') ...
     && c.rl.validationScreen.episodes==20 && c.rl.validationScreen.minimumLandingRate==0.5 ...
@@ -77,6 +79,11 @@ assert(isequal(registry.trainSeeds.v23,21:30) && ~isfield(registry.trainSeeds,'v
     && ~isfield(registry.trainSeeds,'depth4') && isempty(intersect(registry.trainSeeds.v23, ...
     [registry.trainSeeds.main,registry.trainSeeds.confirmatory,registry.trainSeeds.v2, ...
     registry.trainSeeds.v21Dev,registry.trainSeeds.depth4Dev,registry.trainSeeds.v23Dev])));
+% v2.4 confirmatory seeds 51-60: disjoint from every earlier seed plan.
+assert(isequal(registry.trainSeeds.v24,51:60) && isempty(intersect(registry.trainSeeds.v24, ...
+    [registry.trainSeeds.main,registry.trainSeeds.confirmatory,registry.trainSeeds.v2, ...
+    registry.trainSeeds.v21Dev,registry.trainSeeds.depth4Dev,registry.trainSeeds.v23Dev, ...
+    registry.trainSeeds.v23])));
 arms=landing2d.config.comparisonArms(c);
 assert(numel(arms)==3 && isequal([arms.trainSeed],[1 1 1]) && arms(3).graphSeed==1 ...
     && isnan(arms(1).graphSeed));
@@ -376,8 +383,14 @@ function checkRelationAttention()
 % ontology chain PadVelocity -> ... -> LandingCondition is structurally open at
 % four layers and closed at three. The v2.0/v2.1 two-layer encoder and the
 % archived rgat_v1 encoders (typed_v1, additive_v1) still build and differentiate.
+% relational-policy-v2.4 (semantic_fixed_v1): in every layer the modulate edges
+% (8) form a gating attention graph and the propagate + self edges (12) the
+% additive one, each with one softmax per destination; a single-edge modulate
+% pool therefore has alpha = 1. Same parameters as v2.3; the v2.3 encoder
+% (v2Operators 'none') still builds with identical initial weights.
 base=landing2d.graphstate.applyStateRepresentation(baseConfig(),'context_rgat');
 assert(strcmp(base.graphState.encoderVersion,'rgat_v2') ...
+    && strcmp(base.graphState.v2Operators,'semantic_fixed_v1') ...
     && ~isfield(base.graphState,'relationOperators') ...
     && ~isfield(base.graphState,'relationParameterSharing'));
 agent=landing2d.rl.agentInit(base.rl,RandStream('threefry','Seed',77),base.graphState);
@@ -394,18 +407,29 @@ assert(~isequal(p.V2,p.V3) && ~isequal(p.V3,p.V4) && isequal(size(p.V1),[12 6 2]
     && isequal(size(p.V4),[12 12 2]) && numericCount(p)==2560 ...
     && numericCount(agent.value.encoder)==2560);
 assert(landing2d.rl.profileAgent(agent,base,1,1).parameterCount==6101);
+modRel=find(strcmp(spec.schema.relationOperators,'modulate'));
+assert(strcmp(spec.v2Operators,'semantic_fixed_v1') && numel(spec.modEdges)==8 ...
+    && numel(spec.addEdges)==12 && all(ismember(spec.T.rel(spec.modEdges),modRel)) ...
+    && ~any(ismember(spec.T.rel(spec.addEdges),modRel)));
 S1=reshape(linspace(-0.9,0.9,spec.stateDim),[],1); S2=flipud(S1);
 [g1,cache1]=landing2d.graphstate.encoderForward(p,spec,S1,'policy');
 [~,cache2]=landing2d.graphstate.encoderForward(p,spec,S2,'policy');
 for l=1:spec.layers
     alpha=cache1.layerCaches{l}.alpha(:,1);
-    sums=accumarray(spec.T.dst(:),alpha,[spec.nNodes,1]);
-    assert(max(abs(sums-1))<1e-6 && ~isequal(alpha,cache2.layerCaches{l}.alpha(:,1)));
+    for pool={spec.addEdges(:),spec.modEdges(:)}
+        e=pool{1}; dst=spec.T.dst(e); sums=accumarray(dst(:),alpha(e),[spec.nNodes,1]);
+        assert(max(abs(sums(unique(dst))-1))<1e-6);
+    end
+    assert(~isequal(alpha,cache2.layerCaches{l}.alpha(:,1)));
+    % F = (1 + M) .* A with the gate exactly 1 at nodes without modulate edges.
+    assert(max(abs(cache1.layerF{l}-(1+cache1.layerM{l}).*cache1.layerA{l}),[],'all')<1e-12);
+    noMod=setdiff(1:spec.nNodes,unique(spec.T.dst(spec.modEdges)));
+    assert(all(cache1.layerM{l}(:,noMod)==0,'all'));
 end
-% A destination with one semantic input and its self edge (PadVelocity) has
-% an input-dependent split between them, not alpha = 1.
-pv=find(strcmp(spec.schema.nodeNames,'PadVelocity'));
-assert(all(cache1.layerCaches{1}.alpha(spec.T.dst==pv,1)<1));
+% An additive pool with two or more inputs splits attention by input (alpha < 1).
+dstAdd=spec.T.dst(spec.addEdges); multi=find(accumarray(dstAdd(:),1,[spec.nNodes,1])>=2);
+alphaFirst=cache1.layerCaches{1}.alpha(:,1);
+assert(~isempty(multi) && all(alphaFirst(spec.addEdges(ismember(dstAdd,multi)))<1));
 % Variance-preserving residual: H^1 = F^1, H^l = sqrt(.5) H^(l-1) + sqrt(.5) F^l.
 assert(strcmp(spec.residualRule,'variance_preserving_v1') && base.graphState.v2InitGain==5/3);
 assert(isequal(cache1.layerH{1},cache1.layerF{1}));
@@ -433,6 +457,12 @@ assert(sum(keep)==4+spec.nNodes);
 masked=spec.schema; masked.src=spec.schema.src(keep); masked.dst=spec.schema.dst(keep);
 masked.rel=spec.schema.rel(keep);
 chainSpec=spec; chainSpec.T=landing2d.rgat.topology(masked);
+isModMasked=ismember(masked.rel,modRel);
+chainSpec.addEdges=find(~isModMasked); chainSpec.modEdges=find(isModMasked);
+part=masked; part.src=masked.src(~isModMasked); part.dst=masked.dst(~isModMasked);
+part.rel=masked.rel(~isModMasked); chainSpec.Tadd=landing2d.rgat.topology(part);
+part=masked; part.src=masked.src(isModMasked); part.dst=masked.dst(isModMasked);
+part.rel=masked.rel(isModMasked); chainSpec.Tmod=landing2d.rgat.topology(part);
 X=reshape(S1,spec.inDim,spec.nNodes); Xp=X; Xp(:,chain(1))=Xp(:,chain(1))+0.3;
 for depth=[4 3]
     depthSpec=chainSpec; depthSpec.layers=depth;
@@ -459,9 +489,24 @@ end
 xp=batch; xp(k)=xp(k)+h; xm=batch; xm(k)=xm(k)-h;
 numeric=(loss(p,xp)-loss(p,xm))/(2*h);
 assert(abs(numeric-dInput(k))<1e-4*max(1,abs(numeric)),'Input gradient mismatch.');
-% The v2.0/v2.1 two-layer rgat_v2 (16-D nodes, no residual, heads 27-26 /
-% 25-24) still builds with 6,101 parameters and its old field layout.
+% The v2.3 encoder (no operator classes): identical initial weights, one
+% softmax over all incoming edges, a different output for the same input.
+c=baseConfig(); c.graphState.v2Operators='none';
+c=landing2d.graphstate.applyStateRepresentation(c,'context_rgat');
+v23=landing2d.rl.agentInit(c.rl,RandStream('threefry','Seed',77),c.graphState);
+assert(strcmp(v23.encoderSpec.v2Operators,'none') && ~isfield(v23.encoderSpec,'Tmod') ...
+    && landing2d.rl.profileAgent(v23,c,1,1).parameterCount==6101 ...
+    && isequal(v23.policy.encoder,p));
+[g23,c23]=landing2d.graphstate.encoderForward(v23.policy.encoder,v23.encoderSpec,S1,'policy');
+assert(~isequal(g23,g1));
+for l=1:4
+    sums=accumarray(v23.encoderSpec.T.dst(:),c23.layerCaches{l}.alpha(:,1),[spec.nNodes,1]);
+    assert(max(abs(sums-1))<1e-6);
+end
+% The v2.0/v2.1 two-layer rgat_v2 (16-D nodes, no residual, no operator
+% classes, heads 27-26 / 25-24) still builds with 6,101 parameters.
 c=baseConfig(); c.graphState.layers=2; c.graphState.v2HiddenDim=16; c.graphState.residualMix=0;
+c.graphState.v2Operators='none';
 c.graphState.v2InitGain=1;
 c.graphState.v2PolicyHiddenSizes=[27,26]; c.graphState.v2ValueHiddenSizes=[25,24];
 c=landing2d.graphstate.applyStateRepresentation(c,'context_rgat');
@@ -749,7 +794,8 @@ function checkRelationShuffle()
 % Fixed edge-relation shuffle: same nodes/src/dst/counts/per-relation counts,
 % self edges protected, never the canonical assignment or a global renaming
 % of it, at least minChangedFraction of the semantic edges retyped
-% (registry v6: rgat_v2 has no operator classes, so no operator rule),
+% (registry v6-v9: no operator rule; registry v10, semantic_fixed_v1: the
+% same fraction of semantic edges also changes operator class, 10 of 13),
 % reproducible per graph seed, distinct hashes, identical initial weights,
 % the stored graph used through PPO and inference, and checkpoints that
 % cannot be swapped between graphs.
@@ -769,6 +815,9 @@ for g=1:3
         && isequal(specS.schema.nodeNames,specO.schema.nodeNames) ...
         && isequal(counts(rel),counts(canonical)) && all(rel(canonical==selfId)==selfId));
     assert(~isequal(rel,canonical));
+    sem=canonical~=selfId; ops=specO.schema.relationOperators;
+    assert(sum(~strcmp(ops(rel(sem)),ops(canonical(sem))))>=10 ...
+        && ~isequal(specS.modEdges,specO.modEdges));
     assert(isequal(paramsS,paramsO) && ~strcmp(specS.graph.hash,specO.graph.hash));
     [~,again]=landing2d.graphstate.encoderInit(sh.graphState,sh.rl.observationDim, ...
         RandStream('threefry','Seed',2));
@@ -784,13 +833,17 @@ minChanged=ceil(registry.relationShuffle.minChangedFraction*numel(semantic)-1e-9
 assert(minChanged==10 && ~isfield(registry.relationShuffle,'minOperatorChangedFraction') ...
     && sh.graphState.relationPerturbation.minChangedFraction== ...
         registry.relationShuffle.minChangedFraction ...
-    && ~isfield(sh.graphState.relationPerturbation,'minOperatorChangedFraction'));
+    && sh.graphState.relationPerturbation.minOperatorChangedFraction== ...
+        registry.relationShuffle.minChangedFraction);
 for g=1:60
     gs=struct('relationPerturbation',struct('type','edge_relation_shuffle','graphSeed',g, ...
-        'minChangedFraction',registry.relationShuffle.minChangedFraction));
+        'minChangedFraction',registry.relationShuffle.minChangedFraction, ...
+        'minOperatorChangedFraction',registry.relationShuffle.minChangedFraction));
     [~,Tg]=landing2d.rgat.applyRelationPerturbation(schema,T,gs);
     assert(~isequal(Tg.rel,canonical) ...
-        && sum(Tg.rel(semantic)~=canonical(semantic))>=minChanged);
+        && sum(Tg.rel(semantic)~=canonical(semantic))>=minChanged ...
+        && sum(~strcmp(schema.relationOperators(Tg.rel(semantic)), ...
+            schema.relationOperators(canonical(semantic))))>=minChanged);
 end
 % The typed graph changes the encoder computation for the same input.
 sh=landing2d.config.applyMethod(base,'shuffled_rgat_ppo',1,1);

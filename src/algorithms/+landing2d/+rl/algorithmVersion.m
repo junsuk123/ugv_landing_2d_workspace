@@ -22,5 +22,9 @@ function version = algorithmVersion()
 % navigation validity/age removed), tosm7_v2 node features (no normalized
 % cross-track / geometryQuadratic / navigation features), plain-PPO widths
 % 48-51 / 47-50 to keep 6,101 parameters. Encoder as v2.2.
-version = 'relational-policy-v2.3';
+% relational-policy-v2.4 (2026-10-21, user decision): the v2.3 four-layer
+% encoder with relation operators fixed by the ontology meaning
+% (graphState.v2Operators = semantic_fixed_v1: modulate relations gate,
+% propagate relations add). Same parameters (6,101), observation and PPO.
+version = 'relational-policy-v2.4';
 end

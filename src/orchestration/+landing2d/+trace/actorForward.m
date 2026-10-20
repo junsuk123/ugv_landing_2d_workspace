@@ -29,6 +29,10 @@ params = agent.policy.encoder;
 N = spec.nNodes; dh = spec.hiddenDim; T = spec.T; nE = T.nEdges;
 X = reshape(policyInput,spec.inDim,N);
 if isfield(spec,'encoderVersion') && strcmp(spec.encoderVersion,'rgat_v2')
+    if isfield(spec,'v2Operators') && ~strcmp(spec.v2Operators,'none')
+        error('landing2d:TraceSchema', ['The decision trace does not yet expand the ' ...
+            'v2Operators = %s layer (relational-policy-v2.4).'],spec.v2Operators);
+    end
     F = forwardV2(params,spec,cache,X,g,mu,mlpCache,value,valueCache,agent);
     return;
 end
