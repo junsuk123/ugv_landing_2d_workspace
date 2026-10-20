@@ -1,5 +1,7 @@
 # 코드 유지 가이드 (`relational_policy_v1`, 2026-10-17 재설계)
 
+> **진행 중 작업 (2026-10-21 02:05 인계):** 먼저 `docs/HANDOFF_2026-10-21_KO.md`를 읽는다. v2.4 확인 실험(학습 시드 51–60)이 학습 도중 중단돼 있고, 재개 명령과 주의점이 그 문서에 있다.
+
 ## 적용 범위
 
 - 실험: `planar_visibility_v2` 계약 위의 `relational_policy_v1` 설계 (`docs/EXPERIMENT_DESIGN_KO.md`)
