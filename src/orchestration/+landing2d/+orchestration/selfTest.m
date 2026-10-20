@@ -48,7 +48,8 @@ assert(strcmp(c.rl.trainingRegime,'direct_ppo_v1') ...
 % stop (3 validations >= 95% landing, >= 150 updates; budget 750 stays the cap).
 % relational-policy-v2.1: common exploration scale initialLogStd -2.0 and the
 % common validation screen (20 episodes, >= 50% landing to fly the rest).
-assert(strcmp(landing2d.rl.algorithmVersion(),'relational-policy-v2.1') ...
+% relational-policy-v2.2: the depth4_v1 encoder (checkRelationAttention).
+assert(strcmp(landing2d.rl.algorithmVersion(),'relational-policy-v2.2') ...
     && c.rl.initialLogStd==-2.0 && c.rl.minimumLogStd==-2.5 ...
     && strcmp(c.rl.validationScreen.rule,'validation_screen_v1') ...
     && c.rl.validationScreen.episodes==20 && c.rl.validationScreen.minimumLandingRate==0.5 ...
@@ -69,10 +70,11 @@ assert(~isfield(c.graphState,'temporalPolicyConsistencyWeight') ...
 registry=landing2d.config.methodRegistry();
 assert(isequal({registry.methods.id},{'ppo','onto_rgat_ppo','shuffled_rgat_ppo'}) ...
     && isequal(registry.trainSeeds.default,1:5));
-% v2.1 confirmatory seeds are fresh: disjoint from every earlier seed plan.
-assert(isequal(registry.trainSeeds.v21,21:30) && isempty(intersect(registry.trainSeeds.v21, ...
+% depth4 confirmatory seeds are fresh: disjoint from every earlier seed plan.
+assert(isequal(registry.trainSeeds.depth4,21:30) && ~isfield(registry.trainSeeds,'v21') ...
+    && isempty(intersect(registry.trainSeeds.depth4, ...
     [registry.trainSeeds.main,registry.trainSeeds.confirmatory,registry.trainSeeds.v2, ...
-    registry.trainSeeds.v21Dev])));
+    registry.trainSeeds.v21Dev,registry.trainSeeds.depth4Dev])));
 arms=landing2d.config.comparisonArms(c);
 assert(numel(arms)==3 && isequal([arms.trainSeed],[1 1 1]) && arms(3).graphSeed==1 ...
     && isnan(arms(1).graphSeed));
@@ -360,26 +362,35 @@ assert(~covering.screened && isequal(covering.returns,full.returns));
 end
 
 function checkRelationAttention()
-% rgat_v2 (default of the R-GAT arms, relational-policy-v2.0): two relational
-% graph-attention layers over all 20 typed edges, one input-dependent
+% rgat_v2 depth4_v1 (default of the R-GAT arms, relational-policy-v2.2): four
+% relational graph-attention layers (12-D nodes, independent parameters, the
+% fixed residual mix 0.5 in layers 2-4) over all 20 typed edges, one input-dependent
 % attention softmax per destination across relation types (alpha sums to one
 % at every node in every layer, no single-edge pool forced to alpha = 1),
 % relation weights from a shared basis, the R-GCN root (self-connection)
 % weight, no gate / operator class / identity start / hand-set readout;
 % 6,101 parameters; analytic gradients of every
-% parameter group and of the input match central differences. The archived
-% rgat_v1 encoders (typed_v1, additive_v1) still build and differentiate.
+% parameter group and of the input match central differences; the four-hop
+% ontology chain PadVelocity -> ... -> LandingCondition is structurally open at
+% four layers and closed at three. The v2.0/v2.1 two-layer encoder and the
+% archived rgat_v1 encoders (typed_v1, additive_v1) still build and differentiate.
 base=landing2d.graphstate.applyStateRepresentation(baseConfig(),'context_rgat');
 assert(strcmp(base.graphState.encoderVersion,'rgat_v2') ...
     && ~isfield(base.graphState,'relationOperators') ...
     && ~isfield(base.graphState,'relationParameterSharing'));
 agent=landing2d.rl.agentInit(base.rl,RandStream('threefry','Seed',77),base.graphState);
 spec=agent.encoderSpec; p=agent.policy.encoder;
-assert(strcmp(spec.encoderVersion,'rgat_v2') && spec.layers==2 && spec.relationBases==2 ...
+layerFields=arrayfun(@(l){sprintf('V%d',l),sprintf('C%d',l),sprintf('a%d',l),sprintf('E%d',l), ...
+    sprintf('Wroot%d',l),sprintf('b%d',l)},1:4,'UniformOutput',false);
+assert(strcmp(spec.encoderVersion,'rgat_v2') && spec.layers==4 && spec.relationBases==2 ...
+    && spec.hiddenDim==12 && spec.residualMix==0.5 && spec.graphDim==16 ...
     && strcmp(spec.readout,'grouped_factorized') && strcmp(spec.attentionMode,'input_dependent_v1') ...
-    && isequal(fieldnames(p)',{'V1','C1','a1','E1','Wroot1','b1','V2','C2','a2','E2','Wroot2','b2', ...
-        'Wc','Wn','bg'}) ...
+    && isequal(fieldnames(p)',[layerFields{:},{'Wc','Wn','bg'}]) ...
     && ~isfield(agent.policy,'relation'));
+% Every layer has its own parameters; 2,560 per encoder, heads 16-12 / 15-13.
+assert(~isequal(p.V2,p.V3) && ~isequal(p.V3,p.V4) && isequal(size(p.V1),[12 6 2]) ...
+    && isequal(size(p.V4),[12 12 2]) && numericCount(p)==2560 ...
+    && numericCount(agent.value.encoder)==2560);
 assert(landing2d.rl.profileAgent(agent,base,1,1).parameterCount==6101);
 S1=reshape(linspace(-0.9,0.9,spec.stateDim),[],1); S2=flipud(S1);
 [g1,cache1]=landing2d.graphstate.encoderForward(p,spec,S1,'policy');
@@ -393,6 +404,42 @@ end
 % an input-dependent split between them, not alpha = 1.
 pv=find(strcmp(spec.schema.nodeNames,'PadVelocity'));
 assert(all(cache1.layerCaches{1}.alpha(spec.T.dst==pv,1)<1));
+% Variance-preserving residual: H^1 = F^1, H^l = sqrt(.5) H^(l-1) + sqrt(.5) F^l.
+assert(strcmp(spec.residualRule,'variance_preserving_v1') && base.graphState.v2InitGain==5/3);
+assert(isequal(cache1.layerH{1},cache1.layerF{1}));
+for l=2:spec.layers
+    assert(max(abs(cache1.layerH{l}-sqrt(0.5)*(cache1.layerH{l-1}+cache1.layerF{l})),[],'all')<1e-12);
+end
+% The convex rule of the specification stays available (and differentiates).
+cv=base; cv.graphState.residualRule='convex_v1';
+convex=landing2d.rl.agentInit(cv.rl,RandStream('threefry','Seed',77),cv.graphState);
+[gc,cc]=landing2d.graphstate.encoderForward(convex.policy.encoder,convex.encoderSpec,S1,'policy');
+assert(max(abs(cc.layerH{2}-(0.5*cc.layerH{1}+0.5*cc.layerF{2})),[],'all')<1e-12);
+gradsConvex=landing2d.graphstate.encoderBackward(convex.policy.encoder,convex.encoderSpec,cc,ones(size(gc)));
+assert(norm(gradsConvex.V1(:))>0);
+% Four-hop chain: keep only PadVelocity -> RelativeVelocity -> RelativePosition
+% -> ViewMargin -> LandingCondition and the self edges. LandingCondition's
+% last-layer state then depends on PadVelocity's node features at four
+% layers and is exactly independent of them at three (structural, not a
+% numeric importance claim).
+names=spec.schema.nodeNames; id=@(n)find(strcmp(names,n));
+chain=[id('PadVelocity'),id('RelativeVelocity'),id('RelativePosition'),id('ViewMargin'),id('LandingCondition')];
+keep=false(1,spec.T.nEdges);
+for k=1:4, keep=keep|(spec.T.src==chain(k) & spec.T.dst==chain(k+1)); end
+keep=keep|(spec.T.src==spec.T.dst);
+assert(sum(keep)==4+spec.nNodes);
+masked=spec.schema; masked.src=spec.schema.src(keep); masked.dst=spec.schema.dst(keep);
+masked.rel=spec.schema.rel(keep);
+chainSpec=spec; chainSpec.T=landing2d.rgat.topology(masked);
+X=reshape(S1,spec.inDim,spec.nNodes); Xp=X; Xp(:,chain(1))=Xp(:,chain(1))+0.3;
+for depth=[4 3]
+    depthSpec=chainSpec; depthSpec.layers=depth;
+    [~,c0]=landing2d.graphstate.encoderForward(p,depthSpec,X(:),'policy');
+    [~,c1]=landing2d.graphstate.encoderForward(p,depthSpec,Xp(:),'policy');
+    change=max(abs(c1.layerH{depth}(:,chain(end))-c0.layerH{depth}(:,chain(end))));
+    if depth==4, assert(change>1e-6,'Four-hop chain closed at four layers.');
+    else, assert(change==0,'LandingCondition reached in three layers on the four-hop chain.'); end
+end
 batch=[S1,S2,0.5*S1];
 loss=@(q,x)sum(landing2d.graphstate.encoderForward(q,spec,x,'policy').^2,'all');
 [gb,cb]=landing2d.graphstate.encoderForward(p,spec,batch,'policy');
@@ -410,6 +457,21 @@ end
 xp=batch; xp(k)=xp(k)+h; xm=batch; xm(k)=xm(k)-h;
 numeric=(loss(p,xp)-loss(p,xm))/(2*h);
 assert(abs(numeric-dInput(k))<1e-4*max(1,abs(numeric)),'Input gradient mismatch.');
+% The v2.0/v2.1 two-layer rgat_v2 (16-D nodes, no residual, heads 27-26 /
+% 25-24) still builds with 6,101 parameters and its old field layout.
+c=baseConfig(); c.graphState.layers=2; c.graphState.v2HiddenDim=16; c.graphState.residualMix=0;
+c.graphState.v2InitGain=1;
+c.graphState.v2PolicyHiddenSizes=[27,26]; c.graphState.v2ValueHiddenSizes=[25,24];
+c=landing2d.graphstate.applyStateRepresentation(c,'context_rgat');
+two=landing2d.rl.agentInit(c.rl,RandStream('threefry','Seed',77),c.graphState);
+assert(two.encoderSpec.layers==2 && two.encoderSpec.residualMix==0 ...
+    && landing2d.rl.profileAgent(two,c,1,1).parameterCount==6101 ...
+    && isequal(fieldnames(two.policy.encoder)',{'V1','C1','a1','E1','Wroot1','b1','V2','C2','a2','E2', ...
+    'Wroot2','b2','Wc','Wn','bg'}));
+[g2,c2]=landing2d.graphstate.encoderForward(two.policy.encoder,two.encoderSpec,S1,'policy');
+assert(isequal(c2.layerH,c2.layerF));
+grads2=landing2d.graphstate.encoderBackward(two.policy.encoder,two.encoderSpec,c2,ones(size(g2)));
+assert(norm(grads2.V1(:))>0 && norm(grads2.a2(:))>0);
 % Archived single-layer encoders remain available.
 for mode=["typed_v1","additive_v1"]
     c=baseConfig(); c.graphState.encoderVersion='rgat_v1';
@@ -862,6 +924,15 @@ assert(isequal(size(L.truth.actualAcceleration),size(L.physics.appliedAccelerati
     && ~isequal(L.truth.actualAcceleration,L.physics.appliedAcceleration));
 plain=landing2d.rl.rolloutEpisodeV2(agent,arm,7,struct('deterministic',true,'maxDecisions',3));
 assert(isempty(plain.commandLog));
+end
+
+function n=numericCount(s)
+% Trainable scalars of a parameter struct (numeric leaves).
+n=0;
+for name=fieldnames(s)'
+    v=s.(name{1});
+    if isstruct(v), n=n+numericCount(v); elseif isnumeric(v), n=n+numel(v); end
+end
 end
 
 function c=baseConfig()

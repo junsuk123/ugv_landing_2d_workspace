@@ -15,5 +15,8 @@ function version = algorithmVersion()
 % relational-policy-v2.1 (2026-10-20): common exploration scale
 % rl.initialLogStd -1.0 -> -2.0 (the v2.0 hover trap) and the common
 % validation screen of ppoTrain. Encoder, loss and parameters are unchanged.
-version = 'relational-policy-v2.1';
+% relational-policy-v2.2 (2026-10-20, depth4_v1): rgat_v2 with four layers
+% (12-D nodes, independent parameters per layer, fixed residual mix 0.5 in
+% layers 2-4), heads 16-12 / 15-13; still 6,101 parameters and no gate.
+version = 'relational-policy-v2.2';
 end

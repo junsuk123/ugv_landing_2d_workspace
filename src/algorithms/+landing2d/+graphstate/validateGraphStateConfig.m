@@ -38,6 +38,23 @@ if strcmp(gs.encoderVersion,'rgat_v2')
         validateattributes(gs.(name{1}),{'numeric'}, ...
             {'vector','numel',2,'real','finite','positive','integer'},mfilename,name{1});
     end
+    if isfield(gs,'v2HiddenDim')
+        validateattributes(gs.v2HiddenDim,{'numeric'}, ...
+            {'scalar','real','finite','positive','integer'},mfilename,'v2HiddenDim');
+    end
+    % Fixed (untrained) residual interpolation of layers 2..L, 0 = none.
+    if isfield(gs,'residualMix')
+        validateattributes(gs.residualMix,{'numeric'},{'scalar','real','>=',0,'<=',1}, ...
+            mfilename,'residualMix');
+    end
+    if isfield(gs,'residualRule')
+        assert(ismember(gs.residualRule,{'convex_v1','variance_preserving_v1'}), ...
+            'landing2d:ResidualRule','graphState.residualRule must be convex_v1 or variance_preserving_v1.');
+    end
+    if isfield(gs,'v2InitGain')
+        validateattributes(gs.v2InitGain,{'numeric'},{'scalar','real','finite','positive'}, ...
+            mfilename,'v2InitGain');
+    end
 end
 if isfield(gs,'relationOperators')
     assert(strcmp(gs.stateRepresentation,'context_rgat') ...

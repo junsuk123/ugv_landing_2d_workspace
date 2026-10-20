@@ -46,14 +46,38 @@ gs.encoderLearnRate = 1e-4;
 % 3-7x less sensitive to relative position/height than plain PPO; with it the
 % sensitivity matches plain PPO (init-only analysis, 2026-10-20, no episode
 % outcome used; docs/RGAT_V2_DESIGN_KO.md).
-% Parameters: 1,892 per encoder; heads 27-26 / 25-24 keep the 6,101 total.
+% v2.0/v2.1 (L = 2, 16-D nodes): 1,892 per encoder, heads 27-26 / 25-24.
+% Depth 4 (relational-policy-v2.2, depth4_v1, 2026-10-20): four sequential
+% layers with independent parameters, 12-D node states (v2HiddenDim) and a
+% fixed residual interpolation for layers 2-4 (residualMix eta = 0.5),
+%   H^1 = F_1,  H^l = sqrt(1-eta) H^(l-1) + sqrt(eta) F_l   (variance_preserving_v1),
+% F_l = tanh(Wroot_l h_i + sum alpha_ij W_r h_j + b_l). The mix has no
+% trainable parameter; it keeps the stacked states bounded and retains the
+% shorter-hop states. The specified convex mix (1-eta) H + eta F averages two
+% nearly uncorrelated states, so the node-state RMS fell by about 1/sqrt(2) per
+% layer (0.42 -> 0.18 at layer 4) and the untrained policy mean was half as
+% sensitive to the observation as plain PPO (|d mu/d o| 0.013 vs 0.025). The
+% outcome-independent v2.0 rule (initial signal not below plain PPO) was met
+% only by the variance-preserving mix together with the tanh gain 5/3 on the
+% LeCun weights entering a tanh (v2InitGain: V, Wroot): 0.033 (init-only
+% analysis, dev seeds 6-9, docs/RGAT_V2_DESIGN_KO.md section 9). Four layers
+% let a source reach LandingCondition along the ontology's four-relation
+% chain PadVelocity -> RelativeVelocity -> RelativePosition -> ViewMargin ->
+% LandingCondition before the readout.
+% Parameters: 398 + 3 x 614 (layers) + 320 (readout) = 2,560 per encoder;
+% heads 16-12 / 15-13 keep the 6,101 total. Every layer uses the same typed
+% graph (the shuffled arm: one permutation for all layers).
 % 'rgat_v1' selects the archived single-layer encoders (relationOperators
-% typed_v1 / additive_v1) of relational-policy-v1.x.
+% typed_v1 / additive_v1) of relational-policy-v1.x; it keeps hiddenDim.
 gs.encoderVersion = 'rgat_v2';
-gs.layers = 2;
+gs.layers = 4;
+gs.v2HiddenDim = 12;
+gs.residualMix = 0.5;
+gs.residualRule = 'variance_preserving_v1';
+gs.v2InitGain = 5/3;
 gs.relationBases = 2;
-gs.v2PolicyHiddenSizes = [27,26];
-gs.v2ValueHiddenSizes = [25,24];
+gs.v2PolicyHiddenSizes = [16,12];
+gs.v2ValueHiddenSizes = [15,13];
 % Input-dependent attention: alpha_ij^(r)(X_t) follows the current node
 % features. 'fixed_relation_v1' (observation-independent relation logits,
 % same parameters) remains available for a deliberate comparison.

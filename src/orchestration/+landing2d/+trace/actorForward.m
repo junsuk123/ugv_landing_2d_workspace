@@ -91,9 +91,12 @@ function F = forwardV2(params,spec,cache,X,g,mu,mlpCache,value,valueCache,agent)
 % rgat_v2: per layer l the attention pre-activation, score e_ij, coefficient
 % alpha_ij (one softmax per destination over all incoming edges), message
 % sizes |W_r h_j| and |alpha W_r h_j|, the aggregate Z_l, the root
-% (self-connection) term Wroot_l h_i and H_l = tanh(Z_l + Wroot_l h + b_l).
+% (self-connection) term Wroot_l h_i, F_l = tanh(Z_l + Wroot_l h + b_l) and
+% H_l = F_l (l = 1 or no residual) or (1-eta) H_{l-1} + eta F_l (depth4_v1).
 % There is no gate (gate = ones); local holds the last layer's root term.
 L = spec.layers; dh = spec.hiddenDim; N = spec.nNodes; nE = spec.T.nEdges;
+eta = 0; if isfield(cache,'residualMix'), eta = cache.residualMix; end
+layerF = cache.layerH; if isfield(cache,'layerF'), layerF = cache.layerF; end
 pre = zeros(nE,L); alpha = zeros(nE,L); projectedNorm = zeros(nE,L); weightedNorm = zeros(nE,L);
 layerZ = cell(1,L); rootTerm = cell(1,L); consistency = 0; previous = X;
 for l = 1:L
@@ -107,7 +110,10 @@ for l = 1:L
     layerZ{l} = weighted*spec.T.Msel';
     rootTerm{l} = params.(sprintf('Wroot%d',l))*previous;
     consistency = max(consistency,max(abs(tanh(layerZ{l}+rootTerm{l}+params.(sprintf('b%d',l))) ...
-        -cache.layerH{l}),[],'all'));
+        -layerF{l}),[],'all'));
+    mixed = layerF{l};
+    if l >= 2 && eta > 0, mixed = cache.residualKeep*previous+cache.residualWeight*layerF{l}; end
+    consistency = max(consistency,max(abs(mixed-cache.layerH{l}),[],'all'));
     previous = cache.layerH{l};
 end
 score = 0.6*pre+0.4*abs(pre);       % leaky ReLU of landing2d.rgat.relationForward
@@ -133,7 +139,7 @@ F.layers = L; F.encoderVersion = 'rgat_v2';
 F.alphaLayers = alpha; F.attentionScoreLayers = score;
 F.projectedMessageNormLayers = projectedNorm;
 F.weightedMessageNormLayers = weightedNorm;
-F.layerH = cache.layerH; F.layerZ = layerZ;
+F.layerH = cache.layerH; F.layerZ = layerZ; F.layerF = layerF; F.residualMix = eta;
 end
 
 function value = fieldOr(s,name,default)

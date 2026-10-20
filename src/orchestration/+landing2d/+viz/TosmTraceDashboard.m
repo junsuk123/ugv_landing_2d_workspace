@@ -341,7 +341,9 @@ classdef TosmTraceDashboard < handle
             uibutton(side,'Text','LandingCondition 사슬','ButtonPushedFcn',@(~,~)obj.select("node:7"));
             uibutton(side,'Text','선택 해제','ButtonPushedFcn',@(~,~)obj.clearSelection());
             legendLines = L.legend;
-            if obj.isV2() && isfield(L,'legendV2'), legendLines = L.legendV2; end
+            if obj.isV2() && isfield(L,'legendV2')
+                legendLines = strrep(L.legendV2,'{L}',sprintf('%d',obj.layerCount()));
+            end
             obj.H.legend = uitextarea(side,'Editable','off','FontSize',9.5,'Value',legendLines);
             obj.clearSelection();
         end
@@ -416,6 +418,10 @@ classdef TosmTraceDashboard < handle
             ax.XLim = [0 124]; ax.YLim = [0 100]; ax.XTick = []; ax.YTick = [];
             ax.Box = 'on'; ax.XColor = [1 1 1]; ax.YColor = [1 1 1]; hold(ax,'on');
             ax.Title.String = '센서·추정기 데이터 흐름 → o_t → TOSM 노드 특징 → 단일 R-GAT 층 → 리드아웃 → 액터';
+            if obj.isV2()
+                ax.Title.String = sprintf(['센서·추정기 데이터 흐름 → o_t → TOSM 노드 특징 → R-GAT %d개 층 ' ...
+                    '→ 리드아웃 → 액터'],obj.layerCount());
+            end
             ax.Title.FontSize = 11;
             obj.H.diagram = ax;
             S = obj.Trace.schema; P = obj.Trace.provenance; L = obj.Trace.labels; C = obj.Colors;
@@ -596,14 +602,17 @@ classdef TosmTraceDashboard < handle
                     'EdgeColor','none');
             else
                 obj.H.alphaBars = bar(ax,1:S.nEdges,zeros(S.nEdges,nLayers),'grouped','EdgeColor','none');
-                shades = [obj.Colors.propagate;0.45*obj.Colors.propagate;0.7*[1 1 1]];
-                for l = 1:nLayers, obj.H.alphaBars(l).FaceColor = shades(min(l,3),:); end
+                % Layer 1 brightest, layer L darkest.
+                for l = 1:nLayers
+                    obj.H.alphaBars(l).FaceColor = (1-0.6*(l-1)/max(nLayers-1,1))*obj.Colors.propagate;
+                end
             end
             ax.XTick = 1:S.nEdges; ax.XTickLabel = S.edgeLabel; ax.XTickLabelRotation = 60;
             ax.FontSize = 7.5; ax.YLim = [0 1.05];
             ax.Title.String = '어텐션 계수 α_ij (청록 = 전파+자기 루프 풀, 보라 = 조절 풀; 도착 노드별 합 1)';
             if obj.isV2()
-                ax.Title.String = '어텐션 계수 α_ij — 밝은 막대 층 1, 어두운 막대 층 2 (층마다 도착 노드별 모든 간선 합 1)';
+                ax.Title.String = sprintf(['어텐션 계수 α_ij — 막대 %d개 = 층 1(밝음)…층 %d(어두움) ' ...
+                    '(층마다 도착 노드별 모든 간선 합 1)'],nLayers,nLayers);
             end
             ax.Title.FontSize = 8.5; obj.H.alphaAxes = ax;
             for b = obj.H.alphaBars(:)'
@@ -613,16 +622,18 @@ classdef TosmTraceDashboard < handle
             obj.H.xImage = imagesc(ax,zeros(6,7)); ax.CLim = [-1 1]; colormap(ax,diverging());
             obj.styleMatrix(ax,'노드 특징 X_t (6×7)',S.nodeShort,{'f1','f2','f3','f4','f5','id'});
             ax = uiaxes(actorGrid); obj.quiet(ax); ax.Layout.Row = 2; ax.Layout.Column = 2;
-            obj.H.hImage = imagesc(ax,zeros(16,7)); ax.CLim = [-2 2]; colormap(ax,diverging());
-            obj.styleMatrix(ax,'노드 임베딩 H_t (16×7)',S.nodeShort,[]);
+            dh = S.hiddenDim;
+            obj.H.hImage = imagesc(ax,zeros(dh,7)); ax.CLim = [-2 2]; colormap(ax,diverging());
+            obj.styleMatrix(ax,sprintf('노드 임베딩 H_t (%d×7)',dh),S.nodeShort,[]);
             ax = uiaxes(actorGrid); obj.quiet(ax); ax.Layout.Row = 3; ax.Layout.Column = 1;
-            obj.H.gateImage = imagesc(ax,ones(16,7)); ax.CLim = [0 2]; colormap(ax,diverging());
+            obj.H.gateImage = imagesc(ax,ones(dh,7)); ax.CLim = [0 2]; colormap(ax,diverging());
             obj.styleMatrix(ax,'조절 게이트 1+tanh(Z_mod) (1 = 조절 없음)',S.nodeShort,[]);
             if obj.isV2()
                 ax.CLim = [-1 1];
-                ax.Title.String = '층 1 노드 임베딩 H^1 (16×7) — rgat_v2에는 게이트 없음';
+                ax.Title.String = sprintf('층 1 노드 임베딩 H^1 (%d×7) — rgat_v2에는 게이트 없음',dh);
                 obj.H.hImage.Parent.CLim = [-1 1];
-                obj.H.hImage.Parent.Title.String = '최종 노드 임베딩 H^2 (16×7, 리드아웃 입력)';
+                obj.H.hImage.Parent.Title.String = sprintf('최종 노드 임베딩 H^%d (%d×7, 리드아웃 입력)', ...
+                    nLayers,dh);
             end
             ax = uiaxes(actorGrid); obj.quiet(ax); ax.Layout.Row = 3; ax.Layout.Column = 2;
             obj.H.gBars = bar(ax,zeros(1,S.graphDim),'FaceColor',obj.Colors.readout,'EdgeColor','none');
@@ -778,7 +789,8 @@ classdef TosmTraceDashboard < handle
             simultaneous = '같은 결정 시각의 계산은 동시에 표시 (R-GAT 간선 메시지는 단일 층 동시 집계)';
             if obj.isV2()
                 simultaneous = sprintf(['같은 결정 시각의 계산은 동시에 표시 (R-GAT %d개 층, 층마다 모든 간선 ' ...
-                    '동시 집계; 펄스 앞 절반 = 층 1, 뒤 절반 = 층 2)'],obj.layerCount());
+                    '동시 집계; 간선 펄스 구간을 %d등분해 층 1부터 층 %d까지 차례로 표시)'], ...
+                    obj.layerCount(),obj.layerCount(),obj.layerCount());
             end
             obj.H.phaseText.String = ternary(obj.Staged && phase >= 0, ...
                 ['단계 ',names{max(phase,0)+1},' — 같은 결정 시각 t_k의 계산을 펼친 설명용 순서'], ...
@@ -800,8 +812,8 @@ classdef TosmTraceDashboard < handle
                 if ~active, continue; end
                 if phase >= 0 && seg(i).phase ~= phase, continue; end
                 u = progress;
-                % rgat_v2: the same edge carries a layer-1 message (first
-                % half of the edge interval) and a layer-2 message (second).
+                % rgat_v2: the same edge carries one message per layer; the
+                % edge interval is split into L equal parts, layer 1 first.
                 if seg(i).phase == 5 && obj.layerCount() > 1
                     u = mod(progress*obj.layerCount(),1);
                 end

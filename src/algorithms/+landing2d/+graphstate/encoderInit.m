@@ -106,10 +106,21 @@ function [params,spec] = initV2(gs,schema,spec,rs)
 % then the grouped factorized readout. LeCun-normal initialization (variance
 % 1/fan_in, the rule of landing2d.rl.mlpInit) for every weight; zero biases.
 % No gate, no operator class and no hand-picked (identity) start.
+% Node width v2HiddenDim (depth4_v1: 12) when set, otherwise hiddenDim (v2.0/v2.1:
+% 16); residualMix (depth4_v1: 0.5) mixes layers 2..L, 0 = plain stacking.
 N = schema.nNodes; R = schema.nRelations; Bb = gs.relationBases; dh = gs.hiddenDim;
+if isfield(gs,'v2HiddenDim'), dh = gs.v2HiddenDim; end
 attentionWidth = 2*dh+gs.relationDim;
 spec.encoderVersion = 'rgat_v2';
 spec.layers = gs.layers; spec.relationBases = Bb;
+spec.residualMix = 0;
+if isfield(gs,'residualMix'), spec.residualMix = gs.residualMix; end
+% residualRule: 'convex_v1' H = (1-eta) H_prev + eta F; 'variance_preserving_v1'
+% H = sqrt(1-eta) H_prev + sqrt(eta) F. initGain scales the LeCun weights that
+% enter a tanh (V, Wroot): 1 = LeCun, 5/3 = the tanh gain.
+spec.residualRule = 'convex_v1';
+if isfield(gs,'residualRule'), spec.residualRule = gs.residualRule; end
+gain = 1; if isfield(gs,'v2InitGain'), gain = gs.v2InitGain; end
 spec.inDim = schema.inDim; spec.nNodes = N; spec.hiddenDim = dh;
 spec.graphStateDim = schema.inDim*N;
 spec.rawDim = spec.graphStateDim; spec.stateDim = spec.graphStateDim;
@@ -122,11 +133,11 @@ dims = [schema.inDim,repmat(dh,1,gs.layers)];
 params = struct();
 for l = 1:gs.layers
     name = layerNames(l);
-    params.(name.V) = randn(rs,dh,dims(l),Bb)/sqrt(dims(l));
+    params.(name.V) = gain*randn(rs,dh,dims(l),Bb)/sqrt(dims(l));
     params.(name.C) = randn(rs,R,Bb)/sqrt(Bb);
     params.(name.a) = randn(rs,1,attentionWidth,R)/sqrt(attentionWidth);
     params.(name.E) = randn(rs,gs.relationDim,R);
-    params.(name.root) = randn(rs,dh,dims(l))/sqrt(dims(l));
+    params.(name.root) = gain*randn(rs,dh,dims(l))/sqrt(dims(l));
     params.(name.b) = zeros(dh,1);
 end
 params.Wc = randn(rs,gs.graphDim,dh)/sqrt(dh);

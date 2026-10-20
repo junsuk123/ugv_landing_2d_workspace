@@ -46,9 +46,13 @@ grads = orderfields(grads,params);
 end
 
 function [grads,dPolicyInput] = backwardV2(params,spec,cache,grads,dH)
-% Layers in reverse: tanh, root weight, relation layer
-% (landing2d.rgat.relationBackward), then the basis decomposition
-% dV_b = sum_r C(r,b) dW_r, dC(r,b) = <dW_r,V_b>.
+% Layers in reverse: residual mix (l >= 2, eta = cache.residualMix:
+% dF = eta dH, skip (1-eta) dH to the previous state), tanh, root weight,
+% relation layer (landing2d.rgat.relationBackward), then the basis
+% decomposition dV_b = sum_r C(r,b) dW_r, dC(r,b) = <dW_r,V_b>.
+eta = 0; if isfield(cache,'residualMix'), eta = cache.residualMix; end
+keep = 1-eta; mix = eta;
+if isfield(cache,'residualKeep'), keep = cache.residualKeep; mix = cache.residualWeight; end
 for l = spec.layers:-1:1
     if l == 1
         previous = reshape(cache.Xf,spec.inDim,cache.N,cache.B);
@@ -58,13 +62,19 @@ for l = spec.layers:-1:1
     root = params.(sprintf('Wroot%d',l));
     V = params.(sprintf('V%d',l)); C = params.(sprintf('C%d',l));
     [dh,din,Bb] = size(V); R = size(C,1);
-    preActivation = dH.*(1-cache.layerH{l}.^2);
+    skip = 0;
+    if l >= 2 && eta > 0
+        skip = keep*dH; dH = mix*dH;
+        preActivation = dH.*(1-cache.layerF{l}.^2);
+    else
+        preActivation = dH.*(1-cache.layerH{l}.^2);
+    end
     grads.(sprintf('b%d',l)) = reshape(sum(sum(preActivation,3),2),dh,1);
     flatPre = reshape(preActivation,dh,cache.N*cache.B);
     flatPrevious = reshape(previous,size(previous,1),cache.N*cache.B);
     grads.(sprintf('Wroot%d',l)) = flatPre*flatPrevious';
     [dH,g] = landing2d.rgat.relationBackward(preActivation,cache.layerCaches{l});
-    dH = dH+reshape(root'*flatPre,size(previous,1),cache.N,cache.B);
+    dH = dH+reshape(root'*flatPre,size(previous,1),cache.N,cache.B)+skip;
     dW = reshape(g.W,dh*din,R);
     grads.(sprintf('V%d',l)) = reshape(dW*C,dh,din,Bb);
     grads.(sprintf('C%d',l)) = dW'*reshape(V,dh*din,Bb);

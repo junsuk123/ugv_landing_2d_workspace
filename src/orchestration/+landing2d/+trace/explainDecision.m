@@ -116,6 +116,15 @@ if isV2
     sec6 = {sprintf(['%s R-GAT %d개 층 (rgat_v2, %s): 층마다 각 노드가 들어오는 모든 간선(관계 유형·자기 루프 ' ...
         '포함)을 하나의 softmax로 모은다. 관계는 최대 %d홉까지 합성되고, 마지막 층의 7개 노드 임베딩 전체가 ' ...
         '그래프 리드아웃으로 들어간다. 게이트·우회 경로 없음.'],q.computed,S.layers,S.attentionMode,S.layers)};
+    if isfield(S,'residualMix') && S.residualMix > 0
+        keep = 1-S.residualMix; mix = S.residualMix;
+        if isfield(S,'residualRule') && strcmp(S.residualRule,'variance_preserving_v1')
+            keep = sqrt(keep); mix = sqrt(mix);
+        end
+        sec6{end+1} = sprintf(['%s 층 2부터는 H^l = %.3f·H^(l-1) + %.3f·F^l (고정 잔차 보간, 학습 파라미터 없음): ' ...
+            '이전 층 상태(이미 층 1의 관계 집계를 거친 값)와 이번 층 관계 집계 F^l을 섞는다. 원시 노드 특징이 ' ...
+            '관계 처리 없이 리드아웃에 닿는 경로는 아니다.'],q.computed,keep,mix); %#ok<AGROW>
+    end
     for l = 1:S.layers
         Hl = A.layerH{l};
         for j = 1:S.nNodes

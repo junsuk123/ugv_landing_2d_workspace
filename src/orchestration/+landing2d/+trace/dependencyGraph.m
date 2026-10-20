@@ -16,8 +16,9 @@ function D = dependencyGraph(decisionTrace)
 %                            (self-connection) weight Wroot_l of every layer;
 %                            archived rgat_v1 local path W0 (single layer)
 %   h<L> -> readout -> actor -> action   all seven final embeddings
-% A path therefore chains at most L relations (rgat_v2: L = 2, two-hop
-% compositions; rgat_v1: one hop). The attention score of an edge also reads
+% A path therefore chains at most L relations (rgat_v2: L = spec.layers,
+% 2 in v2.0/v2.1 and 4 in depth4_v1, whose residual mix H^(l-1) -> H^l runs
+% along the same node-own arc; rgat_v1: one hop). The attention score of an edge also reads
 % the destination state and its softmax the other incoming edges of the same
 % pool; the chain text states this, the DAG keeps the message lineage.
 % Reachability is structural, not a numeric contribution.

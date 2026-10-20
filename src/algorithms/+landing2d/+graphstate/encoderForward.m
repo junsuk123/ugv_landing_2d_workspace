@@ -62,20 +62,29 @@ end
 end
 
 function [g,cache] = forwardV2(params,spec,policyInput)
-% rgat_v2: H^l = tanh(Wroot_l H^{l-1}_i + sum_{j->i} alpha_ij W_r(ij) H^{l-1}_j
+% rgat_v2: F^l = tanh(Wroot_l H^{l-1}_i + sum_{j->i} alpha_ij W_r(ij) H^{l-1}_j
 % + b_l), alpha normalized over every incoming edge of i (all relation types
 % incl. self), W_r = sum_b C(r,b) V_b (R-GCN root weight + relational
-% attention); then g = tanh(sum_k (Wc H^L_k) .* Wn(:,k) + bg).
+% attention); H^1 = F^1 and, for l >= 2, H^l = (1-eta) H^{l-1} + eta F^l
+% with the fixed spec.residualMix eta (eta = 0: H^l = F^l, v2.0/v2.1); then
+% g = tanh(sum_k (Wc H^L_k) .* Wn(:,k) + bg). layerF holds F^l, layerH H^l.
 B = size(policyInput,2); N = spec.nNodes; dh = spec.hiddenDim; L = spec.layers;
+eta = 0; if isfield(spec,'residualMix'), eta = spec.residualMix; end
+[keep,mix] = residualWeights(spec,eta);
 previous = reshape(policyInput,spec.inDim,N,B);
-layerCaches = cell(1,L); layerH = cell(1,L);
+layerCaches = cell(1,L); layerH = cell(1,L); layerF = cell(1,L);
 for l = 1:L
     V = params.(sprintf('V%d',l)); C = params.(sprintf('C%d',l));
     W = landing2d.graphstate.basisWeights(V,C);
     [Z,layerCaches{l}] = landing2d.rgat.relationForward(previous,W, ...
         params.(sprintf('a%d',l)),params.(sprintf('E%d',l)),spec.T,[],spec.attentionMode);
     root = reshape(params.(sprintf('Wroot%d',l))*reshape(previous,size(previous,1),N*B),dh,N,B);
-    layerH{l} = tanh(reshape(Z,dh,N,B)+root+params.(sprintf('b%d',l)));
+    layerF{l} = tanh(reshape(Z,dh,N,B)+root+params.(sprintf('b%d',l)));
+    if l >= 2 && eta > 0
+        layerH{l} = keep*previous+mix*layerF{l};
+    else
+        layerH{l} = layerF{l};
+    end
     previous = layerH{l};
 end
 H = previous;
@@ -90,6 +99,15 @@ g = tanh(reshape(sum(channel.*params.Wn,2),spec.graphDim,B)+params.bg);
 % cache1 = first layer (the attention diagnostics read cache1.alpha).
 cache = struct('mode',spec.mode,'encoderVersion','rgat_v2','B',B,'N',N,'dh',dh, ...
     'cache1',layerCaches{1},'layerCaches',{layerCaches},'layerH',{layerH}, ...
+    'layerF',{layerF},'residualMix',eta,'residualKeep',keep,'residualWeight',mix, ...
     'Xf',reshape(policyInput,spec.inDim,N*B),'H',H,'grouped',grouped, ...
     'channel',channel,'g',g);
+end
+
+function [keep,mix] = residualWeights(spec,eta)
+% Weights of H^l = keep H^(l-1) + mix F^l (l >= 2).
+keep = 1-eta; mix = eta;
+if isfield(spec,'residualRule') && strcmp(spec.residualRule,'variance_preserving_v1')
+    keep = sqrt(1-eta); mix = sqrt(eta);
+end
 end

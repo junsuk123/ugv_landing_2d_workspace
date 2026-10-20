@@ -9,7 +9,7 @@ function report = selfTest(options)
 % exact unless a tolerance is stated.
 if nargin < 1, options = struct(); end
 registry = landing2d.config.methodRegistry();
-if ~isfield(options,'trainSeed'), options.trainSeed = registry.trainSeeds.v21(1); end
+if ~isfield(options,'trainSeed'), options.trainSeed = registry.trainSeeds.depth4(1); end
 if ~isfield(options,'glossary'), options.glossary = ''; end
 root = landing2d.orchestration.projectRoot();
 cfg = landing2d.config.primaryConfig(root);
@@ -214,8 +214,8 @@ D = landing2d.trace.dependencyGraph(F.S4); L = D.layers;
 keys = ["실제 센서 사건","결정론적 파생","메시지 전달 간선 아님","단일 R-GAT 층","동시 계산", ...
         "설명용 순서","물리적 지연","다중 홉 추론이 아님"];
 if strcmp(F.S4.schema.encoderVersion,'rgat_v2')
-    keys = ["실제 센서 사건","결정론적 파생","메시지 전달 간선 아님","2층 R-GAT","동시 계산", ...
-        "설명용 순서","물리적 지연","최대 2홉","게이트 없음"];
+    keys = ["실제 센서 사건","결정론적 파생","메시지 전달 간선 아님",sprintf("%d층 R-GAT",L),"동시 계산", ...
+        "설명용 순서","물리적 지연",sprintf("최대 %d홉",L),"게이트 없음"];
 end
 for key = keys
     assert(contains(legendText,key),'Legend lacks "%s".',key);
