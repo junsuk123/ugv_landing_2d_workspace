@@ -601,3 +601,21 @@ v2.5에서 두 그래프 비교군은 모두 4/4 시드가 학습되었지만 TO
 - **개발 게이트:** v2.5와 같다. `run_check` 14/14+smoke, 두 그래프 비교군 각각 3/4 이상 `Reached80`, TOSM−Shuffled AUC 평균 양수 및 3/4 이상 양수. 실패하면 확인 시드를 열지 않고 v2.7 이상으로 올린다.
 - **확인 시드:** `registry.trainSeeds.v26 = 91:100`(n=10). 이 문장을 쓴 시점에 학습하지 않았다. v2.5에 예약했지만 쓰지 않은 71–80은 재사용하지 않는다.
 - **확인 분석·목적 판정:** §12.2와 동일한 5×2 주 변수, 시드 짝 차이, 95% 구간, 8/10 방향, ±5%p 동등, Holm 10개를 쓴다. TOSM−Shuffled 중 적어도 하나가 `Delta > 0`, Holm 보정 `Difference = true`, `SeedRobust = true`를 모두 만족해야 목적 달성이다.
+
+### 13.3 개발 게이트 결과 (2026-10-21)
+
+- `run_check`는 실제 MATLAB에서 self-test 14/14와 smoke pipeline을 통과했다.
+- 사전 등록 스크립트 `results/v26_scripts/train_v26_dev.m`의 SHA-256은 문서에 고정한 `89ca46f11cd43ce63609649a814bd0a6bed56eb99f5069e15db3d182d2878a5c`와 일치했다.
+- 8개 run을 모두 완료했다. 원시 집계는 `results/evaluation/v26_dev_learning_runs.csv`, 판정은 `results/evaluation/v26_dev_gate.csv`에 있다.
+
+| 학습 시드 | TOSM AUC | Shuffled AUC | TOSM−Shuffled | TOSM `Reached80` | Shuffled `Reached80` |
+|---:|---:|---:|---:|:---:|:---:|
+| 81 | 0.016667 | 0.802833 | −0.786167 | 아니오 | 예 |
+| 82 | 0.522833 | 0.762000 | −0.239167 | 예 | 예 |
+| 83 | 0.484667 | 0.363667 | +0.121000 | 예 | 예 |
+| 84 | 0.680667 | 0.804833 | −0.124167 | 예 | 예 |
+
+- TOSM은 3/4, Shuffled는 4/4 시드에서 `Reached80`을 만족해 학습 가능성 하한은 통과했다.
+- TOSM−Shuffled 평균 AUC는 **−0.257125**, 양의 짝 차이는 **1/4**였다.
+- **판정: 실패 (`Passed = false`).** 사전 등록한 평균 양수 및 3/4 방향 조건을 모두 실패했으므로 확인 시드 91–100은 열지 않는다.
+- **해석:** `qualifiesEstimate` 메시지가 추정 노드의 전체 상태를 곱하는 신뢰도 gate는 canonical graph에 일관된 이득을 주지 않았다. 특히 시드 81에서 TOSM은 750 update 동안 `Reached80`을 달성하지 못한 반면 Shuffled는 AUC 0.802833이었다. 다음 버전은 결과를 본 뒤 v2.6 임계값을 바꾸지 않고, 곱셈 gate·연산군을 제거한 별도 알고리즘 버전과 새 개발 시드를 사용한다.
