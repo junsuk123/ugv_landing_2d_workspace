@@ -76,6 +76,16 @@ if strcmp(gs.encoderVersion,'rgat_v2')
                 'A fixed relation codebook requires no operators, 3 bases and relationDim 4.');
         end
     end
+    if isfield(gs,'v2ReadoutParameterization')
+        assert(ismember(gs.v2ReadoutParameterization, ...
+            {'node_specific_v1','node_shared_mean_v1'}), ...
+            'landing2d:ReadoutParameterization', ...
+            'Unknown rgat_v2 readout parameterization.');
+        if strcmp(gs.v2ReadoutParameterization,'node_shared_mean_v1')
+            assert(strcmp(gs.v2Operators,'none'),'landing2d:ReadoutParameterization', ...
+                'node_shared_mean_v1 is registered for the standard ungated rgat_v2 encoder.');
+        end
+    end
 end
 if isfield(gs,'relationOperators')
     assert(strcmp(gs.stateRepresentation,'context_rgat') ...

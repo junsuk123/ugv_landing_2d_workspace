@@ -140,6 +140,10 @@ spec.rawDim = spec.graphStateDim; spec.stateDim = spec.graphStateDim;
 spec.groupMatrix = schema.groupMatrix;
 spec.groupNames = schema.groupNames;
 spec.groupCount = size(schema.groupMatrix,1);
+spec.readoutParameterization = 'node_specific_v1';
+if isfield(gs,'v2ReadoutParameterization')
+    spec.readoutParameterization = gs.v2ReadoutParameterization;
+end
 spec.graphDim = gs.graphDim;
 spec.parameterRelationCount = R;
 spec.v2Operators = 'none';
@@ -206,7 +210,11 @@ for l = 1:gs.layers
     params.(name.b) = zeros(dh,1);
 end
 params.Wc = randn(rs,gs.graphDim,dh)/sqrt(dh);
-params.Wn = randn(rs,gs.graphDim,spec.groupCount)/sqrt(spec.groupCount);
+if strcmp(spec.readoutParameterization,'node_shared_mean_v1')
+    params.Wn = randn(rs,gs.graphDim,1);
+else
+    params.Wn = randn(rs,gs.graphDim,spec.groupCount)/sqrt(spec.groupCount);
+end
 params.bg = zeros(gs.graphDim,1);
 end
 

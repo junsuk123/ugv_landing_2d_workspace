@@ -56,7 +56,7 @@ R-GAT 비교군(`onto_rgat_ppo`, `shuffled_rgat_ppo`)의 상태 표현이다. 10
 상대 위치 변화에 영향을 준다는 뜻이다. 현재 상대 위치를 상대 속도만으로 정한다는 뜻은 아니다.
 관계 구조는 고정되어 있고, 매 시점 바뀌는 것은 노드 특징뿐이다.
 
-## 인코더 (`rgat_v2`, 기본값 `relational-policy-v2.8`, 2026-10-21)
+## 인코더 (`rgat_v2`, 기본값 `relational-policy-v2.9`, 2026-10-21)
 
 설계 근거와 사전 등록은 `RGAT_V2_DESIGN_KO.md`에 있다.
 
@@ -67,9 +67,9 @@ R-GAT 비교군(`onto_rgat_ppo`, `shuffled_rgat_ppo`)의 상태 표현이다. 10
 - attention은 층마다 공유 벡터 하나를 학습하고, 관계 임베딩은 위 의미 기술자와 self 표시의 고정 4차원 벡터다. 관계별 독립 학습 파라미터로 교란 라벨을 재명명할 수 없다.
 - 2층이라 리드아웃 전에 관계가 최대 2홉까지 합성된다. 예: `qualifiesEstimate` 다음 `conditionsLanding`.
 - 곱셈 게이트, 연산군(modulate/propagate), 항등 초기화, 손으로 고른 readout 시작점(`readoutInit`)은 없다. 초기화는 LeCun 정규 분포다.
-- `grouped_factorized` readout: 노드 × 채널 분해로 16차원 graph embedding을 만든다.
+- `grouped_factorized` readout: 하나의 채널 벡터를 7개 노드에 공유하고 노드 항을 평균해 16차원 graph embedding을 만든다. 특정 노드에 별도 readout 가중치를 주지 않는다(`RGAT_V2_DESIGN_KO.md` §16).
 - 파라미터:
-  - 인코더 하나 1,896개, Actor MLP 27-23, Critic MLP 27-24
+  - 인코더 하나 1,800개, Actor MLP 26-28, Critic MLP 27-27
   - 전체 6,101개로 일반 PPO(MLP 48-48)와 같다(selfTest `contract`, `relation-attention`)
 - `schema.relationOperators`(modulate/propagate)는 v1.x 기록을 위한 서술용 메타데이터다. `rgat_v2` 계산에는 쓰이지 않는다.
 

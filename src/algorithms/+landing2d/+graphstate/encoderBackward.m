@@ -16,10 +16,21 @@ grads.Wn = zeros(size(params.Wn));
 grads.bg = sum(preOutput,2);
 dH = zeros(dh,N,B);
 for b = 1:B
-    weighted = preOutput(:,b).*params.Wn;
-    grads.Wc = grads.Wc+weighted*cache.grouped(:,:,b)';
-    grads.Wn = grads.Wn+preOutput(:,b).*cache.channel(:,:,b);
-    dH(:,:,b) = (params.Wc'*weighted)*spec.groupMatrix;
+    sharedMean = isfield(spec,'readoutParameterization') ...
+        && strcmp(spec.readoutParameterization,'node_shared_mean_v1');
+    if sharedMean
+        K = spec.groupCount;
+        weighted = preOutput(:,b).*params.Wn;
+        grads.Wc = grads.Wc+weighted*mean(cache.grouped(:,:,b),2)';
+        grads.Wn = grads.Wn+preOutput(:,b).*mean(cache.channel(:,:,b),2);
+        dGrouped = repmat(params.Wc'*weighted/K,1,K);
+        dH(:,:,b) = dGrouped*spec.groupMatrix;
+    else
+        weighted = preOutput(:,b).*params.Wn;
+        grads.Wc = grads.Wc+weighted*cache.grouped(:,:,b)';
+        grads.Wn = grads.Wn+preOutput(:,b).*cache.channel(:,:,b);
+        dH(:,:,b) = (params.Wc'*weighted)*spec.groupMatrix;
+    end
 end
 if isV2
     [grads,dPolicyInput] = backwardV2(params,spec,cache,grads,dH);

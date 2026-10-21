@@ -42,5 +42,9 @@ function version = algorithmVersion()
 % codebook by fixed ontology-role descriptors for message coefficients and
 % attention embeddings. Architecture, trainable parameter count, PPO and
 % the common task contract are unchanged.
-version = 'relational-policy-v2.8';
+% relational-policy-v2.9 (2026-10-21): share the grouped-factorized readout
+% channel weights across all seven nodes and mean their terms. This removes
+% the node-specific shortcut without choosing a sink; saved capacity moves
+% to the graph-arm heads and the total remains 6,101.
+version = 'relational-policy-v2.9';
 end
