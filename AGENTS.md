@@ -1,6 +1,6 @@
 # 코드 유지 가이드 (`relational_policy_v1`, 2026-10-17 재설계)
 
-> **진행 중 작업 (2026-10-21):** v2.4 확인은 관계 의미 효과를 입증하지 못했고(§11.4), v2.5 개발 게이트는 AUC 방향 1/4로 실패했다(§12.3). v2.6 신뢰도 게이트 병목이 §13에 사전 등록되었고 개발 시드 81–84 실행 전이다.
+> **진행 중 작업 (2026-10-21):** v2.4 확인과 v2.5–v2.7 개발 게이트는 관계 의미 효과를 입증하지 못했다(설계 문서 §11.4, §12.3, §13.3, §14.3). v2.8 고정 관계 의미 기술자가 §15에 사전 등록되었고 개발 시드 121–124 실행 전이다.
 
 ## 적용 범위
 
@@ -52,6 +52,8 @@
     - v2.4 (2026-10-21, 사용자 결정, §11): 의미별 고정 연산 `v2Operators = semantic_fixed_v1`. 층마다 modulate 관계(qualifiesEstimate·conditionsLanding) 간선이 게이트 그래프, propagate 관계와 self가 덧셈 그래프. $F^l=(1+\tanh Z^{mod})\odot\tanh(Z^{prop}+W^{root}h+b)$, 그래프마다 softmax. 같은 $W_r$·a·E를 써서 파라미터·초기 가중치는 v2.3과 같다. Shuffled는 연산군도 10/13 바뀐다
     - v2.5 (2026-10-21, §12): `semantic_bottleneck_v1`. propagate/modulate 파라미터를 연산군 내에서 공유하고 `LandingCondition` 종착점만 `grouped_factorized` readout으로 읽어, 셔플 재학습과 전체 노드 우회를 막는다
     - v2.6 (2026-10-21, §13): `semantic_reliability_bottleneck_v1`. `qualifiesEstimate`만 신뢰도 게이트, 나머지 관계와 self는 signed 정보를 보존하는 덧셈 경로. v2.5의 공유 파라미터·종착점 readout은 유지
+  - v2.7 (2026-10-21, §14): 표준 2층 R-GAT으로 복귀하고 관계별 독립 학습 용량 대신 고정 순환 코드북을 사용. 개발 게이트 AUC 방향 2/4로 실패
+  - v2.8 (2026-10-21, §15): 표준 2층 R-GAT과 3개 공통 기저를 유지하고, 순환 코드를 온톨로지 관계 역할의 고정 의미 기술자로 교체. 인코더 1,896개, Actor 27-23, Critic 27-24, 총 6,101개
   - 금지: 항등 초기화 경로·손으로 고른 readout 시작점·특정 비교군이나 시드에 맞춘 튜닝. v2.0–v2.3은 곱셈 게이트·연산군도 금지했고, v2.4는 사용자 결정으로 의미별 고정 연산만 허용한다(학습되는 연산 선택·비교군별 연산은 여전히 금지). 성능은 온톨로지 그래프, R-GAT 구조, 정책 입력 경로로만 검증한다
   - v2.5 파라미터: 인코더당 2,056개, Actor 24-24, Critic 24-20으로 총 6,101개. v2.2–v2.4는 인코더당 2,560개, Actor 16-12, Critic 15-13이다
   - v2.0/v2.1 2층(16-D, 잔차 없음, 1,892개, 27-26/25-24)과 `rgat_v1`(단일 층 `typed_v1`/`additive_v1`, v1.x 기록 재현용)은 선택지로만 유지
@@ -75,7 +77,7 @@
 - 시드 계약
   - 환경 시드 < 1e6
   - split 서로소: validation 2001–2200, test 3001–3200, stress 9001–9200, 고정 사례 41001–49999, PPO 학습 에피소드 100001–999999 (`validatePrimaryConfig`가 검사)
-  - 학습 시드 s → `rl.seed = base + s − 1`. 기본 1–5, v4 확장 1–10, v5 대조군 수정 확인 11–15, v2.0 확인 16–20(`registry.trainSeeds.v2`), v2.1 게이트 6–9(`v21Dev`), v2.2(4층) 게이트 6–9(`depth4Dev`, 도중 중단), v2.3 게이트 6–9(`v23Dev`), v2.3 확인 21–30(`v23`), v2.4 확인 51–60(`v24`), v2.5 개발 61–64(`v25Dev`, 실패; 71–80 미사용), v2.6 개발 81–84(`v26Dev`), v2.6 확인 91–100(`v26`). 확인 시드는 학습 전 사전 등록
+  - 학습 시드 s → `rl.seed = base + s − 1`. 기본 1–5, v4 확장 1–10, v5 대조군 수정 확인 11–15, v2.0 확인 16–20(`v2`), v2.3 확인 21–30(`v23`), v2.4 확인 51–60(`v24`), v2.5 개발 61–64(실패; 71–80 미사용), v2.6 개발 81–84(실패; 91–100 미사용), v2.7 개발 101–104(실패; 111–120 미사용), v2.8 개발 121–124(`v28Dev`), v2.8 확인 131–140(`v28`, 학습 전 사전 등록)
 - 체크포인트 선택은 validation만 사용
   - test·stress·고정 사례·probe 결과로 체크포인트·임계값·사례를 고르는 것은 금지
 - 통제 사례 S1–S4(`landing2d.evaluation.factorialCases`)
@@ -120,6 +122,7 @@ run_check('learnability')    % 새 환경에서 과제 학습 가능성 사전 �
 run                          % 3 비교군 × 학습 시드 1–5
 run(struct('trainSeeds',21:30,'concurrentRuns',8,'concurrentPool','threads'))   % v2.3(4층, 10차원 o_t) 확인 실험 (결과: results/archive/v2.3_s21-30_2026-10-21)
 run(struct('trainSeeds',51:60,'concurrentRuns',8,'concurrentPool','threads'))   % v2.4(의미별 고정 연산) 확인 실험
+% v2.8 개발 게이트는 results/v28_scripts/train_v28_dev.m
 run_scenario('S4')
 run_scenario('S4',struct('trace',true))    % 결정 추적 대시보드 (학습된 M2, 시드 21)
 run_scenario([],struct('replay','results/trace/S4_onto_rgat_ppo_s11_r01.mat'))

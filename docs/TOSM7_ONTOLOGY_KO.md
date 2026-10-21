@@ -56,19 +56,20 @@ R-GAT 비교군(`onto_rgat_ppo`, `shuffled_rgat_ppo`)의 상태 표현이다. 10
 상대 위치 변화에 영향을 준다는 뜻이다. 현재 상대 위치를 상대 속도만으로 정한다는 뜻은 아니다.
 관계 구조는 고정되어 있고, 매 시점 바뀌는 것은 노드 특징뿐이다.
 
-## 인코더 (`rgat_v2`, 기본값, 2026-10-20)
+## 인코더 (`rgat_v2`, 기본값 `relational-policy-v2.8`, 2026-10-21)
 
 설계 근거와 사전 등록은 `RGAT_V2_DESIGN_KO.md`에 있다.
 
 - 표준 관계형 그래프 어텐션 2층을 쓴다. 층마다 모든 간선(의미 13 + self 7)이 관계별 가중치 $W_r$로 메시지 $W_r h_j$를 보낸다.
 - 도착 노드는 들어오는 모든 간선(모든 관계 유형과 self)에 대해 입력 의존 attention 하나로 메시지를 모은다. 그래서 입력이 하나뿐인 관계 풀이 α = 1에 고정되지 않는다.
 - 노드 갱신은 $h^{(l)}_i=\tanh(W^{(l)}_0h^{(l-1)}_i+\sum_j\alpha_{ij}W_{r(ij)}h^{(l-1)}_j+b^{(l)})$이다. $W^{(l)}_0$는 표준 R-GCN 층의 root(self-connection) 가중치이고 무작위로 초기화한다.
-- 관계 가중치는 공유 기저 2개의 조합 $W_r=\sum_b C_{rb}V_b$다.
+- 관계 가중치는 공유 기저 3개의 조합 $W_r=\sum_b C_{rb}V_b$다. $C_r$는 학습하지 않고 관계 의미 기술자로 고정한다. 공통 좌표, 도착 맥락의 추상화 단계, 관측 품질/자기 정보 역할을 나타내며 모든 행의 크기는 1이다(`RGAT_V2_DESIGN_KO.md` §15).
+- attention은 층마다 공유 벡터 하나를 학습하고, 관계 임베딩은 위 의미 기술자와 self 표시의 고정 4차원 벡터다. 관계별 독립 학습 파라미터로 교란 라벨을 재명명할 수 없다.
 - 2층이라 리드아웃 전에 관계가 최대 2홉까지 합성된다. 예: `qualifiesEstimate` 다음 `conditionsLanding`.
 - 곱셈 게이트, 연산군(modulate/propagate), 항등 초기화, 손으로 고른 readout 시작점(`readoutInit`)은 없다. 초기화는 LeCun 정규 분포다.
 - `grouped_factorized` readout: 노드 × 채널 분해로 16차원 graph embedding을 만든다.
 - 파라미터:
-  - 인코더 하나 1,892개, Actor MLP 27-26, Critic MLP 25-24
+  - 인코더 하나 1,896개, Actor MLP 27-23, Critic MLP 27-24
   - 전체 6,101개로 일반 PPO(MLP 48-48)와 같다(selfTest `contract`, `relation-attention`)
 - `schema.relationOperators`(modulate/propagate)는 v1.x 기록을 위한 서술용 메타데이터다. `rgat_v2` 계산에는 쓰이지 않는다.
 

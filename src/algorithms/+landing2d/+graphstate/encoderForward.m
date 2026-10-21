@@ -85,7 +85,8 @@ layerAdd = cell(1,L); layerMod = cell(1,L); layerA = cell(1,L); layerM = cell(1,
 for l = 1:L
     V = params.(sprintf('V%d',l));
     fixedCodebook = isfield(spec,'relationParameterization') ...
-        && strcmp(spec.relationParameterization,'fixed_cyclic_codebook_v1');
+        && ismember(spec.relationParameterization, ...
+        {'fixed_cyclic_codebook_v1','fixed_semantic_codebook_v1'});
     if fixedCodebook
         C = spec.fixedRelationCodebook;
         aShared = params.(sprintf('a%d',l));

@@ -109,14 +109,15 @@ gs.v2ValueHiddenSizes = [27,24];
 % 'semantic_fixed_v1' is v2.4; 'semantic_bottleneck_v1' is v2.5;
 % 'none' is v2.0-v2.3.
 gs.v2Operators = 'none';
-% relational-policy-v2.7: standard two-layer R-GAT without gates or operator
-% classes. Every relation transform is a fixed, equal-norm cyclic combination
-% of three trainable common bases; attention uses one shared trainable vector
-% and fixed regular-simplex relation embeddings. Thus a shuffled label cannot
-% acquire an independent parameter bank and silently relearn the permutation.
-% The codebook is fixed before training and treats all five relation labels
-% symmetrically. All seven nodes remain in the grouped-factorized readout.
-gs.v2RelationParameterization = 'fixed_cyclic_codebook_v1';
+% relational-policy-v2.8: standard two-layer R-GAT without gates or operator
+% classes. Every relation transform is a fixed, equal-norm combination of
+% three trainable common bases. The fixed coefficients describe the ontology
+% role of the relation (estimate-level, context depth, observation-quality or
+% self-retention role); the fixed attention embeddings use the same semantic
+% descriptors. A shuffled label therefore moves the prior to the wrong edge
+% and cannot acquire an independent parameter bank that relearns the shuffle.
+% All seven nodes remain in the grouped-factorized readout.
+gs.v2RelationParameterization = 'fixed_semantic_codebook_v1';
 % Input-dependent attention: alpha_ij^(r)(X_t) follows the current node
 % features. 'fixed_relation_v1' (observation-independent relation logits,
 % same parameters) remains available for a deliberate comparison.

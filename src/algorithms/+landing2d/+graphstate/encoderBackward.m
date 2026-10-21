@@ -67,7 +67,8 @@ for l = spec.layers:-1:1
     root = params.(sprintf('Wroot%d',l));
     V = params.(sprintf('V%d',l));
     fixedCodebook = isfield(spec,'relationParameterization') ...
-        && strcmp(spec.relationParameterization,'fixed_cyclic_codebook_v1');
+        && ismember(spec.relationParameterization, ...
+        {'fixed_cyclic_codebook_v1','fixed_semantic_codebook_v1'});
     if fixedCodebook
         C = spec.fixedRelationCodebook;
     else

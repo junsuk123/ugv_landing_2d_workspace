@@ -173,15 +173,22 @@ if typed
         spec.Tmod = landing2d.rgat.topology(subgraph(schema,isMod));
     end
 end
-dFixed = strcmp(spec.relationParameterization,'fixed_cyclic_codebook_v1');
+dFixed = ismember(spec.relationParameterization, ...
+    {'fixed_cyclic_codebook_v1','fixed_semantic_codebook_v1'});
 if dFixed
     assert(~typed,'landing2d:RelationParameterization', ...
-        'fixed_cyclic_codebook_v1 uses the standard single attention graph.');
+        'A fixed relation codebook uses the standard single attention graph.');
     assert(Bb==3 && R==5 && gs.relationDim==4,'landing2d:RelationParameterization', ...
-        'fixed_cyclic_codebook_v1 requires 5 relations, 3 bases and relationDim 4.');
-    theta = 2*pi*(0:R-1)'/R;
-    spec.fixedRelationCodebook = [ones(R,1),sqrt(2)*cos(theta),sqrt(2)*sin(theta)]/sqrt(3);
-    spec.fixedRelationEmbedding = regularSimplex(R);
+        'A fixed relation codebook requires 5 relations, 3 bases and relationDim 4.');
+    if strcmp(spec.relationParameterization,'fixed_cyclic_codebook_v1')
+        theta = 2*pi*(0:R-1)'/R;
+        spec.fixedRelationCodebook = ...
+            [ones(R,1),sqrt(2)*cos(theta),sqrt(2)*sin(theta)]/sqrt(3);
+        spec.fixedRelationEmbedding = regularSimplex(R);
+    else
+        [spec.fixedRelationCodebook,spec.fixedRelationEmbedding, ...
+            spec.relationDescriptorNames] = semanticCodebook(schema.relationNames);
+    end
 end
 dims = [schema.inDim,repmat(dh,1,gs.layers)];
 params = struct();
@@ -211,6 +218,37 @@ for k = 1:R-1
     E(k,k+1) = -k/sqrt(k*(k+1));
 end
 E = sqrt(R/(R-1))*E;
+end
+
+function [C,E,names] = semanticCodebook(relationNames)
+% Fixed descriptors from the declared ontology roles, not learned labels.
+% Message coefficients: [shared, target abstraction depth, evidence role].
+% Estimate-producing relations are depth -1, visibility context is 0 and
+% the landing-condition relation is +1. Observation quality is evidence
+% role +1, ordinary propagation is 0 and self-retention is -1. Every row is
+% normalized so no relation receives a larger message solely from its code.
+expected = {'qualifiesEstimate','informsMotion','affectsVisibility', ...
+    'conditionsLanding','self'};
+assert(numel(relationNames)==numel(expected) ...
+    && all(ismember(expected,relationNames)),'landing2d:RelationParameterization', ...
+    'fixed_semantic_codebook_v1 requires the five tosm7 relation names.');
+rawByMeaning = [1,-1, 1; ... % observation quality -> estimated state
+                1,-1, 0; ... % motion evidence -> estimated state
+                1, 0, 0; ... % state/motion -> visibility context
+                1, 1, 0; ... % state/context -> landing condition
+                1, 0,-1];    % retain local node evidence
+C = zeros(numel(relationNames),3);
+selfIndicator = zeros(1,numel(relationNames));
+for k = 1:numel(expected)
+    r = find(strcmp(relationNames,expected{k}));
+    C(r,:) = rawByMeaning(k,:)/sqrt(sum(rawByMeaning(k,:).^2));
+    selfIndicator(r) = strcmp(expected{k},'self');
+end
+% Attention uses the same three descriptors plus an explicit self flag.
+% Columns are normalized because relationForward consumes E(:,r).
+E = [C';selfIndicator];
+E = E./sqrt(sum(E.^2,1));
+names = {'sharedEvidence','targetAbstractionDepth','evidenceRole','selfRetention'};
 end
 
 function name = layerNames(l)

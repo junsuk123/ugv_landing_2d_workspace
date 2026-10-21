@@ -38,5 +38,9 @@ function version = algorithmVersion()
 % grouped readout. Fixed cyclic basis coefficients and fixed simplex relation
 % embeddings prevent shuffled labels from becoming independent trainable
 % capacity buckets; trainable capacity is shared across relation labels.
-version = 'relational-policy-v2.7';
+% relational-policy-v2.8 (2026-10-21): replace the label-symmetric cyclic
+% codebook by fixed ontology-role descriptors for message coefficients and
+% attention embeddings. Architecture, trainable parameter count, PPO and
+% the common task contract are unchanged.
+version = 'relational-policy-v2.8';
 end
