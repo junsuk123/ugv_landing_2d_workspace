@@ -75,8 +75,9 @@ function [g,cache] = forwardV2(params,spec,policyInput)
 % incl. self), W_r = sum_b C(r,b) V_b (R-GCN root weight + relational
 % attention); H^1 = F^1 and, for l >= 2, H^l = (1-eta) H^{l-1} + eta F^l
 % with the fixed spec.residualMix eta (eta = 0: H^l = F^l, v2.0/v2.1); then
-% g = tanh(sum_k (Wc H^L_k) .* Wn / sqrt(K) + bg) for
-% node_shared_variance_v1;
+% fixed_node_codebook_v1 uses
+% g_d = tanh(Wn_d sum_k Q_dk (Wc H^L_k)_d + bg_d), where Q is fixed,
+% row-normalized and equal-energy across nodes;
 % layerF holds F^l, layerH H^l.
 % v2Operators 'semantic_fixed_v1' (relational-policy-v2.4): the propagate
 % edges with self (spec.Tadd) and the modulate edges (spec.Tmod) are two
@@ -141,6 +142,9 @@ if strcmp(spec.readoutParameterization,'node_shared_mean_v1')
     readoutPreActivation = reshape(sum(channel.*params.Wn,2)/K,spec.graphDim,B)+params.bg;
 elseif strcmp(spec.readoutParameterization,'node_shared_variance_v1')
     readoutPreActivation = reshape(sum(channel.*params.Wn,2)/sqrt(K),spec.graphDim,B)+params.bg;
+elseif strcmp(spec.readoutParameterization,'fixed_node_codebook_v1')
+    readoutPreActivation = reshape(sum(channel.*spec.fixedNodeReadoutCodebook,2), ...
+        spec.graphDim,B).*params.Wn+params.bg;
 else
     readoutPreActivation = reshape(sum(channel.*params.Wn,2),spec.graphDim,B)+params.bg;
 end

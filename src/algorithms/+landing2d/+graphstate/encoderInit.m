@@ -211,12 +211,37 @@ for l = 1:gs.layers
 end
 params.Wc = randn(rs,gs.graphDim,dh)/sqrt(dh);
 if ismember(spec.readoutParameterization, ...
-        {'node_shared_mean_v1','node_shared_variance_v1'})
+        {'node_shared_mean_v1','node_shared_variance_v1', ...
+        'fixed_node_codebook_v1'})
     params.Wn = randn(rs,gs.graphDim,1);
 else
     params.Wn = randn(rs,gs.graphDim,spec.groupCount)/sqrt(spec.groupCount);
 end
+if strcmp(spec.readoutParameterization,'fixed_node_codebook_v1')
+    spec.fixedNodeReadoutCodebook = fixedNodeReadoutCodebook(gs.graphDim,N);
+end
 params.bg = zeros(gs.graphDim,1);
+end
+
+function Q = fixedNodeReadoutCodebook(graphDim,nNodes)
+% Equal-energy real-Fourier frame for the seven declared ontology nodes.
+% A complete real Fourier basis is orthonormal. With graphDim=16 and N=7,
+% two complete bases plus one cosine/sine pair give every row unit norm and
+% every node identical total energy (16/7). The code is fixed and has no
+% trainable node-specific parameter.
+assert(nNodes==7 && graphDim==16,'landing2d:ReadoutParameterization', ...
+    'fixed_node_codebook_v1 is registered for the 7-node, 16-D graph embedding.');
+phase = 2*pi*(0:nNodes-1)/nNodes;
+basis = ones(1,nNodes)/sqrt(nNodes);
+for frequency = 1:(nNodes-1)/2
+    basis = [basis; sqrt(2/nNodes)*cos(frequency*phase); ... %#ok<AGROW>
+        sqrt(2/nNodes)*sin(frequency*phase)]; %#ok<AGROW>
+end
+Q = [basis;basis;basis(2:3,:)];
+assert(isequal(size(Q),[graphDim,nNodes]) ...
+    && max(abs(sum(Q.^2,2)-1))<1e-12 ...
+    && max(abs(sum(Q.^2,1)-graphDim/nNodes))<1e-12, ...
+    'landing2d:ReadoutParameterization','Invalid fixed node readout codebook.');
 end
 
 function E = regularSimplex(R)

@@ -19,6 +19,8 @@ for b = 1:B
     sharedReadout = isfield(spec,'readoutParameterization') ...
         && ismember(spec.readoutParameterization, ...
         {'node_shared_mean_v1','node_shared_variance_v1'});
+    fixedNodeCode = isfield(spec,'readoutParameterization') ...
+        && strcmp(spec.readoutParameterization,'fixed_node_codebook_v1');
     if sharedReadout
         K = spec.groupCount;
         scale = 1/K;
@@ -31,6 +33,15 @@ for b = 1:B
         grads.Wc = grads.Wc+weighted*pooledGrouped';
         grads.Wn = grads.Wn+preOutput(:,b).*pooledChannel;
         dGrouped = repmat(params.Wc'*weighted*scale,1,K);
+        dH(:,:,b) = dGrouped*spec.groupMatrix;
+    elseif fixedNodeCode
+        Q = spec.fixedNodeReadoutCodebook;
+        weighted = preOutput(:,b).*params.Wn;
+        codedGrouped = cache.grouped(:,:,b)*Q';
+        codedChannel = sum(cache.channel(:,:,b).*Q,2);
+        grads.Wc = grads.Wc+weighted.*codedGrouped';
+        grads.Wn = grads.Wn+preOutput(:,b).*codedChannel;
+        dGrouped = params.Wc'*(weighted.*Q);
         dH(:,:,b) = dGrouped*spec.groupMatrix;
     else
         weighted = preOutput(:,b).*params.Wn;

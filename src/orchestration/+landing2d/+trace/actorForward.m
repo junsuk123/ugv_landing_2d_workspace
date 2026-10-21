@@ -21,8 +21,8 @@ function F = actorForward(agent,policyInput)
 % gate .* A. The gate is not alpha. Readout g = tanh(sum_k (Wc H_k) .* Wn(:,k)
 % + bg); readoutTermNorm(k) = |(Wc H_k) .* Wn(:,k)| is the size of node k's
 % additive term in the readout pre-activation, not an action attribution.
-% rgat_v2 node-shared readouts use the same Wn column. The displayed node
-% terms include their registered pooling scale.
+% rgat_v2 shared readouts use the same Wn column. The displayed node terms
+% include their registered pooling scale or fixed node-role code.
 spec = agent.encoderSpec;
 params = agent.policy.encoder;
 [g,cache] = landing2d.graphstate.encoderForward(params,spec,policyInput,'policy');
@@ -130,6 +130,9 @@ if isfield(spec,'readoutParameterization') ...
 elseif isfield(spec,'readoutParameterization') ...
         && strcmp(spec.readoutParameterization,'node_shared_variance_v1')
     readoutTerm = (params.Wc*H).*params.Wn/sqrt(spec.groupCount);
+elseif isfield(spec,'readoutParameterization') ...
+        && strcmp(spec.readoutParameterization,'fixed_node_codebook_v1')
+    readoutTerm = (params.Wc*H).*spec.fixedNodeReadoutCodebook.*params.Wn;
 else
     readoutTerm = params.Wc*H.*params.Wn;
 end

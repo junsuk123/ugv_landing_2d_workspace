@@ -46,5 +46,9 @@ function version = algorithmVersion()
 % replace the arithmetic mean by the variance-preserving 1/sqrt(7) sum.
 % This restores the v2.8 initialization/backward scale without restoring
 % node-specific shortcut parameters; total capacity remains 6,101.
-version = 'relational-policy-v2.10';
+% relational-policy-v2.11 (2026-10-22): replace permutation-invariant node
+% pooling by a fixed equal-energy real-Fourier node code. Node identity is
+% retained without trainable node-specific weights or a selected sink;
+% encoder and total parameter counts remain 1,800 and 6,101.
+version = 'relational-policy-v2.11';
 end
