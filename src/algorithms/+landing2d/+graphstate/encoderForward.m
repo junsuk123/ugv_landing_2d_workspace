@@ -13,7 +13,7 @@ function [g,cache] = encoderForward(params,spec,policyInput,head)
 % a gate in (0, 2) that is 1 for nodes without modulating edges and starts
 % near 1. Then the grouped factorized readout
 % g = tanh(sum_k (Wc H_k) .* Wn(:,k) + bg). rgat_v2 can instead use the
-% registered node-shared mean form with one Wn column and a 1/K average.
+% registered node-shared form with one Wn column and a fixed pooling scale.
 % HEAD ('policy' or 'value') is informational: Actor and Critic have
 % separate encoders.
 if nargin < 4 || isempty(head), head = 'policy'; end %#ok<NASGU>
@@ -75,7 +75,8 @@ function [g,cache] = forwardV2(params,spec,policyInput)
 % incl. self), W_r = sum_b C(r,b) V_b (R-GCN root weight + relational
 % attention); H^1 = F^1 and, for l >= 2, H^l = (1-eta) H^{l-1} + eta F^l
 % with the fixed spec.residualMix eta (eta = 0: H^l = F^l, v2.0/v2.1); then
-% g = tanh(mean_k (Wc H^L_k) .* Wn + bg) for node_shared_mean_v1;
+% g = tanh(sum_k (Wc H^L_k) .* Wn / sqrt(K) + bg) for
+% node_shared_variance_v1;
 % layerF holds F^l, layerH H^l.
 % v2Operators 'semantic_fixed_v1' (relational-policy-v2.4): the propagate
 % edges with self (spec.Tadd) and the modulate edges (spec.Tmod) are two
@@ -138,6 +139,8 @@ for b = 1:B
 end
 if strcmp(spec.readoutParameterization,'node_shared_mean_v1')
     readoutPreActivation = reshape(sum(channel.*params.Wn,2)/K,spec.graphDim,B)+params.bg;
+elseif strcmp(spec.readoutParameterization,'node_shared_variance_v1')
+    readoutPreActivation = reshape(sum(channel.*params.Wn,2)/sqrt(K),spec.graphDim,B)+params.bg;
 else
     readoutPreActivation = reshape(sum(channel.*params.Wn,2),spec.graphDim,B)+params.bg;
 end

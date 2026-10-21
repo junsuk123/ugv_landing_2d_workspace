@@ -210,7 +210,8 @@ for l = 1:gs.layers
     params.(name.b) = zeros(dh,1);
 end
 params.Wc = randn(rs,gs.graphDim,dh)/sqrt(dh);
-if strcmp(spec.readoutParameterization,'node_shared_mean_v1')
+if ismember(spec.readoutParameterization, ...
+        {'node_shared_mean_v1','node_shared_variance_v1'})
     params.Wn = randn(rs,gs.graphDim,1);
 else
     params.Wn = randn(rs,gs.graphDim,spec.groupCount)/sqrt(spec.groupCount);

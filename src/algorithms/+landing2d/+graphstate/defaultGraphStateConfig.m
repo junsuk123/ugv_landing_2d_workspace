@@ -76,7 +76,7 @@ gs.residualMix = 0;
 gs.residualRule = 'convex_v1';
 gs.v2InitGain = 1;
 gs.relationBases = 3;
-% v2.9 head allocation for the 1,800-parameter node-shared-readout encoder.
+% v2.10 head allocation for the 1,800-parameter node-shared-readout encoder.
 % Actor and Critic are adjusted symmetrically for TOSM and Shuffled so every
 % comparison arm still has exactly 6,101 trainable parameters.
 gs.v2PolicyHiddenSizes = [26,28];
@@ -117,12 +117,12 @@ gs.v2Operators = 'none';
 % and cannot acquire an independent parameter bank that relearns the shuffle.
 % All seven nodes remain in the grouped-factorized readout.
 gs.v2RelationParameterization = 'fixed_semantic_codebook_v1';
-% relational-policy-v2.9: the grouped factorized readout keeps all seven
-% nodes, but shares one Wn channel vector across them and averages their
-% terms. This removes the node-specific readout shortcut while avoiding a
-% hand-picked sink. The 96 parameters saved per encoder move to the Actor
-% and Critic heads above; every comparison arm still has 6,101 parameters.
-gs.v2ReadoutParameterization = 'node_shared_mean_v1';
+% relational-policy-v2.10: keep the v2.9 node-shared readout but use the
+% variance-preserving 1/sqrt(K) sum. The v2.9 arithmetic mean reduced the
+% initial embedding and backward-signal scale by 1/sqrt(7) relative to the
+% v2.8 node-specific sum. Sharing still removes the node-specific shortcut
+% without choosing a sink. Every comparison arm remains at 6,101 parameters.
+gs.v2ReadoutParameterization = 'node_shared_variance_v1';
 % Input-dependent attention: alpha_ij^(r)(X_t) follows the current node
 % features. 'fixed_relation_v1' (observation-independent relation logits,
 % same parameters) remains available for a deliberate comparison.

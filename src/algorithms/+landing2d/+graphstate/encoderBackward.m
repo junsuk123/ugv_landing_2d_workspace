@@ -16,14 +16,21 @@ grads.Wn = zeros(size(params.Wn));
 grads.bg = sum(preOutput,2);
 dH = zeros(dh,N,B);
 for b = 1:B
-    sharedMean = isfield(spec,'readoutParameterization') ...
-        && strcmp(spec.readoutParameterization,'node_shared_mean_v1');
-    if sharedMean
+    sharedReadout = isfield(spec,'readoutParameterization') ...
+        && ismember(spec.readoutParameterization, ...
+        {'node_shared_mean_v1','node_shared_variance_v1'});
+    if sharedReadout
         K = spec.groupCount;
+        scale = 1/K;
+        if strcmp(spec.readoutParameterization,'node_shared_variance_v1')
+            scale = 1/sqrt(K);
+        end
         weighted = preOutput(:,b).*params.Wn;
-        grads.Wc = grads.Wc+weighted*mean(cache.grouped(:,:,b),2)';
-        grads.Wn = grads.Wn+preOutput(:,b).*mean(cache.channel(:,:,b),2);
-        dGrouped = repmat(params.Wc'*weighted/K,1,K);
+        pooledGrouped = sum(cache.grouped(:,:,b),2)*scale;
+        pooledChannel = sum(cache.channel(:,:,b),2)*scale;
+        grads.Wc = grads.Wc+weighted*pooledGrouped';
+        grads.Wn = grads.Wn+preOutput(:,b).*pooledChannel;
+        dGrouped = repmat(params.Wc'*weighted*scale,1,K);
         dH(:,:,b) = dGrouped*spec.groupMatrix;
     else
         weighted = preOutput(:,b).*params.Wn;

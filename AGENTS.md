@@ -1,6 +1,6 @@
 # 코드 유지 가이드 (`relational_policy_v1`, 2026-10-17 재설계)
 
-> **진행 중 작업 (2026-10-21):** v2.4 확인과 v2.5–v2.8 개발 게이트는 관계 의미 효과를 입증하지 못했다(설계 문서 §11.4, §12.3, §13.3, §14.3, §15.3). v2.9 노드 공유 평균 readout이 §16에 사전 등록되었고 개발 시드 141–144 실행 전이다.
+> **진행 중 작업 (2026-10-21):** v2.4 확인과 v2.5–v2.9 개발 게이트는 관계 의미 효과를 입증하지 못했다(설계 문서 §11.4–§16.3). v2.10 분산 보존 노드 공유 readout이 §17에 사전 등록되었고 개발 시드 161–164 실행 전이다.
 
 ## 적용 범위
 
@@ -39,7 +39,7 @@
   - 2026-10-17 R-GAT 전용 명령 평활화 항 삭제
   - 손실 기울기는 `landing2d.rl.policyLossGradient`·`valueLossGradient` 단일 경로(PPO 갱신과 학습 진단이 공유)
   - 갱신 진단(손실·엔트로피·KL·clip 비율·기울기 노름)은 읽기만 한다. 진단 추가로 학습 수치가 바뀌면 안 된다(바뀌면 `algorithmVersion` 갱신)
-- R-GAT (`relational-policy-v2.9`, 2026-10-21, `docs/RGAT_V2_DESIGN_KO.md` §16)
+- R-GAT (`relational-policy-v2.10`, 2026-10-21, `docs/RGAT_V2_DESIGN_KO.md` §17)
   - 기본 인코더 `rgat_v2`
     - 표준 관계형 그래프 어텐션 2층, 노드 폭 16
     - 관계별 가중치 $W_r=\sum_b C_{rb}V_b$(공통 기저 3개). $C_r$는 온톨로지 관계 역할의 고정 의미 기술자이고 학습하지 않는다
@@ -47,10 +47,10 @@
     - 입력 의존 attention(`input_dependent_v1`)을 도착 노드의 모든 입력 간선(관계 유형·self 포함)에 대해 한 번 정규화
     - 층마다 R-GCN root(self-connection) 가중치 $W_0$, tanh 노드 갱신, LeCun 초기화
     - 곱셈 게이트·연산군·잔차 혼합 없음(`v2Operators = none`, `residualMix = 0`)
-    - `grouped_factorized` readout은 노드별 가중치 대신 하나의 채널 벡터를 7개 노드에 공유하고 노드 항을 평균한다(`node_shared_mean_v1`). 특정 종착점은 고르지 않는다
+    - `grouped_factorized` readout은 노드별 가중치 대신 하나의 채널 벡터를 7개 노드에 공유하고 노드 항의 합을 $1/\sqrt{7}$로 스케일한다(`node_shared_variance_v1`). 특정 종착점은 고르지 않는다
     - 인코더당 1,800개, Actor 26-28, Critic 27-27로 총 6,101개
-  - v2.7(§14)은 고정 순환 코드북으로 개발 게이트를 실패했다. v2.8(§15)은 의미 기술자로 교체해 3/4 양의 방향이었으나 평균 AUC −0.039917로 실패했다
-  - v2.0–v2.8과 `rgat_v1`은 기록 재현용 선택지로만 유지한다
+  - v2.7(§14)은 고정 순환 코드북으로 실패했고, v2.8(§15)은 3/4 양의 방향이나 평균 AUC −0.039917로 실패했다. v2.9(§16)는 산술평균 공유 readout에서 두 arm 모두 `Reached80` 1/4로 실패했다
+  - v2.0–v2.9와 `rgat_v1`은 기록 재현용 선택지로만 유지한다
   - 금지: 곱셈 게이트·연산군·항등 초기화 경로·손으로 고른 readout 시작점·특정 비교군이나 시드에 맞춘 튜닝. 성능은 온톨로지 그래프, R-GAT 구조, 정책 입력 경로로만 검증한다
 - 공통 학습 규칙 (`relational-policy-v2.1`, 2026-10-20, `docs/RGAT_V2_DESIGN_KO.md` §8)
   - 탐색 척도 `rl.initialLogStd = −2.0`(σ 0.135). 수렴 정책도 v2.0 값(σ 0.368)에서는 위험 접촉 53%라 공중 정지 함정이 생겼다. σ는 과제 잡음 허용치로만 고르며, 비교군·시드 결과로 고르지 않는다
@@ -71,7 +71,7 @@
 - 시드 계약
   - 환경 시드 < 1e6
   - split 서로소: validation 2001–2200, test 3001–3200, stress 9001–9200, 고정 사례 41001–49999, PPO 학습 에피소드 100001–999999 (`validatePrimaryConfig`가 검사)
-  - 학습 시드 s → `rl.seed = base + s − 1`. 기본 1–5, v4 확장 1–10, v5 대조군 수정 확인 11–15, v2.0 확인 16–20(`v2`), v2.3 확인 21–30(`v23`), v2.4 확인 51–60(`v24`), v2.5 개발 61–64(실패; 71–80 미사용), v2.6 개발 81–84(실패; 91–100 미사용), v2.7 개발 101–104(실패; 111–120 미사용), v2.8 개발 121–124(실패; 131–140 미사용), v2.9 개발 141–144(`v29Dev`), v2.9 확인 151–160(`v29`, 학습 전 사전 등록)
+  - 학습 시드 s → `rl.seed = base + s − 1`. 기본 1–5, v4 확장 1–10, v5 대조군 수정 확인 11–15, v2.0 확인 16–20(`v2`), v2.3 확인 21–30(`v23`), v2.4 확인 51–60(`v24`), v2.5 개발 61–64(실패; 71–80 미사용), v2.6 개발 81–84(실패; 91–100 미사용), v2.7 개발 101–104(실패; 111–120 미사용), v2.8 개발 121–124(실패; 131–140 미사용), v2.9 개발 141–144(실패; 151–160 미사용), v2.10 개발 161–164(`v210Dev`), v2.10 확인 171–180(`v210`, 학습 전 사전 등록)
 - 체크포인트 선택은 validation만 사용
   - test·stress·고정 사례·probe 결과로 체크포인트·임계값·사례를 고르는 것은 금지
 - 통제 사례 S1–S4(`landing2d.evaluation.factorialCases`)
@@ -116,7 +116,7 @@ run_check('learnability')    % 새 환경에서 과제 학습 가능성 사전 �
 run                          % 3 비교군 × 학습 시드 1–5
 run(struct('trainSeeds',21:30,'concurrentRuns',8,'concurrentPool','threads'))   % v2.3(4층, 10차원 o_t) 확인 실험 (결과: results/archive/v2.3_s21-30_2026-10-21)
 run(struct('trainSeeds',51:60,'concurrentRuns',8,'concurrentPool','threads'))   % v2.4(의미별 고정 연산) 확인 실험
-% v2.9 개발 게이트는 results/v29_scripts/train_v29_dev.m
+% v2.10 개발 게이트는 results/v210_scripts/train_v210_dev.m
 run_scenario('S4')
 run_scenario('S4',struct('trace',true))    % 결정 추적 대시보드 (학습된 M2, 시드 21)
 run_scenario([],struct('replay','results/trace/S4_onto_rgat_ppo_s11_r01.mat'))

@@ -42,9 +42,9 @@ function version = algorithmVersion()
 % codebook by fixed ontology-role descriptors for message coefficients and
 % attention embeddings. Architecture, trainable parameter count, PPO and
 % the common task contract are unchanged.
-% relational-policy-v2.9 (2026-10-21): share the grouped-factorized readout
-% channel weights across all seven nodes and mean their terms. This removes
-% the node-specific shortcut without choosing a sink; saved capacity moves
-% to the graph-arm heads and the total remains 6,101.
-version = 'relational-policy-v2.9';
+% relational-policy-v2.10 (2026-10-21): retain the node-shared readout but
+% replace the arithmetic mean by the variance-preserving 1/sqrt(7) sum.
+% This restores the v2.8 initialization/backward scale without restoring
+% node-specific shortcut parameters; total capacity remains 6,101.
+version = 'relational-policy-v2.10';
 end
