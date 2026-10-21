@@ -83,9 +83,19 @@ typed = isfield(spec,'v2Operators') ...
 operators = 'none'; if typed, operators = spec.v2Operators; end
 layerAdd = cell(1,L); layerMod = cell(1,L); layerA = cell(1,L); layerM = cell(1,L);
 for l = 1:L
-    V = params.(sprintf('V%d',l)); C = params.(sprintf('C%d',l));
+    V = params.(sprintf('V%d',l));
+    fixedCodebook = isfield(spec,'relationParameterization') ...
+        && strcmp(spec.relationParameterization,'fixed_cyclic_codebook_v1');
+    if fixedCodebook
+        C = spec.fixedRelationCodebook;
+        aShared = params.(sprintf('a%d',l));
+        a = repmat(aShared,1,1,spec.parameterRelationCount);
+        E = spec.fixedRelationEmbedding;
+    else
+        C = params.(sprintf('C%d',l));
+        a = params.(sprintf('a%d',l)); E = params.(sprintf('E%d',l));
+    end
     W = landing2d.graphstate.basisWeights(V,C);
-    a = params.(sprintf('a%d',l)); E = params.(sprintf('E%d',l));
     root = reshape(params.(sprintf('Wroot%d',l))*reshape(previous,size(previous,1),N*B),dh,N,B);
     if typed
         [Za,layerAdd{l}] = landing2d.rgat.relationForward(previous,W,a,E,spec.Tadd,[],spec.attentionMode);

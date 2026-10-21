@@ -144,6 +144,10 @@ spec.graphDim = gs.graphDim;
 spec.parameterRelationCount = R;
 spec.v2Operators = 'none';
 if isfield(gs,'v2Operators'), spec.v2Operators = gs.v2Operators; end
+spec.relationParameterization = 'trainable_basis_v1';
+if isfield(gs,'v2RelationParameterization')
+    spec.relationParameterization = gs.v2RelationParameterization;
+end
 typed = ismember(spec.v2Operators,{'semantic_fixed_v1','semantic_bottleneck_v1', ...
     'semantic_reliability_bottleneck_v1'});
 if typed
@@ -169,20 +173,44 @@ if typed
         spec.Tmod = landing2d.rgat.topology(subgraph(schema,isMod));
     end
 end
+dFixed = strcmp(spec.relationParameterization,'fixed_cyclic_codebook_v1');
+if dFixed
+    assert(~typed,'landing2d:RelationParameterization', ...
+        'fixed_cyclic_codebook_v1 uses the standard single attention graph.');
+    assert(Bb==3 && R==5 && gs.relationDim==4,'landing2d:RelationParameterization', ...
+        'fixed_cyclic_codebook_v1 requires 5 relations, 3 bases and relationDim 4.');
+    theta = 2*pi*(0:R-1)'/R;
+    spec.fixedRelationCodebook = [ones(R,1),sqrt(2)*cos(theta),sqrt(2)*sin(theta)]/sqrt(3);
+    spec.fixedRelationEmbedding = regularSimplex(R);
+end
 dims = [schema.inDim,repmat(dh,1,gs.layers)];
 params = struct();
 for l = 1:gs.layers
     name = layerNames(l);
     params.(name.V) = gain*randn(rs,dh,dims(l),Bb)/sqrt(dims(l));
-    params.(name.C) = randn(rs,R,Bb)/sqrt(Bb);
-    params.(name.a) = randn(rs,1,attentionWidth,R)/sqrt(attentionWidth);
-    params.(name.E) = randn(rs,gs.relationDim,R);
+    if dFixed
+        params.(name.a) = randn(rs,1,attentionWidth)/sqrt(attentionWidth);
+    else
+        params.(name.C) = randn(rs,R,Bb)/sqrt(Bb);
+        params.(name.a) = randn(rs,1,attentionWidth,R)/sqrt(attentionWidth);
+        params.(name.E) = randn(rs,gs.relationDim,R);
+    end
     params.(name.root) = gain*randn(rs,dh,dims(l))/sqrt(dims(l));
     params.(name.b) = zeros(dh,1);
 end
 params.Wc = randn(rs,gs.graphDim,dh)/sqrt(dh);
 params.Wn = randn(rs,gs.graphDim,spec.groupCount)/sqrt(spec.groupCount);
 params.bg = zeros(gs.graphDim,1);
+end
+
+function E = regularSimplex(R)
+% Columns are the R equal-norm, equal-angle vertices of an (R-1)-simplex.
+E = zeros(R-1,R);
+for k = 1:R-1
+    E(k,1:k) = 1/sqrt(k*(k+1));
+    E(k,k+1) = -k/sqrt(k*(k+1));
+end
+E = sqrt(R/(R-1))*E;
 end
 
 function name = layerNames(l)

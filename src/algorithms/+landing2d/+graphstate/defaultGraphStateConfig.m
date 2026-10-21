@@ -70,18 +70,18 @@ gs.encoderLearnRate = 1e-4;
 % 'rgat_v1' selects the archived single-layer encoders (relationOperators
 % typed_v1 / additive_v1) of relational-policy-v1.x; it keeps hiddenDim.
 gs.encoderVersion = 'rgat_v2';
-gs.layers = 4;
-gs.v2HiddenDim = 12;
-gs.residualMix = 0.5;
-gs.residualRule = 'variance_preserving_v1';
-gs.v2InitGain = 5/3;
-gs.relationBases = 2;
+gs.layers = 2;
+gs.v2HiddenDim = 16;
+gs.residualMix = 0;
+gs.residualRule = 'convex_v1';
+gs.v2InitGain = 1;
+gs.relationBases = 3;
 % v2.5 semantic bottleneck: sharing the two semantic operator banks and
 % reading only the ontology sink reduces each encoder to 2,056 parameters.
 % The saved capacity is assigned to the graph-arm heads, symmetrically for
 % TOSM and Shuffled, so every comparison arm still has exactly 6,101.
-gs.v2PolicyHiddenSizes = [24,24];
-gs.v2ValueHiddenSizes = [24,20];
+gs.v2PolicyHiddenSizes = [27,23];
+gs.v2ValueHiddenSizes = [27,24];
 % Semantic fixed operators (relational-policy-v2.4, 2026-10-21, user decision
 % after the Python 4-layer development study, where the 4-layer TOSM with the
 % relation operators fixed by meaning was the best variant). In every layer
@@ -108,7 +108,15 @@ gs.v2ValueHiddenSizes = [24,20];
 % through a multiplicative gate. The shared banks and sink remain v2.5.
 % 'semantic_fixed_v1' is v2.4; 'semantic_bottleneck_v1' is v2.5;
 % 'none' is v2.0-v2.3.
-gs.v2Operators = 'semantic_reliability_bottleneck_v1';
+gs.v2Operators = 'none';
+% relational-policy-v2.7: standard two-layer R-GAT without gates or operator
+% classes. Every relation transform is a fixed, equal-norm cyclic combination
+% of three trainable common bases; attention uses one shared trainable vector
+% and fixed regular-simplex relation embeddings. Thus a shuffled label cannot
+% acquire an independent parameter bank and silently relearn the permutation.
+% The codebook is fixed before training and treats all five relation labels
+% symmetrically. All seven nodes remain in the grouped-factorized readout.
+gs.v2RelationParameterization = 'fixed_cyclic_codebook_v1';
 % Input-dependent attention: alpha_ij^(r)(X_t) follows the current node
 % features. 'fixed_relation_v1' (observation-independent relation logits,
 % same parameters) remains available for a deliberate comparison.

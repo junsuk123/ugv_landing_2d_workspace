@@ -33,5 +33,10 @@ function version = algorithmVersion()
 % relational-policy-v2.6 (2026-10-21): only qualifiesEstimate gates estimate
 % nodes; conditionsLanding and all signed state/context relations propagate
 % additively through the v2.5 shared-parameter ontology-sink bottleneck.
-version = 'relational-policy-v2.6';
+% relational-policy-v2.7 (2026-10-21): return to a standard two-layer R-GAT
+% with one cross-relation softmax, no gate/operator class and all-node
+% grouped readout. Fixed cyclic basis coefficients and fixed simplex relation
+% embeddings prevent shuffled labels from becoming independent trainable
+% capacity buckets; trainable capacity is shared across relation labels.
+version = 'relational-policy-v2.7';
 end

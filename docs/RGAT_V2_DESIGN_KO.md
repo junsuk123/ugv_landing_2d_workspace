@@ -619,3 +619,27 @@ v2.5에서 두 그래프 비교군은 모두 4/4 시드가 학습되었지만 TO
 - TOSM−Shuffled 평균 AUC는 **−0.257125**, 양의 짝 차이는 **1/4**였다.
 - **판정: 실패 (`Passed = false`).** 사전 등록한 평균 양수 및 3/4 방향 조건을 모두 실패했으므로 확인 시드 91–100은 열지 않는다.
 - **해석:** `qualifiesEstimate` 메시지가 추정 노드의 전체 상태를 곱하는 신뢰도 gate는 canonical graph에 일관된 이득을 주지 않았다. 특히 시드 81에서 TOSM은 750 update 동안 `Reached80`을 달성하지 못한 반면 Shuffled는 AUC 0.802833이었다. 다음 버전은 결과를 본 뒤 v2.6 임계값을 바꾸지 않고, 곱셈 gate·연산군을 제거한 별도 알고리즘 버전과 새 개발 시드를 사용한다.
+
+## 14. v2.7: 고정 순환 관계 코드북 (`relational-policy-v2.7`, 2026-10-21, 사전 등록)
+
+### 14.1 구조 가설
+
+v2.6은 양 군의 학습 가능성은 확보했지만 TOSM−Shuffled AUC 방향이 1/4였고, TOSM 시드 81에서 gate 경로가 심각한 최적화 실패를 보였다. v2.7은 곱셈 gate와 연산군을 모두 제거하면서, v2.0–v2.3에서 Shuffled가 관계별 파라미터를 새 의미로 재학습할 수 있었던 자유도만 제한한다.
+
+- 표준 R-GAT 2층, 16차원 노드 상태, 입력 의존 attention, 도착 노드의 모든 입력 간선에 대한 단일 softmax, R-GCN root, tanh, LeCun 초기화를 쓴다.
+- `v2Operators = none`이며 곱셈 gate·연산군·raw observation bypass·손으로 고른 readout 시작점이 없다. 7개 노드 전체의 `grouped_factorized` readout을 쓴다.
+- 관계별 메시지는 세 개의 공통 학습 기저 `V_b`와 고정 코드 `C_rb`로 `W_r = sum_b C_rb V_b`를 구성한다. 다섯 관계의 코드는
+  `C_r = [1, sqrt(2) cos(theta_r), sqrt(2) sin(theta_r)] / sqrt(3)`, `theta_r = 2 pi (r-1)/5`다. 모든 행의 norm은 1이고 어느 관계도 더 큰 초기 크기를 갖지 않는다.
+- attention은 층마다 하나의 공유 학습 벡터를 쓰며, 관계 임베딩은 5개 꼭짓점의 고정 4차원 regular simplex다. 관계별 독립 학습 파라미터 `C_r`, `a_r`, `E_r`는 없다.
+- Shuffled는 동일한 코드북과 동일한 초기 학습 파라미터를 사용하되 13개 의미 간선 중 10개 이상의 relation id만 바꾼다. 따라서 관계별 용량을 이용해 임의 순열을 재명명할 수 없고, canonical 관계가 같은 역할의 간선을 묶는지가 직접 검증된다.
+- 인코더당 1,896개, Actor head 27–23, Critic head 27–24로 세 비교군 모두 총 6,101개다.
+- 공통 관측·노드 특징·환경·보상·행동·종료·PPO 손실·학습 예산·검증·조기 종료 규칙은 바꾸지 않는다.
+- `algorithmVersion = relational-policy-v2.7`, `comparison_registry_v13`.
+
+### 14.2 개발 게이트와 확인 실험
+
+- **개발 시드:** `registry.trainSeeds.v27Dev = 101:104`. 개발 구조·학습 가능성·방향 판정에만 쓰고 확인 분석에 합치지 않는다.
+- **개발 실행:** `results/v27_scripts/train_v27_dev.m`(SHA-256 `515653ffd722d3cbe4c828b57cf6b386cf5fa7e95d98cbebeed4e9bb180a8ac2`)으로 두 그래프 비교군 8개 run을 학습한다.
+- **개발 게이트:** `run_check` 14/14+smoke, 두 그래프 비교군 각각 3/4 이상 `Reached80`, TOSM−Shuffled AUC 평균 양수 및 4개 중 3개 이상 양수. 실패하면 확인 시드를 열지 않고 v2.8 이상으로 올린다.
+- **확인 시드:** `registry.trainSeeds.v27 = 111:120`(n=10). 개발 시드 및 이전 모든 실험과 서로소이며, 이 문장을 쓴 시점에 학습하지 않았다.
+- **확인 분석·목적 판정:** §12.2와 동일한 5×2 주 변수, 시드 짝 차이, 95% 구간, 8/10 방향, ±5%p 동등, Holm 10개를 쓴다. TOSM−Shuffled 중 적어도 하나가 `Delta > 0`, Holm 보정 `Difference = true`, `SeedRobust = true`를 모두 만족해야 목적 달성이다.

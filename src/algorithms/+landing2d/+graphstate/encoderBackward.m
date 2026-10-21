@@ -65,7 +65,14 @@ for l = spec.layers:-1:1
         previous = cache.layerH{l-1};
     end
     root = params.(sprintf('Wroot%d',l));
-    V = params.(sprintf('V%d',l)); C = params.(sprintf('C%d',l));
+    V = params.(sprintf('V%d',l));
+    fixedCodebook = isfield(spec,'relationParameterization') ...
+        && strcmp(spec.relationParameterization,'fixed_cyclic_codebook_v1');
+    if fixedCodebook
+        C = spec.fixedRelationCodebook;
+    else
+        C = params.(sprintf('C%d',l));
+    end
     [dh,din,Bb] = size(V); R = size(C,1);
     skip = 0;
     if l >= 2 && eta > 0
@@ -95,9 +102,13 @@ for l = spec.layers:-1:1
     dH = dH+reshape(root'*flatPre,size(previous,1),cache.N,cache.B)+skip;
     dW = reshape(g.W,dh*din,R);
     grads.(sprintf('V%d',l)) = reshape(dW*C,dh,din,Bb);
-    grads.(sprintf('C%d',l)) = dW'*reshape(V,dh*din,Bb);
-    grads.(sprintf('a%d',l)) = g.a;
-    grads.(sprintf('E%d',l)) = g.E;
+    if fixedCodebook
+        grads.(sprintf('a%d',l)) = sum(g.a,3);
+    else
+        grads.(sprintf('C%d',l)) = dW'*reshape(V,dh*din,Bb);
+        grads.(sprintf('a%d',l)) = g.a;
+        grads.(sprintf('E%d',l)) = g.E;
+    end
 end
 dPolicyInput = reshape(dH,spec.inDim*cache.N,cache.B);
 grads = orderfields(grads,params);
