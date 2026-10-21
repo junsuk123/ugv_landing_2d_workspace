@@ -822,3 +822,31 @@ $$
 - **확인 시드:** `registry.trainSeeds.v211 = 191:200`(n=10). 개발 시드 및 이전 모든 실험과 서로소이며, 이 문장을 쓴 시점에 학습하지 않았다.
 - **확인 분석·목적 판정:** §12.2와 동일한 5×2 주 변수, 시드 짝 차이, 95% 구간, 8/10 방향, ±5%p 동등, Holm 10개를 쓴다. TOSM−Shuffled 중 적어도 하나가 `Delta > 0`, Holm 보정 `Difference = true`, `SeedRobust = true`를 모두 만족해야 관계 의미의 등록 효과로 판정한다.
 - **결과 뒤 금지:** 개발 게이트를 통과하기 전에 확인 시드 191–200을 학습하지 않는다. 확인 결과를 본 뒤 v2.11 구조·임계값·지표·시드를 바꾸지 않는다.
+
+### 18.3 개발 게이트 결과 (2026-10-22, 확인 시드 학습 전 기록)
+
+- 사전 등록 스크립트 `results/v211_scripts/train_v211_dev.m`의 SHA-256은 §18.2에 고정한 `93cf4f28…`과 일치했다. 8개 run을 모두 완료했고 체크포인트를 생성했다(마지막 체크포인트 03:33). 학습 콘솔 로그는 남지 않았고, 근거는 원시 집계 `results/evaluation/v211_dev_learning_runs.csv`, 판정 `results/evaluation/v211_dev_gate.csv`, 체크포인트 8개다.
+- `run_check`는 개발 학습 뒤(06:14) 같은 코드에서 실제 MATLAB으로 실행했고 self-test 14/14와 smoke pipeline을 통과했다(로그 `results/v211_scripts/v211_run_check_log.txt`).
+
+| 학습 시드 | TOSM AUC | Shuffled AUC | TOSM−Shuffled | TOSM `Reached80` | Shuffled `Reached80` |
+|---:|---:|---:|---:|:---:|:---:|
+| 181 | 0.549500 | 0.489000 | +0.060500 | 예 | 예 |
+| 182 | 0.773833 | 0.722667 | +0.051167 | 예 | 예 |
+| 183 | 0.706833 | 0.587500 | +0.119333 | 예 | 예 |
+| 184 | 0.746167 | 0.686833 | +0.059333 | 예 | 예 |
+
+- 두 그래프 비교군 모두 **4/4** 시드가 학습 성공률 80%에 도달했다.
+- TOSM−Shuffled 평균 AUC는 **+0.072583**, 양의 짝 차이는 **4/4**였다.
+- **판정: 통과 (`Passed = true`).** v2.5 이후 처음으로 네 조건을 모두 만족했으므로 사전 등록대로 확인 시드 191–200을 연다.
+- 개발 시드 4개의 AUC 방향은 확인 결과를 예측하는 근거가 아니다. 주 판정은 §18.4의 확인 실험으로만 한다.
+
+### 18.4 확인 실험 실행 (사전 등록, 시드 191–200 학습 전 작성)
+
+- **학습:** `results/v211_scripts/train_v211.m`(SHA-256 `d06553de8f34f02aa4d792ecf033183d0012dbb72e50d3a817d25787c0a748fe`)으로 세 비교군 × 시드 191–200, 30개 run을 한 프로세스에서 학습한다. RAM(15.8 GB) 때문에 v2.4의 두 프로세스 대신 한 프로세스에 `concurrentRuns = 14`(threads)를 쓴다. 동시 실행 수는 실행 옵션이고 직렬과 비트 단위로 같다.
+- **평가:** 그 뒤 `run(struct('trainSeeds',191:200,'concurrentRuns',8,'concurrentPool','threads'))`를 한 번 실행한다. 학습 체크포인트를 재사용하고, 시드를 넣거나 빼지 않는다.
+- **분석:** `results/v211_scripts/analyze_v211.m`(SHA-256 `fe245dce220cb9bca6a56b190054eb5eaccbc79e1ac8198d59f11e0f7a386e35`). `analyze_v24.m`에서 시드, 출력 파일 이름(`v211_primary_endpoints.csv`), 목적 판정 열만 바꿨다.
+  - 목적 판정 열 `PurposeMet`은 §12.2 문장을 그대로 옮긴다: 대비가 TOSM−Shuffled이고 `Delta > 0`, Holm 보정 p < 0.05, `Difference = true`(95% 구간이 0 제외), `SeedRobust = true`(10개 중 8개 이상 같은 방향)를 모두 만족.
+  - 다섯 주 변수 중 하나라도 `PurposeMet = true`이면 관계 의미의 등록 효과로 판정한다. 하나도 없으면 v2.11로 목적을 달성했다고 하지 않는다.
+- **순서 스크립트:** `results/v211_scripts/chain_v211.sh`(SHA-256 `ed1cd3e4fc862b0c399677b801871526dc5012f8c6a8d070c9725a918823294a`). 로그는 `results/v211_train_s191-200_log.txt`, `results/v211_confirmatory_log.txt`, `results/v211_scripts/v211_analysis_log.txt`.
+- **보조:** 수렴 run 수, 학습 AUC, headline 16개, 학습 시간(§11.3과 같음).
+- 평가가 같은 파일 이름에 쓰므로 v2.4 확인 결과(평가·그림·로그·스크립트)는 먼저 `results/archive/v2.4_s51-60_2026-10-21/`에 복사했다.

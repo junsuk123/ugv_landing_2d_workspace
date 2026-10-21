@@ -1,6 +1,6 @@
 # 코드 유지 가이드 (`relational_policy_v1`, 2026-10-17 재설계)
 
-> **진행 중 작업 (2026-10-22):** v2.4 확인과 v2.5–v2.10 개발 게이트는 관계 의미 효과를 입증하지 못했다(설계 문서 §11.4–§17.3). v2.11 고정 노드 역할 코드북 readout이 §18에 사전 등록되었고 개발 시드 181–184 실행 전이다.
+> **진행 중 작업 (2026-10-22):** v2.4 확인과 v2.5–v2.10 개발 게이트는 관계 의미 효과를 입증하지 못했다(설계 문서 §11.4–§17.3). v2.11 고정 노드 역할 코드북 readout(§18)은 개발 게이트를 통과했고(§18.3), 확인 시드 191–200을 §18.4 순서로 학습·평가하는 중이다.
 
 ## 적용 범위
 
@@ -115,8 +115,8 @@ run_check                    % self-test + smoke
 run_check('learnability')    % 새 환경에서 과제 학습 가능성 사전 점검
 run                          % 3 비교군 × 학습 시드 1–5
 run(struct('trainSeeds',21:30,'concurrentRuns',8,'concurrentPool','threads'))   % v2.3(4층, 10차원 o_t) 확인 실험 (결과: results/archive/v2.3_s21-30_2026-10-21)
-run(struct('trainSeeds',51:60,'concurrentRuns',8,'concurrentPool','threads'))   % v2.4(의미별 고정 연산) 확인 실험
-% v2.11 개발 게이트는 results/v211_scripts/train_v211_dev.m
+run(struct('trainSeeds',51:60,'concurrentRuns',8,'concurrentPool','threads'))   % v2.4(의미별 고정 연산) 확인 실험 (결과: results/archive/v2.4_s51-60_2026-10-21)
+run(struct('trainSeeds',191:200,'concurrentRuns',8,'concurrentPool','threads')) % v2.11 확인 실험 (학습은 results/v211_scripts/chain_v211.sh)
 run_scenario('S4')
 run_scenario('S4',struct('trace',true))    % 결정 추적 대시보드 (학습된 M2, 시드 21)
 run_scenario([],struct('replay','results/trace/S4_onto_rgat_ppo_s11_r01.mat'))
