@@ -101,8 +101,14 @@ gs.v2ValueHiddenSizes = [24,20];
 % ontology sink LandingCondition only. This removes relation-label-specific
 % capacity and the all-node readout bypass that let a shuffled graph relearn
 % or ignore the supplied semantics. Both graph arms use the same rule.
-% 'semantic_fixed_v1' is the archived v2.4 form; 'none' is v2.0-v2.3.
-gs.v2Operators = 'semantic_bottleneck_v1';
+% semantic_reliability_bottleneck_v1 (relational-policy-v2.6): only
+% qualifiesEstimate is a reliability gate. informsMotion,
+% affectsVisibility, conditionsLanding and self are additive, so signed
+% motion/control evidence reaches LandingCondition without being forced
+% through a multiplicative gate. The shared banks and sink remain v2.5.
+% 'semantic_fixed_v1' is v2.4; 'semantic_bottleneck_v1' is v2.5;
+% 'none' is v2.0-v2.3.
+gs.v2Operators = 'semantic_reliability_bottleneck_v1';
 % Input-dependent attention: alpha_ij^(r)(X_t) follows the current node
 % features. 'fixed_relation_v1' (observation-independent relation logits,
 % same parameters) remains available for a deliberate comparison.

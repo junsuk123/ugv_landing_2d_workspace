@@ -30,5 +30,8 @@ function version = algorithmVersion()
 % trainable parameter bank per fixed operator class and reads the graph only
 % at the LandingCondition ontology sink. Graph-arm heads 24-24 / 24-20 move
 % the removed encoder capacity while keeping 6,101 parameters.
-version = 'relational-policy-v2.5';
+% relational-policy-v2.6 (2026-10-21): only qualifiesEstimate gates estimate
+% nodes; conditionsLanding and all signed state/context relations propagate
+% additively through the v2.5 shared-parameter ontology-sink bottleneck.
+version = 'relational-policy-v2.6';
 end

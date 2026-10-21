@@ -580,3 +580,24 @@ v2.5는 두 우회만 동시에 제거하는 구조 가설이다.
 - 따라서 사전 등록한 3/4 방향 조건을 실패했고 `v25_dev_gate.csv` 판정은 `Passed = false`이다. 확인 시드 71–80은 학습하지 않는다.
 - **해석:** 병목은 Shuffled의 학습 가능성을 막지 않았지만, 현재 연산 의미가 TOSM 배치를 일관되게 유리하게 만들지 못했다. 특히 `conditionsLanding`의 signed 위치·속도·기체 정보를 모두 곱셈 게이트로 보내는 규칙은 제어 정보 전파와 맞지 않는 구조 가설이다. 이를 바꾸는 후속은 v2.6과 새 개발·확인 시드를 쓴다.
 - 원시 개발 곡선은 `results/evaluation/v25_dev_learning_runs.csv`, 판정은 `results/evaluation/v25_dev_gate.csv`에 있다.
+
+## 13. v2.6: 신뢰도 게이트 병목 (`relational-policy-v2.6`, 2026-10-21, 사전 등록)
+
+### 13.1 구조 가설
+
+v2.5에서 두 그래프 비교군은 모두 4/4 시드가 학습되었지만 TOSM의 AUC 방향이 1/4에서만 양수였다. 병목 자체보다 연산 의미가 문제였다는 개발 가설을 검사한다.
+
+- `qualifiesEstimate` 3개 간선만 modulate 신뢰도 게이트다. 마커 갱신·경과시간이 PadVelocity, RelativePosition, RelativeVelocity 추정값의 활용도를 조절한다.
+- `informsMotion`, `affectsVisibility`, `conditionsLanding`, self는 모두 propagate 덧셈 경로다. signed 위치·상대속도·기체 운동이 곱셈 게이트로만 전달되는 v2.4·v2.5 제약을 제거한다.
+- v2.5의 연산군 파라미터 공유, `LandingCondition` 종착점 readout, 4층·잔차·초기화, head 24–24/24–20을 그대로 유지한다. 인코더당 2,056개, 총 6,101개다.
+- Shuffled는 의미 관계 10/13 이상을 계속 바꾸고, 3:10 연산군 분할에서 가능한 최대치인 6/13 간선의 연산군을 바꾸는다. self와 관계별 간선 수는 보존한다.
+- 공통 관측·노드 특징·환경·보상·행동·종료·PPO 손실·예산·검증·조기 종료는 바꾸지 않는다.
+- `algorithmVersion = relational-policy-v2.6`, `comparison_registry_v12`.
+
+### 13.2 개발 게이트와 확인 실험
+
+- **개발 시드:** `registry.trainSeeds.v26Dev = 81:84`. 확인 분석에 합치지 않는다.
+- **개발 실행:** `results/v26_scripts/train_v26_dev.m`(SHA-256 `89ca46f11cd43ce63609649a814bd0a6bed56eb99f5069e15db3d182d2878a5c`)으로 두 그래프 비교군 8개 run을 학습한다.
+- **개발 게이트:** v2.5와 같다. `run_check` 14/14+smoke, 두 그래프 비교군 각각 3/4 이상 `Reached80`, TOSM−Shuffled AUC 평균 양수 및 3/4 이상 양수. 실패하면 확인 시드를 열지 않고 v2.7 이상으로 올린다.
+- **확인 시드:** `registry.trainSeeds.v26 = 91:100`(n=10). 이 문장을 쓴 시점에 학습하지 않았다. v2.5에 예약했지만 쓰지 않은 71–80은 재사용하지 않는다.
+- **확인 분석·목적 판정:** §12.2와 동일한 5×2 주 변수, 시드 짝 차이, 95% 구간, 8/10 방향, ±5%p 동등, Holm 10개를 쓴다. TOSM−Shuffled 중 적어도 하나가 `Delta > 0`, Holm 보정 `Difference = true`, `SeedRobust = true`를 모두 만족해야 목적 달성이다.

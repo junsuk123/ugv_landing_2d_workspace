@@ -54,7 +54,8 @@ function [grads,dPolicyInput] = backwardV2(params,spec,cache,grads,dH)
 % additive and the modulating graph send their gradients to the same W_r/a/E.
 eta = 0; if isfield(cache,'residualMix'), eta = cache.residualMix; end
 typed = isfield(cache,'v2Operators') ...
-    && ismember(cache.v2Operators,{'semantic_fixed_v1','semantic_bottleneck_v1'});
+    && ismember(cache.v2Operators,{'semantic_fixed_v1','semantic_bottleneck_v1', ...
+    'semantic_reliability_bottleneck_v1'});
 keep = 1-eta; mix = eta;
 if isfield(cache,'residualKeep'), keep = cache.residualKeep; mix = cache.residualWeight; end
 for l = spec.layers:-1:1

@@ -35,10 +35,13 @@ if perturbed
     fixedOperators = strcmp(cfg.graphState.encoderVersion,'rgat_v2') ...
         && isfield(cfg.graphState,'v2Operators') ...
         && ismember(cfg.graphState.v2Operators, ...
-        {'semantic_fixed_v1','semantic_bottleneck_v1'});
+        {'semantic_fixed_v1','semantic_bottleneck_v1','semantic_reliability_bottleneck_v1'});
     if legacyTyped || fixedOperators
-        cfg.graphState.relationPerturbation.minOperatorChangedFraction = ...
-            registry.relationShuffle.minChangedFraction;
+        operatorFraction = registry.relationShuffle.minChangedFraction;
+        if strcmp(cfg.graphState.v2Operators,'semantic_reliability_bottleneck_v1')
+            operatorFraction = registry.relationShuffle.minReliabilityOperatorChangedFraction;
+        end
+        cfg.graphState.relationPerturbation.minOperatorChangedFraction = operatorFraction;
     end
     landing2d.graphstate.validateGraphStateConfig(cfg.graphState);
     name = sprintf('%s_g%02d',name,graphSeed);

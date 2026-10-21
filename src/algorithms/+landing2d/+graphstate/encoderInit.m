@@ -21,6 +21,14 @@ assert(strcmp(mode,'context_rgat') && strcmp(gs.readout,'grouped_factorized'), .
     'landing2d:StateRepresentation', ...
     'Only baseline and context_rgat with the grouped_factorized readout are supported.');
 [schema,T] = landing2d.graphstate.contextSchema(mode);
+% v2.6 computational semantics: observation quality qualifies estimates;
+% the other relations transport signed state/context evidence additively.
+% Set this before relation perturbation so the shuffled-arm acceptance rule
+% measures the computation that the encoder actually uses.
+if isfield(gs,'v2Operators') ...
+        && strcmp(gs.v2Operators,'semantic_reliability_bottleneck_v1')
+    schema.relationOperators = {'modulate','propagate','propagate','propagate','propagate'};
+end
 % Relation shuffle (shuffled_rgat_ppo): one fixed edge-relation permutation
 % per graph seed, applied once here, so PPO, evaluation and inference read the
 % same typed topology from spec. graph.hash identifies the topology used.
@@ -136,12 +144,14 @@ spec.graphDim = gs.graphDim;
 spec.parameterRelationCount = R;
 spec.v2Operators = 'none';
 if isfield(gs,'v2Operators'), spec.v2Operators = gs.v2Operators; end
-typed = ismember(spec.v2Operators,{'semantic_fixed_v1','semantic_bottleneck_v1'});
+typed = ismember(spec.v2Operators,{'semantic_fixed_v1','semantic_bottleneck_v1', ...
+    'semantic_reliability_bottleneck_v1'});
 if typed
     modulating = find(strcmp(schema.relationOperators,'modulate'));
     isMod = ismember(schema.rel,modulating);
     spec.modEdges = find(isMod); spec.addEdges = find(~isMod);
-    if strcmp(spec.v2Operators,'semantic_bottleneck_v1')
+    if ismember(spec.v2Operators,{'semantic_bottleneck_v1', ...
+            'semantic_reliability_bottleneck_v1'})
         % Parameter relation 1 = propagate, 2 = modulate. Semantic labels
         % select the fixed operation, but cannot own independent parameters
         % that relearn a shuffled label assignment.
