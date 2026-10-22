@@ -850,3 +850,35 @@ $$
 - **순서 스크립트:** `results/v211_scripts/chain_v211.sh`(SHA-256 `ed1cd3e4fc862b0c399677b801871526dc5012f8c6a8d070c9725a918823294a`). 로그는 `results/v211_train_s191-200_log.txt`, `results/v211_confirmatory_log.txt`, `results/v211_scripts/v211_analysis_log.txt`.
 - **보조:** 수렴 run 수, 학습 AUC, headline 16개, 학습 시간(§11.3과 같음).
 - 평가가 같은 파일 이름에 쓰므로 v2.4 확인 결과(평가·그림·로그·스크립트)는 먼저 `results/archive/v2.4_s51-60_2026-10-21/`에 복사했다.
+
+### 18.5 확인 실험 결과 (학습 시드 191–200, 2026-10-22)
+
+- **실행 이력**
+  - 학습: 06:16–10:11(234.8분), 종료 코드 0, 30개 run 모두 체크포인트 저장. `concurrentRuns = 14`를 요청했지만 MATLAB `Threads` 프로필 상한 때문에 풀은 8 workers로 열렸다. 실행 옵션이므로 수치는 같다.
+  - 등록 `run(...)`: 10:11 시작. self-test 14/14를 통과했고 체크포인트 30개를 재사용했다. 평가 6종의 표와 `results.mat`를 10:59에 모두 저장했다. 그 뒤 그림 내보내기 중 `fig_trajectories.png`를 열지 못해 종료 코드 1로 멈췄다. 원인은 Windows 사진 앱이 그 파일을 열고 있던 것이다. 평가 수치에는 영향이 없다.
+  - 그림 12개와 headline은 저장된 `results.mat`에서 `results/v211_scripts/figures_v211.m`으로 다시 만들었다(11:02, 재평가 없음, 로그 `v211_figures_headline_log.txt`).
+  - 체인이 `run` 실패에서 멈췄으므로 등록 분석은 같은 명령으로 따로 실행했다. `analyze_v211.m` SHA-256은 §18.4 값과 일치했고 종료 코드 0이었다(로그 `results/v211_scripts/v211_analysis_log.txt`).
+  - 결정 추적 시험 A01–A13: `onto_rgat_ppo_s191`에서 13/13 통과(로그 `results/v211_scripts/v211_trace_check_log.txt`).
+  - Codex 작업은 사용자 지시로 중단했다(10-22 02:11 사용량 한도로 이미 멈춰 있었음). 이 확인 실험의 학습·평가·분석은 Codex가 쓰지 않았다.
+- **학습 (보조)**
+  - 학습 성공률 80% 도달: PPO 9/10(시드 198은 750 update 동안 착륙을 학습하지 못함), TOSM 10/10, Shuffled 10/10.
+  - 조기 종료: PPO 9/10, TOSM 10/10, Shuffled 8/10(시드 192·193은 750 update까지 실행). 조기 종료 update 중앙값은 PPO 275, TOSM 425, Shuffled 450이다.
+  - 업데이트 축 [0,750] AUC 평균: PPO 0.689, TOSM 0.728, Shuffled 0.704.
+    - TOSM−Shuffled +0.023, 95% [−0.047,+0.093], 양 5/10, p=0.469.
+    - TOSM−PPO +0.039, 95% [−0.165,+0.242], p=0.678.
+- **평균 성공률:** held-out은 PPO 0.882, TOSM 0.973, Shuffled 0.969였다. 학습 범위 밖 combined는 PPO 0.835, TOSM 0.583, Shuffled 0.594였다. PPO held-out 평균에는 시드 198의 0.00이 들어 있고, 나머지 9개 시드는 0.94–1.00이다.
+
+| 주 평가 변수 | TOSM − Shuffled | 사전 등록 판정 | TOSM − PPO | 사전 등록 판정 |
+|---|---:|---|---:|---|
+| held-out 성공률 | +0.004, 95% [−0.025,+0.033] | ±5%p 동등 | +0.092, 95% [−0.135,+0.318] | 결론 없음 |
+| OOD motion 성공률 | −0.009, 95% [−0.146,+0.128] | 결론 없음 | −0.270, 95% [−0.501,−0.039], 음 8/10, Holm p=0.240 | 시드 독립 차이 (PPO 우위) |
+| OOD dropout 성공률 | +0.005, 95% [−0.033,+0.043] | ±5%p 동등 | +0.095, 95% [−0.129,+0.319] | 결론 없음 |
+| OOD noise 성공률 | −0.012, 95% [−0.062,+0.038], 음 8/10 | 결론 없음 | +0.044, 95% [−0.160,+0.248] | 결론 없음 |
+| OOD combined 성공률 | −0.011, 95% [−0.133,+0.111] | 결론 없음 | −0.252, 95% [−0.459,−0.045], 음 8/10, Holm p=0.224 | 시드 독립 차이 (PPO 우위) |
+
+- **목적 판정 (§12.2·§18.2): 미달성.** `PurposeMet`은 0/5다. TOSM−Shuffled 다섯 주 변수는 모두 Holm p=1이고, 95% 구간이 0을 제외한 변수가 없다. held-out과 dropout은 ±5%p 안에서 동등했고, 나머지 세 변수는 결론 없음이다.
+- **결론:** 개발 게이트의 TOSM−Shuffled AUC 방향 4/4(§18.3)는 확인 시드에서 재현되지 않았다(+0.023, 5/10). v2.11로 온톨로지 관계 의미의 효과를 주장하지 않는다.
+- **TOSM − PPO:** OOD motion과 combined에서 PPO가 10개 중 8개 시드에서 높았고 95% 구간이 0을 제외했다. 그래서 등록 규칙상 "시드 독립 차이"다. 다만 Holm 보정 p는 0.240·0.224로 Holm 기준은 넘지 못한다. Shuffled−PPO combined도 −0.241(Shuffled가 높은 시드 1/10)로 같은 방향이다. 따라서 이는 두 그래프 비교군에 공통인 약점이고, v2.3(§10.7.2)과 같은 양상이다. 버전 간 시드가 달라 짝 비교는 하지 않는다.
+- 판정표는 `results/evaluation/v211_primary_endpoints.csv`, 원시 평가는 `results/evaluation/`, 그림은 `results/figures/`, 로그는 `results/v211_train_s191-200_log.txt`·`results/v211_confirmatory_log.txt`·`results/v211_chain_out.txt`에 있다.
+- 같은 폴더의 `fig_current_evidence.*`, `fig_meaningful_evidence.*`, `fig_proposed_model_advantages.*`는 v2.11 확인 결과 이전(10-21–10-22 00:32)에 별도 스크립트로 만든 그림이다. v2.11 결과를 반영하지 않으므로 이 결과의 근거로 쓰지 않는다.
+- 이 결과 뒤 구조를 바꾸는 후속 실험은 v2.12 이상과 새 개발·확인 시드를 쓴다.
