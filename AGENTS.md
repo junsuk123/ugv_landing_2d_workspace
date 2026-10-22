@@ -1,6 +1,14 @@
 # 코드 유지 가이드 (`relational_policy_v1`, 2026-10-17 재설계)
 
 > **진행 중 작업 (2026-10-22):** v2.4 확인과 v2.5–v2.10 개발 게이트는 관계 의미 효과를 입증하지 못했다(설계 문서 §11.4–§17.3). v2.11 고정 노드 역할 코드북 readout(§18)은 개발 게이트를 통과했지만(§18.3), 확인 실험(시드 191–200, §18.5)에서 목적 판정 0/5로 관계 의미 효과를 입증하지 못했다. v2.12 온톨로지 종착 노드 readout(§19)은 개발 게이트에서 실패했다(AUC 평균 −0.031, 양 2/4, §19.4). 사용자 결정으로 구조 탐색을 멈추고 확인 실험 세 개(v2.3·v2.4·v2.11)를 §20에 종합했다(그림 `landing2d.viz.plotConfirmatorySummary`).
+>
+> **작업 폴더 정리 (2026-10-22, 사용자 결정):** 작업 폴더는 이 폴더(`codes/ugv_landing_2d_workspace`, 브랜치 `main`) 하나다. `_refactor`·`_d4` 작업 폴더와 그 밖의 옛 결과는 삭제했다. 남은 결과(`results/`, gitignore)는 다음이 전부다.
+> - v2.11 확인 실험(시드 191–200)의 체크포인트 30개, 평가 전체, 그림
+> - §20 종합 그림·표와 그 근거 CSV(`v23_/v24_/v211_primary_endpoints.csv`)
+> - 개발 게이트 판정 CSV(v2.5–v2.12)
+> - v2.11·v2.12 등록 스크립트와 로그
+>
+> 설계 문서 §1–§19가 가리키는 `results/archive/…`, `_d4/…`, `_refactor/…`, 이전 버전의 스크립트·체크포인트는 더 이상 없다. 수치는 문서에 기록된 값이 전부이고, 코드는 git 이력에 있다. `results/v211_scripts`·`v212_scripts`의 등록 스크립트는 SHA-256을 지키려고 옛 `_d4` 경로를 고치지 않았으므로, 다시 실행하려면 `root`를 이 폴더로 바꾼다. 현재 코드의 기본값은 v2.12라서, v2.11 체크포인트는 학습 서명이 맞지 않아 그대로 로드되지 않는다. 재사용하려면 커밋 `387e935`(v2.11)를 체크아웃해야 한다.
 
 ## 적용 범위
 
@@ -114,13 +122,14 @@
 run_check                    % self-test + smoke
 run_check('learnability')    % 새 환경에서 과제 학습 가능성 사전 점검
 run                          % 3 비교군 × 학습 시드 1–5
-run(struct('trainSeeds',21:30,'concurrentRuns',8,'concurrentPool','threads'))   % v2.3(4층, 10차원 o_t) 확인 실험 (결과: results/archive/v2.3_s21-30_2026-10-21)
-run(struct('trainSeeds',51:60,'concurrentRuns',8,'concurrentPool','threads'))   % v2.4(의미별 고정 연산) 확인 실험 (결과: results/archive/v2.4_s51-60_2026-10-21)
-run(struct('trainSeeds',191:200,'concurrentRuns',8,'concurrentPool','threads')) % v2.11 확인 실험 (학습은 results/v211_scripts/chain_v211.sh, 결과 §18.5)
+run(struct('trainSeeds',21:30,'concurrentRuns',8,'concurrentPool','threads'))   % v2.3(4층, 10차원 o_t) 확인 실험 (원시 결과 삭제, 판정표 results/evaluation/v23_primary_endpoints.csv)
+run(struct('trainSeeds',51:60,'concurrentRuns',8,'concurrentPool','threads'))   % v2.4(의미별 고정 연산) 확인 실험 (원시 결과 삭제, 판정표 results/evaluation/v24_primary_endpoints.csv)
+run(struct('trainSeeds',191:200,'concurrentRuns',8,'concurrentPool','threads')) % v2.11 확인 실험 (커밋 387e935에서 실행, 학습은 results/v211_scripts/chain_v211.sh, 결과 §18.5)
 % v2.12 개발 게이트는 results/v212_scripts/train_v212_dev.m
+% §20 종합 그림·표는 results/summary_scripts/summary_confirmatory.m
 run_scenario('S4')
-run_scenario('S4',struct('trace',true))    % 결정 추적 대시보드 (학습된 M2, 시드 21)
-run_scenario([],struct('replay','results/trace/S4_onto_rgat_ppo_s11_r01.mat'))
+run_scenario('S4',struct('trace',true))    % 결정 추적 대시보드 (학습된 M2, 기본 시드 21; 현재 버전 체크포인트가 필요)
+run_scenario([],struct('replay','results/trace/<저장한 파일>.mat'))   % 대시보드에서 저장한 기록 재생
 run_check('trace')                         % 결정 추적 수용 시험 A01–A13
 ```
 

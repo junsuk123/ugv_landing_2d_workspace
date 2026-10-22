@@ -1023,4 +1023,18 @@ $$
 - 버전 간 합산 검정, 사후 부분군 분석, 미수렴 시드 제외 분석은 하지 않았다.
 - 13개 구조 버전을 탐색했으므로 탐색 전체의 오류율은 통제되지 않는다(§19.3). 위 결론은 각 버전의 사전 등록 판정만 근거로 한다.
 - 결론의 범위는 이 과제(2차원 x–z 착륙), 10차원 공통 관측, 6,101개 파라미터 계약, PPO 학습 예산이다. 온톨로지나 R-GAT 일반의 효용으로 일반화하지 않는다.
-- `results/figures/`의 `fig_current_evidence.*`, `fig_meaningful_evidence.*`, `fig_proposed_model_advantages.*`는 이 종합의 근거가 아니다(§18.5).
+- `results/figures/`의 `fig_current_evidence.*`, `fig_meaningful_evidence.*`, `fig_proposed_model_advantages.*`는 이 종합의 근거가 아니다(§18.5). 이 그림들은 §20.6 정리 때 삭제했다.
+
+### 20.6 결과 파일 정리 (2026-10-22, 사용자 결정)
+
+- 작업 폴더를 `codes/ugv_landing_2d_workspace`(브랜치 `main`) 하나로 통합했다. `_refactor`·`_d4` 작업 폴더, 결과 아카이브, 옛 백업은 삭제했다.
+- **남긴 결과 (`results/`, gitignore)**
+  - `checkpoints/`: v2.11 확인 실험 30개(시드 191–200)
+  - `evaluation/`: v2.11 평가 전체, `v211_primary_endpoints.csv`, `confirmatory_summary.csv`, 개발 게이트 CSV(v2.5–v2.12)
+  - `evaluation/`의 §20 근거: `v23_primary_endpoints.csv`·`v24_primary_endpoints.csv`. 각 버전 등록 분석이 쓴 파일의 바이트 사본이다.
+  - `figures/`: v2.11 그림 12개, `fig_confirmatory_summary.{png,pdf}`
+  - `v211_scripts/`·`v212_scripts/`(등록 스크립트·로그), v2.11·v2.12 학습·평가 로그, `summary_scripts/`
+  - 옮긴 파일 117개는 원본과 바이트 단위로 같음을 확인했다. 종합 그림과 표는 새 위치에서 다시 만들어 표가 이전과 같음을 확인했다.
+- **없어진 것:** §1–§19가 가리키는 `results/archive/…`, `_d4/…`, `_refactor/…` 경로, v2.0–v2.10·v2.12의 체크포인트, v2.3·v2.4의 원시 평가·로그·스크립트. 이 버전들의 수치는 이 문서에 기록된 값이 전부다.
+- 등록 스크립트(`v211_scripts`·`v212_scripts`)는 SHA-256을 지키려고 안의 `_d4` 경로를 고치지 않았다. 다시 실행하려면 `root`를 바꾼다.
+- 현재 코드의 기본값은 v2.12(§19)라서, v2.11 체크포인트를 재사용하려면 커밋 `387e935`를 체크아웃한다.
