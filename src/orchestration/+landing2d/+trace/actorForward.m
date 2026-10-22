@@ -133,6 +133,9 @@ elseif isfield(spec,'readoutParameterization') ...
 elseif isfield(spec,'readoutParameterization') ...
         && strcmp(spec.readoutParameterization,'fixed_node_codebook_v1')
     readoutTerm = (params.Wc*H).*spec.fixedNodeReadoutCodebook.*params.Wn;
+elseif isfield(spec,'readoutParameterization') ...
+        && strcmp(spec.readoutParameterization,'landing_sink_v1')
+    readoutTerm = (params.Wc*H).*params.Wn.*spec.groupMatrix;   % zero except the sink
 else
     readoutTerm = params.Wc*H.*params.Wn;
 end

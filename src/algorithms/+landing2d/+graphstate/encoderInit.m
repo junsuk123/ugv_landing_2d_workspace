@@ -144,6 +144,17 @@ spec.readoutParameterization = 'node_specific_v1';
 if isfield(gs,'v2ReadoutParameterization')
     spec.readoutParameterization = gs.v2ReadoutParameterization;
 end
+if strcmp(spec.readoutParameterization,'landing_sink_v1')
+    % relational-policy-v2.12: read only the ontology sink LandingCondition
+    % through the node-specific factorized form (one group). The other nodes
+    % reach it only through typed edges (two hops cover all seven nodes).
+    sink = schema.landingConditionNodes;
+    assert(isscalar(sink),'landing2d:OntologySink', ...
+        'landing_sink_v1 requires one LandingCondition sink.');
+    spec.groupMatrix = zeros(1,N); spec.groupMatrix(sink) = 1;
+    spec.groupNames = schema.nodeNames(sink); spec.groupCount = 1;
+    spec.readoutTargetNodes = sink;
+end
 spec.graphDim = gs.graphDim;
 spec.parameterRelationCount = R;
 spec.v2Operators = 'none';

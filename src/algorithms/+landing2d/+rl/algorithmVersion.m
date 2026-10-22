@@ -50,5 +50,9 @@ function version = algorithmVersion()
 % pooling by a fixed equal-energy real-Fourier node code. Node identity is
 % retained without trainable node-specific weights or a selected sink;
 % encoder and total parameter counts remain 1,800 and 6,101.
-version = 'relational-policy-v2.11';
+% relational-policy-v2.12 (2026-10-22): after the v2.11 confirmatory result
+% (no registered relation effect), read only the ontology sink
+% LandingCondition in the same ungated two-layer R-GAT, so the other nodes
+% reach the policy only through typed edges. Totals remain 1,800 and 6,101.
+version = 'relational-policy-v2.12';
 end

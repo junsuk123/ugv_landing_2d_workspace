@@ -77,7 +77,9 @@ function [g,cache] = forwardV2(params,spec,policyInput)
 % with the fixed spec.residualMix eta (eta = 0: H^l = F^l, v2.0/v2.1); then
 % fixed_node_codebook_v1 uses
 % g_d = tanh(Wn_d sum_k Q_dk (Wc H^L_k)_d + bg_d), where Q is fixed,
-% row-normalized and equal-energy across nodes;
+% row-normalized and equal-energy across nodes; landing_sink_v1
+% (relational-policy-v2.12) reads only LandingCondition through the
+% node-specific form with one group, g = tanh((Wc H^L_LC) .* Wn + bg);
 % layerF holds F^l, layerH H^l.
 % v2Operators 'semantic_fixed_v1' (relational-policy-v2.4): the propagate
 % edges with self (spec.Tadd) and the modulate edges (spec.Tmod) are two

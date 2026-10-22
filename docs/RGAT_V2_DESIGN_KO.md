@@ -882,3 +882,58 @@ $$
 - 판정표는 `results/evaluation/v211_primary_endpoints.csv`, 원시 평가는 `results/evaluation/`, 그림은 `results/figures/`, 로그는 `results/v211_train_s191-200_log.txt`·`results/v211_confirmatory_log.txt`·`results/v211_chain_out.txt`에 있다.
 - 같은 폴더의 `fig_current_evidence.*`, `fig_meaningful_evidence.*`, `fig_proposed_model_advantages.*`는 v2.11 확인 결과 이전(10-21–10-22 00:32)에 별도 스크립트로 만든 그림이다. v2.11 결과를 반영하지 않으므로 이 결과의 근거로 쓰지 않는다.
 - 이 결과 뒤 구조를 바꾸는 후속 실험은 v2.12 이상과 새 개발·확인 시드를 쓴다.
+
+## 19. v2.12: 온톨로지 종착 노드 readout (`relational-policy-v2.12`, 2026-10-22, 사전 등록)
+
+### 19.1 구조 가설
+
+- **v2.7–v2.11의 공통 우회 경로:** 다섯 버전 모두 R-GCN root 가중치 $W_0$와 self 간선이 있었고, readout이 일곱 노드를 모두 읽었다. 그래서 각 노드의 자기 증거는 의미 간선을 하나도 거치지 않고 정책에 닿는다. 관계 라벨이 정책 입력에 영향을 줄 필요가 없는 구조였다.
+- 두 그래프 비교군의 held-out 동등(v2.3·v2.4·v2.11 확인)은 이 해석과 합치하지만, 원인을 입증하지는 않는다.
+- **v2.12의 변경은 하나다.** readout이 온톨로지 종착 노드 `LandingCondition` 하나만 읽는다(`landing_sink_v1`).
+  $$g=\tanh\big((W_cH^{(2)}_{LC})\odot w_n+b_g\big)$$
+  - 나머지 여섯 노드의 증거는 의미 간선을 거쳐야만 정책에 닿는다.
+  - 2층이면 일곱 노드가 모두 두 홉 안에 `LandingCondition`에 닿는다. 예: `PadVelocity →informsMotion→ RelativeVelocity →conditionsLanding→ LandingCondition`.
+  - 두 그래프 비교군은 위상이 같으므로 도달 가능성도 같다. 두 비교군의 차이는 여전히 어떤 관계 기술자가 어떤 간선에 붙는지뿐이다.
+- **v2.5·v2.6과의 관계:** 두 버전도 같은 종착 노드 readout을 썼지만, 곱셈 게이트와 연산군 공유를 함께 바꿨다. 그래서 종착 노드 readout만의 효과는 분리되지 않았다. v2.12에는 게이트도 연산군도 없다.
+- `LandingCondition`은 온톨로지가 선언한 착륙 판단 맥락 노드다. 학습 결과로 고른 노드가 아니고, readout 시작값(`readoutInit`)도 아니다.
+- **그대로 둔 것**
+  - v2.8 고정 관계 의미 기술자, 표준 2층 R-GAT(입력 의존 attention, 도착 노드별 단일 softmax, root 가중치, tanh, LeCun 초기화)
+  - 공통 관측, 노드 특징, 환경, 보상, 행동, 종료, PPO 손실, 예산, 검증, 조기 종료
+- **파라미터:** readout 288개($W_c$ 256, $w_n$ 16, $b_g$ 16)가 v2.11과 같다. 인코더 1,800개, Actor 26–28, Critic 27–27, 전체 6,101개다. 초기화 난수 사용량도 v2.11과 같다.
+- `algorithmVersion = relational-policy-v2.12`, `comparison_registry_v18`.
+
+### 19.2 구현 검증 (MATLAB, 2026-10-22, 학습 전)
+
+- `run_check`: self-test 14/14와 smoke pipeline 통과(로그 `results/v212_scripts/v212_run_check_log.txt`).
+  - relation-attention: readout이 `LandingCondition` 한 노드만 읽는다(`groupMatrix = [0 0 0 0 0 0 1]`). 일곱 노드의 입력 모두 readout까지 0이 아닌 기울기를 갖는다. 모든 파라미터 군과 입력의 해석적 기울기가 중앙 차분과 일치한다.
+  - context-graph: 그래프 정의의 노드 그룹은 `eye(7)` 그대로이고, 인코더 readout만 종착 노드로 바뀐다.
+- **초기화 점검(결과와 무관, 학습 없음):** `results/v212_scripts/init_sensitivity_v212.m`(SHA-256 `0bd90e0e…`). 개발 시드 201–204의 초기 정책이며, validation 시드 2001–2020의 초기 관측에서 계산했다.
+
+| 비교군 | 평균 \|∂μ/∂o\| | 상대 위치·높이 성분 |
+|---|---:|---:|
+| PPO | 0.0196 | 0.0141 |
+| v2.11 TOSM (`fixed_node_codebook_v1`) | 0.0146 | 0.0167 |
+| v2.12 TOSM (`landing_sink_v1`) | 0.0280 | 0.0134 |
+| v2.12 Shuffled | 0.0269 | 0.0145 |
+
+  종착 노드 readout은 초기 신호를 PPO 수준 이하로 줄이지 않는다. v2.0에서 문제였던 3–7배 축소가 없다.
+- 결정 추적(`+trace/actorForward.m`): readout 항을 종착 노드 외 0으로 표시하도록 고쳤다. 학습된 v2.12 체크포인트가 필요하므로 A01–A13은 개발 게이트 학습 뒤 시드 201에서 실행한다.
+
+### 19.3 개발 게이트와 확인 실험
+
+- **개발 시드:** `registry.trainSeeds.v212Dev = 201:204`. 개발 판정에만 쓰고 확인 분석에 합치지 않는다.
+- **개발 실행:** `results/v212_scripts/train_v212_dev.m`(SHA-256 `d755f028fa3c14562fe6196ebc34432122509b76042ddf6c5ec5681751b0a1e3`)으로 두 그래프 비교군 8개 run을 학습한다. v2.11 스크립트에서 시드·버전·출력 이름만 바꿨다.
+- **개발 게이트:** v2.5–v2.11과 같다.
+  - `run_check` 14/14 + smoke(§19.2에서 통과)
+  - 두 그래프 비교군 각각 4개 중 3개 이상 `Reached80`
+  - TOSM−Shuffled AUC 평균 양수, 4개 중 3개 이상 양수
+  - 하나라도 실패하면 확인 시드를 열지 않고 결과를 그대로 기록한다.
+- **확인 시드:** `registry.trainSeeds.v212 = 211:220`(n = 10). 개발 시드와 이전 모든 실험에서 서로소이고, 이 문장을 쓴 시점에 학습하지 않았다.
+- **확인 실행·분석:** 게이트를 통과하면, 확인 학습 전에 §18.4와 같은 방식으로 학습·평가·분석 스크립트와 SHA-256을 고정한다. 분석 규칙은 §12.2 그대로다.
+  - 5×2 주 변수, 시드 짝 차이, 95% 구간, 8/10 방향, ±5%p 동등, Holm 10개
+  - `PurposeMet`: TOSM−Shuffled, `Delta > 0`, Holm p < 0.05, `Difference`, `SeedRobust`를 모두 만족
+- **결과 뒤 금지:** 개발 게이트를 통과하기 전에 시드 211–220을 학습하지 않는다. 확인 결과를 본 뒤 v2.12 구조·임계값·지표·시드를 바꾸지 않는다.
+- **다중 버전 보고 (결과 전에 기록)**
+  - v2.0부터 v2.12까지 13개 구조 버전을 시험했다. 확인 실험은 v2.0·v2.3·v2.4·v2.11에서 했고, 모두 관계 의미 효과를 보이지 않았다.
+  - 각 확인 실험은 새 시드에서 그 버전 하나에 대해서만 유효하다. 버전을 바꿔 가며 반복한 탐색 전체의 오류율은 통제되지 않는다.
+  - 따라서 v2.12가 목적 판정을 통과하더라도 이전 버전의 음성 결과와 함께 보고하고, "온톨로지 관계 의미가 일반적으로 효과가 있다"고 주장하지 않는다. 주장 범위는 "이 구조(종착 노드 readout)에서 사전 등록 판정을 통과했다"로 한정한다.

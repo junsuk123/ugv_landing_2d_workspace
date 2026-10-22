@@ -123,7 +123,18 @@ gs.v2RelationParameterization = 'fixed_semantic_codebook_v1';
 % node has the same total code energy. The one trainable channel vector Wn is
 % still shared across nodes. No node or ontology sink is selected by hand;
 % every comparison arm remains at 6,101 parameters.
-gs.v2ReadoutParameterization = 'fixed_node_codebook_v1';
+% relational-policy-v2.12: the readout reads only the ontology sink
+% LandingCondition (landing_sink_v1), g = tanh((Wc H_LC) .* Wn + bg), in the
+% standard ungated two-layer R-GAT with the v2.8 semantic relation codebook.
+% With the R-GCN root path and an all-node readout, every node's own
+% evidence reached the policy without any typed edge, so the relation
+% labels could be ignored. With the sink readout the evidence of the other
+% six nodes reaches the policy only through typed edges (all six within two
+% hops in both graph arms, which share the topology). v2.5/v2.6 used this
+% sink together with multiplicative operator gates; v2.12 has no gate.
+% The sink is the ontology's declared decision-context node, not a readout
+% start value. Readout parameters (288) and totals (1,800 / 6,101) equal v2.11.
+gs.v2ReadoutParameterization = 'landing_sink_v1';
 % Input-dependent attention: alpha_ij^(r)(X_t) follows the current node
 % features. 'fixed_relation_v1' (observation-independent relation logits,
 % same parameters) remains available for a deliberate comparison.
