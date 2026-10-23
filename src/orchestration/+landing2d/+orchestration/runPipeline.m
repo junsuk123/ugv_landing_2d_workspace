@@ -7,6 +7,10 @@ function output = runPipeline(options)
 %   methods      registry ids (default ppo, onto_rgat_ppo, shuffled_rgat_ppo)
 %   retrain      true retrains compatible checkpoints too (default false; an
 %                incompatible or missing checkpoint is always retrained)
+%   trainMethods methods that may be trained ('all' = default; {} = none). The
+%                other methods are never trained: their most recent validated
+%                checkpoint is loaded (landing2d.rl.loadLatestCheckpoint). run.m
+%                sets it from its settings block.
 %   sections     evaluation sections (default all, see runEvaluation)
 %   smoke        true: bounded integration run (1 PPO iteration, few episodes,
 %                nothing saved unless saveResults); not a result
@@ -15,6 +19,9 @@ function output = runPipeline(options)
 %   figureVisible default false
 %   concurrentRuns  train this many runs at once (execution only, default 1)
 %   concurrentPool  'processes' (default) or 'threads'
+%   liveTraining  live training figure redrawn after every PPO update
+%                (landing2d.viz.TrainingMonitor, display only; default true in
+%                the MATLAB desktop outside smoke runs, false in -batch)
 % Outputs under results/: checkpoints/, evaluation/ (CSV + results.mat),
 % figures/ (PNG). The test, stress and fixed-case seeds never select a
 % checkpoint; checkpoint selection uses the validation split during PPO.
@@ -23,13 +30,17 @@ registry = landing2d.config.methodRegistry();
 defaults = struct('trainSeeds',[],'methods',{{registry.methods.id}},'retrain',false, ...
     'sections',{{'learning','training','heldout','factorial','generalization','probes'}}, ...
     'smoke',false,'runSelfTest',true,'saveResults',[],'figureVisible',false, ...
-    'concurrentRuns',1,'concurrentPool','processes');
+    'concurrentRuns',1,'concurrentPool','processes','liveTraining',[], ...
+    'trainMethods','all');
 options = parseOptions(options,defaults);
 if isempty(options.trainSeeds)
     options.trainSeeds = registry.trainSeeds.default;
     if options.smoke, options.trainSeeds = 1; end
 end
 if isempty(options.saveResults), options.saveResults = ~options.smoke; end
+if isempty(options.liveTraining)
+    options.liveTraining = usejava('desktop') && ~options.smoke;
+end
 
 root = landing2d.orchestration.projectRoot();
 cfg = landing2d.config.primaryConfig(root);
@@ -44,8 +55,10 @@ tests = table();
 if options.runSelfTest, tests = landing2d.orchestration.selfTest(); end
 
 runs = landing2d.orchestration.trainRuns(cfg,struct('methods',{options.methods}, ...
+    'trainMethods',{options.trainMethods}, ...
     'trainSeeds',options.trainSeeds,'retrain',options.retrain,'smoke',options.smoke, ...
-    'concurrentRuns',options.concurrentRuns,'concurrentPool',options.concurrentPool));
+    'concurrentRuns',options.concurrentRuns,'concurrentPool',options.concurrentPool, ...
+    'liveTraining',logical(options.liveTraining)));
 
 outputDir = '';
 if options.saveResults, outputDir = fullfile(cfg.outputDir,'evaluation'); end

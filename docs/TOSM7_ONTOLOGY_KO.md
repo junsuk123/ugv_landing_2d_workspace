@@ -1,4 +1,4 @@
-# TOSM 축소 온톨로지 (`tosm7_v2`)
+# TOSM 축소 온톨로지 (`tosm7_v4`)
 
 R-GAT 비교군(`onto_rgat_ppo`, `shuffled_rgat_ppo`)의 상태 표현이다. 10차원 공통 관측 $o_t$
 (`COMMON_OBSERVATION_KO.md`)의 결정론적 함수이고, 새 센서·추정기·참값을 쓰지 않는다. 실험 설계와 주장 범위는
@@ -23,9 +23,18 @@ R-GAT 비교군(`onto_rgat_ppo`, `shuffled_rgat_ppo`)의 상태 표현이다. 10
 | N4 | `RelativeVelocity` | Explicit | relative_vx, relative_vx² |
 | N5 | `DroneMotion` | Explicit | drone_vz, sinθ, pitchRate |
 | N6 | `ViewMargin` | Implicit | $(\theta_{FOV}/2-|\hat\beta|)/(\theta_{FOV}/2)$, $\hat\beta/(\theta_{FOV}/2)$ |
-| N7 | `LandingCondition` | Implicit | $r/(1+r)$, $r$ = \|e_x\|, \|v_r\|, \|v_z\|, \|θ\|, \|θ̇\| ÷ 접지 한계 |
+| N7 | `LandingCondition` | Implicit | relative_x, relative_vx, drone_vz, sinθ, pitchRate (부호 있는 o_t 값). `tosm7_v3`: 없음(잠재). `tosm7_v2`: $r/(1+r)$, $r$ = \|e_x\|, \|v_r\|, \|v_z\|, \|θ\|, \|θ̇\| ÷ 접지 한계 |
 
-- N2–N5의 값은 정규화된 $o_t$ 성분 $x/(\lvert x\rvert+s)$이다. N6·N7은 역정규화한 미터·라디안 값으로 계산한다.
+- N2–N5의 값은 정규화된 $o_t$ 성분 $x/(\lvert x\rvert+s)$이다. N6(과 `tosm7_v2`의 N7)은 역정규화한 미터·라디안 값으로 계산한다.
+- `tosm7_v2`에서 `tosm7_v3`으로 바뀐 것(`relational-policy-v2.13`, 2026-10-23, `RGAT_V2_DESIGN_KO.md` §21). readout 종착 노드 LandingCondition을 잠재 노드로 바꿨다.
+  - 상태는 `conditionsLanding` 메시지로만 정해진다. 노드·간선·채널 수는 그대로다.
+  - v2.12 readout은 이 노드만 읽는데, 이 노드의 접지 한계비는 RelativePosition·RelativeVelocity·DroneMotion 증거의 부호 없는 사본이었다. 0 근처 이득은 $o_t$ 정규화의 5–29배였다. 그래서 의미 간선을 거치지 않는 고이득 경로가 정책의 주 입력이 됐다.
+  - validation probe에서 이 경로가 잡음으로 생긴 행동 분산의 대부분을 실었다. 상대 속도 반응도 0에서 꺾인 천막 모양이었다($v_{rel}>0$이면 감속).
+  - 접지 한계비는 `semanticEvidence`에 서술값으로 남는다(결정 추적 표시).
+  - 두 그래프 비교군 모두 학습이 무너졌다(80% 도달 최대 2/5, §21.5).
+- `tosm7_v4`(`relational-policy-v2.14`, 2026-10-23, §22). LandingCondition f1–f5를 같은 다섯 양의 부호 있는 o_t 값으로 바꿨다. 이득과 부호가 PPO 입력과 같다.
+  - v2.12의 학습 가능한 직접 경로는 유지하고, 천막 반응과 잡음 증폭의 원인(부호 없음·고이득)만 없앤다.
+  - 종착 노드가 다른 노드 증거의 사본을 다시 가지므로, 관계 라벨을 우회할 수 있다. 이 버전으로 관계 의미의 필요성을 주장하지 않는다.
 - `tosm7_v1`에서 `tosm7_v2`로 바뀐 것(`relational-policy-v2.3`, 2026-10-20). 결과와 무관하게 결함이 확정된 특징만 뺐고, 빈 채널은 0 패딩이다. 노드·간선·채널 수는 그대로다.
   - N3 `normalizedCrossTrack` $c=s_x(e_x)-m\,s_h(h)$: 정규화 척도가 다른 두 축을 섞는다. 그래서 미터 단위 aim error $e_x-mh$가 아니고, 광축 기준점에서도 0이 아니었다(`VARIABLE_NAMING_AUDIT.md` F5).
   - N3 `geometryQuadratic` ½($c$²+h²): 같은 결함이 있는 $c$로 정의된다.
@@ -35,8 +44,8 @@ R-GAT 비교군(`onto_rgat_ppo`, `shuffled_rgat_ppo`)의 상태 표현이다. 10
   RelativeVelocity는 클래스(RelativeState)가 같지만 typeId는 다르다.
 - $\hat\beta$는 추정된 상대 위치와 기체 피치, 카메라 장착각으로 계산한다. 계산식은 `landing2d.sensing.projectPad`와 같다.
   이 값은 예상 시야 여유일 뿐 검출 결과가 아니므로 `VisionQuality`와 함께 읽는다.
-- `LandingCondition`은 현재 상태의 착륙 적합성을 나타내는 특징이다. 미래 접촉을 예측하지 않는다.
-  각 값이 0.5이면 해당 접지 한계에 있다는 뜻이다. 행동·승인·보상·종료 어디에도 guard로 쓰지 않는다.
+- `LandingCondition`은 현재 상태의 착륙 적합성을 나타내는 맥락 노드다. 미래 접촉을 예측하지 않는다.
+  `tosm7_v3`에서는 자체 특징 없이 관계로만 형성된다. 서술값인 접지 한계비는 0.5이면 해당 한계에 있다는 뜻이다. 행동·승인·보상·종료 어디에도 guard로 쓰지 않는다.
 - `NavigationObservation` 노드는 없다. 항상 유효한 항법 추정에는 유효·경과시간 입력이 없다(v2.3).
   cosθ는 |θ|<90° 범위에서 sinθ로 결정되므로 특징에서 뺐다. 단 ViewMargin과 LandingCondition 계산에는 쓴다.
 - 추정 노드에는 신뢰도 가중을 하지 않는다. 영상 품질은 `qualifiesEstimate` 간선으로만 추정 노드에 전달된다.
@@ -56,7 +65,7 @@ R-GAT 비교군(`onto_rgat_ppo`, `shuffled_rgat_ppo`)의 상태 표현이다. 10
 상대 위치 변화에 영향을 준다는 뜻이다. 현재 상대 위치를 상대 속도만으로 정한다는 뜻은 아니다.
 관계 구조는 고정되어 있고, 매 시점 바뀌는 것은 노드 특징뿐이다.
 
-## 인코더 (`rgat_v2`, 기본값 `relational-policy-v2.12`, 2026-10-22)
+## 인코더 (`rgat_v2`, 기본값 `relational-policy-v2.14`, 2026-10-23; 인코더·readout은 v2.12와 같고 그래프 특징만 `tosm7_v4`)
 
 설계 근거와 사전 등록은 `RGAT_V2_DESIGN_KO.md`에 있다.
 
@@ -67,7 +76,7 @@ R-GAT 비교군(`onto_rgat_ppo`, `shuffled_rgat_ppo`)의 상태 표현이다. 10
 - attention은 층마다 공유 벡터 하나를 학습하고, 관계 임베딩은 위 의미 기술자와 self 표시의 고정 4차원 벡터다. 관계별 독립 학습 파라미터로 교란 라벨을 재명명할 수 없다.
 - 2층이라 리드아웃 전에 관계가 최대 2홉까지 합성된다. 예: `qualifiesEstimate` 다음 `conditionsLanding`.
 - 곱셈 게이트, 연산군(modulate/propagate), 항등 초기화, 손으로 고른 readout 시작점(`readoutInit`)은 없다. 초기화는 LeCun 정규 분포다.
-- `grouped_factorized` readout: 온톨로지 종착 노드 `LandingCondition`의 최종 상태 하나만 읽는다, $g=\tanh((W_cH_{LC})\odot w_n+b_g)$(`landing_sink_v1`, `RGAT_V2_DESIGN_KO.md` §19). 나머지 여섯 노드의 증거는 의미 간선으로만 도달하고, 2층 안에 일곱 노드 모두 `LandingCondition`에 닿는다. v2.11의 7노드 고정 코드북 readout(§18)은 기록 재현용 선택지로 남는다.
+- `grouped_factorized` readout: 온톨로지 종착 노드 `LandingCondition`의 최종 상태 하나만 읽는다, $g=\tanh((W_cH_{LC})\odot w_n+b_g)$(`landing_sink_v1`, `RGAT_V2_DESIGN_KO.md` §19). 나머지 여섯 노드의 증거는 의미 간선으로만 도달하고, 2층 안에 일곱 노드 모두 `LandingCondition`에 닿는다. (`tosm7_v3`에서는 종착 노드 자신도 특징이 없었다. `tosm7_v4`의 종착 노드 특징은 부호 있는 o_t 값이며 self/root 경로로도 readout에 닿는다.) v2.11의 7노드 고정 코드북 readout(§18)은 기록 재현용 선택지로 남는다.
 - 파라미터:
   - 인코더 하나 1,800개, Actor MLP 26-28, Critic MLP 27-27
   - 전체 6,101개로 일반 PPO(MLP 48-48)와 같다(selfTest `contract`, `relation-attention`)

@@ -1,29 +1,33 @@
 function [schema,T] = contextSchema(mode,~,~,features)
-% CONTEXTSCHEMA  Reduced TOSM ontology graph of the planar study (tosm7_v2).
+% CONTEXTSCHEMA  Reduced TOSM ontology graph of the planar study (tosm7_v4).
 %   [schema,T] = landing2d.graphstate.contextSchema('context_rgat')
+%   [schema,T] = landing2d.graphstate.contextSchema('context_rgat',[],[],'tosm7_v2')
 % 7 nodes, 4 semantic relations + self (13 semantic + 7 self edges), 6 node
 % channels (5 node-specific features + typeId) computed from the registered
 % 10-D o_t (landing2d.graphstate.observationVectorGraph); see
 % docs/TOSM7_ONTOLOGY_KO.md. The second and third arguments are accepted for
-% call compatibility (2-D, common observation only).
+% call compatibility (2-D, common observation only). FEATURES (default
+% tosm7_v4) changes only the descriptive feature labels of LandingCondition;
+% topology and every structural field are the same for every version.
 if nargin < 1 || isempty(mode), mode = 'context_rgat'; end
-if nargin >= 4 && ~isempty(features)
-    assert(strcmp(features,'tosm7_v2'),'landing2d:GraphObservationFeatures', ...
-        'Only the tosm7_v2 graph is supported.');
-end
-[schema,T] = tosmReducedSchema(mode);
+if nargin < 4 || isempty(features), features = 'tosm7_v4'; end
+assert(ismember(features,{'tosm7_v2','tosm7_v3','tosm7_v4'}),'landing2d:GraphObservationFeatures', ...
+    'Only the tosm7_v4, tosm7_v3 and tosm7_v2 graphs are supported.');
+[schema,T] = tosmReducedSchema(mode,features);
 end
 
-function [schema,T] = tosmReducedSchema(mode)
+function [schema,T] = tosmReducedSchema(mode,features)
 % Reduced TOSM ontology of the planar study (docs/TOSM7_ONTOLOGY_KO.md).
 % Research scope: incomplete visual observation (qualifiesEstimate), UGV
 % motion change (informsMotion) and the basic visibility/touchdown condition
 % (affectsVisibility, conditionsLanding). Independent estimation/control
 % delay and 3-D contact safety are deliberately out of scope.
 %   N1-N5 Explicit: deterministic transforms of the registered 10-D o_t.
-%   N6-N7 Implicit: ViewMargin and LandingCondition, computed from the same
-%         o_t and the public camera/touchdown constants (no new sensor,
-%         estimator, covariance or innovation). Neither is a guard: no
+%   N6-N7 Implicit: ViewMargin, computed from the same o_t and the public
+%         camera constants (no new sensor, estimator, covariance or
+%         innovation), and LandingCondition: the signed o_t entries of the
+%         five touchdown quantities in tosm7_v4, latent in tosm7_v3 (typeId
+%         only) and the touchdown-limit ratios in tosm7_v2. Neither is a guard: no
 %         action, approval, reward or termination depends on them.
 % The relation structure is fixed; only node features change every step.
 assert(strcmp(mode,'context_rgat'),'landing2d:ContextMode', ...
@@ -93,12 +97,15 @@ schema.src=src; schema.dst=dst; schema.rel=rel;
 % N3 normalizedCrossTrack / geometryQuadratic (normalized-axis cross-track,
 % not the metric aim error) and N5 navigationValid / navigationAge (constant);
 % their channels are zero padding. N6:
-% normalizedBearing is bearing/(FOV/2); N7: bounded* are r/(1+r) of the
-% touchdown-limit ratios r (landing2d.graphstate.observationVectorGraph).
-% typeId is the node identity code node/N (one value per node, not the
-% nodeClasses entry).
+% normalizedBearing is bearing/(FOV/2); N7 (tosm7_v2 only): bounded* are
+% r/(1+r) of the touchdown-limit ratios r
+% (landing2d.graphstate.observationVectorGraph); in tosm7_v3 the five N7
+% channels are zero; in tosm7_v4 they are the signed o_t entries relative_x,
+% relative_vx, drone_vz, drone_sinTheta, drone_pitchRate. typeId is the node
+% identity code node/N (one value per node, not the nodeClasses entry).
 schema.featureNames={'f1','f2','f3','f4','f5','typeId'};
 schema.inDim=numel(schema.featureNames);
+schema.observationFeatures=features;
 schema.nodeFeatureNames={ ...
     'visionUpdated','visionAge','','','',''; ...
     'ugv_vx','ugv_vx^2','','','',''; ...
@@ -108,6 +115,11 @@ schema.nodeFeatureNames={ ...
     'fovMargin','normalizedBearing','','','',''; ...
     'boundedPositionRatio','boundedRelativeSpeedRatio','boundedDescentSpeedRatio', ...
     'boundedPitchRatio','boundedPitchRateRatio',''};
+if strcmp(features,'tosm7_v3'), schema.nodeFeatureNames(7,1:5)={''}; end
+if strcmp(features,'tosm7_v4')
+    schema.nodeFeatureNames(7,1:5)={'relative_x','relative_vx','drone_vz', ...
+        'drone_sinTheta','drone_pitchRate'};
+end
 schema.nodeFeatureNames(:,end)={'typeId'};
 schema.neutralValue=zeros(1,schema.nNodes);
 % The LandingCondition node (descriptive situation feature, never a guard,
@@ -142,6 +154,14 @@ schema.provenance=struct( ...
         'pitch and the camera mounting; an estimate, not a detection'], ...
     'LandingCondition',['|e_x|, |v_r|, |v_z|, |theta|, |theta_dot| against ' ...
         'the mechanical touchdown limits; current-state suitability, never a guard']);
+if strcmp(features,'tosm7_v3')
+    schema.provenance.LandingCondition=['latent: no node features (typeId only); ' ...
+        'state formed by the conditionsLanding messages, never a guard'];
+elseif strcmp(features,'tosm7_v4')
+    schema.provenance.LandingCondition=['relative_x, relative_vx, drone_vz, ' ...
+        'drone_sinTheta, drone_pitchRate (signed o_t entries of the touchdown ' ...
+        'quantities); current-state context, never a guard'];
+end
 if nargout>1, T=landing2d.rgat.topology(schema); end
 end
 

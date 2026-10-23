@@ -2,7 +2,7 @@ function [policyInput,detail] = observationVectorGraph(observationVector,G,c)
 % OBSERVATIONVECTORGRAPH Build the planar graph from an existing 10-D vector.
 % This is the runtime path: environment.step already returns the vector, so
 % graph policies need not vectorize the same common-observation structure twice.
-% graphState.observationFeatures = 'tosm7_v2' (reduced 7-node TOSM ontology).
+% graphState.observationFeatures = 'tosm7_v4' (reduced 7-node TOSM ontology).
 % tosm7_v2 (relational-policy-v2.3) = tosm7_v1 without the features whose
 % defect was confirmed by construction: the constant navigation validity/age
 % (DroneMotion f4-f5; no longer in o_t) and the normalized cross-track
@@ -10,9 +10,21 @@ function [policyInput,detail] = observationVectorGraph(observationVector,G,c)
 % c mixes two differently scaled axes, so it is not the metric aim error
 % e_x - m h and is not zero on the aim line. Freed channels stay zero
 % padding; nodes, edges and the 6 channels are unchanged.
+% tosm7_v3 (relational-policy-v2.13) = tosm7_v2 with a latent readout sink:
+% LandingCondition f1-f5 are zero (typeId kept). Its touchdown ratios
+% |e_x|, |v_r|, |v_z|, |theta|, |theta_dot| / limit duplicated the evidence of
+% RelativePosition, RelativeVelocity and DroneMotion without sign and with
+% 5-29 times the o_t gain, and the landing_sink_v1 readout read them without
+% any typed edge (docs/RGAT_V2_DESIGN_KO.md section 21). The ratios are still
+% returned in semanticEvidence (descriptive, decision trace).
+% tosm7_v4 (relational-policy-v2.14) = tosm7_v2 with LandingCondition f1-f5
+% the signed o_t entries of the same five touchdown quantities: relative_x,
+% relative_vx, drone_vz, drone_sinTheta, drone_pitchRate (gain and sign of
+% o_t). The latent sink of tosm7_v3 removed the unsigned high-gain copy but
+% also the learnable direct path: neither graph arm learned (section 21.5).
 % policyInput is the flattened node-feature matrix X(:) of the R-GAT arms.
 version = c.graphState.observationFeatures;
-assert(strcmp(version,'tosm7_v2'),'landing2d:GraphObservationFeatures', ...
+assert(ismember(version,{'tosm7_v2','tosm7_v3','tosm7_v4'}),'landing2d:GraphObservationFeatures', ...
     'Unknown planar graph feature version.');
 observationSchema = landing2d.observation.vectorSchema(G);
 observationVector = observationVector(:);
@@ -21,6 +33,13 @@ assert(numel(observationVector)==observationSchema.dimension && all(isfinite(obs
 schema = cachedSchema();
 observationComponent = @(name)observationVector(strcmp(observationSchema.names,name));
 [X,semanticEvidence] = tosmFeatures(observationComponent,schema,G,c);
+if strcmp(version,'tosm7_v3')
+    X(1:end-1,schema.landingConditionNodes) = 0;
+elseif strcmp(version,'tosm7_v4')
+    X(1:end-1,schema.landingConditionNodes) = [observationComponent('relative_x'); ...
+        observationComponent('relative_vx');observationComponent('drone_vz'); ...
+        observationComponent('drone_sinTheta');observationComponent('drone_pitchRate')];
+end
 X=min(max(X,-1),1);
 policyInput=X(:);
 if nargout>1
@@ -77,6 +96,7 @@ put(6,fovMargin,normalizedBearing,0,0,0);
 % LandingCondition: current-state touchdown suitability, one ratio per
 % mechanical touchdown limit, softly bounded r/(1+r) (0.5 = at the limit).
 % It summarizes evidence only; it never approves, blocks or clips an action.
+% Node features in tosm7_v2 only (tosm7_v3/v4 keep them as semanticEvidence).
 safety = c.experiment.safety;
 touchdownLimitRatio = [abs(relativeXMeters)/safety.touchdownPositionTolerance; ...
     abs(unscale(normalizedRelativeVx,normalizationScales.vx))/safety.touchdownSpeedX; ...

@@ -5,7 +5,9 @@ function S = graphSchema(agent)
 % agent.encoderSpec (the typed topology the checkpoint stores and inference
 % uses, verified by landing2d.rl.verifyCheckpointGraph at load). The Korean
 % meaning table (landing2d.trace.labels) is written for the tosm7 graph
-% (topology of tosm7_v1 = tosm7_v2; features of tosm7_v2), so any
+% (topology of tosm7_v1 = tosm7_v2 = tosm7_v3; features of tosm7_v2, and
+% tosm7_v3 = the same with a latent LandingCondition, labels.latentSink;
+% tosm7_v4 = signed o_t entries in LandingCondition, labels.sinkFeaturesV4), so any
 % change of nodes, edges, relation types, operator classes or a relation
 % permutation fails here (landing2d:TraceSchema) instead of drawing stale
 % arrows. The trace is defined for the canonical TOSM graph (onto_rgat_ppo),

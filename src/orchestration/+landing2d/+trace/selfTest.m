@@ -112,6 +112,14 @@ expected = { ...
     {'relative_vx'},{'drone_vz','drone_sinTheta','drone_pitchRate'}, ...
     {'relative_x','relative_height','drone_sinTheta','drone_cosTheta'}, ...
     {'relative_x','relative_vx','drone_vz','drone_sinTheta','drone_cosTheta','drone_pitchRate'}};
+% tosm7_v3: the latent LandingCondition has no o_t provenance; tosm7_v4: the
+% signed o_t entries of the five touchdown quantities, without constants.
+features = F.arm.graphState.observationFeatures;
+latent = ismember(features,{'tosm7_v3','tosm7_v4'});
+if strcmp(features,'tosm7_v3'), expected{7} = {}; end
+if strcmp(features,'tosm7_v4')
+    expected{7} = {'relative_x','relative_vx','drone_vz','drone_sinTheta','drone_pitchRate'};
+end
 for n = 1:7
     assert(isempty(setxor(names(P.channelToNode(:,n)),expected{n})), ...
         'Provenance of node %d: %s.',n,strjoin(names(P.channelToNode(:,n)),', '));
@@ -121,6 +129,7 @@ staticExpected = {{},{},{},{},{}, ...
     {'safety.touchdownPositionTolerance','safety.touchdownSpeedX','safety.touchdownSpeedZ', ...
      'safety.touchdownPitchTolerance','safety.touchdownPitchRateTolerance', ...
      'normalization.relativePosition','normalization.vx','normalization.vz','normalization.pitchRate'}};
+if latent, staticExpected{7} = {}; end
 for n = 1:7
     assert(isempty(setxor(P.staticNames(P.staticToNode(:,n)),staticExpected{n})), ...
         'Static constants of node %d differ.',n);
@@ -272,14 +281,27 @@ end
 function detail = checkNoSafetyClaim(F)
 % LandingCondition is only current-state ratios r/(1+r) (0.5 at the limit),
 % never a landing grant, safety guarantee, contact prediction or action.
+% tosm7_v3/v4 keep them as descriptive semanticEvidence (latent node / signed
+% o_t entries); tosm7_v2 also used them as the node features.
 forbidden = ["착륙 승인됨","착륙을 승인함","착륙 허가","안전 보장됨","안전합니다","충돌 없음","접촉 예측됨"];
-T = F.S4;
+T = F.S4; features = F.arm.graphState.observationFeatures;
+names = T.context.observationNames;
 for k = 1:numel(T.records)
     X = landing2d.trace.explainDecision(T,k);
     content = [X.banner,X.sections{:,2}];
     assert(~any(contains(content,forbidden)),'Affirmative safety wording at decision %d.',k);
     r = T.records(k); ratio = r.graph.semanticEvidence.touchdownLimitRatio;
-    assert(max(abs(r.graph.X(1:5,7)'-ratio./(1+ratio))) < 1e-12);
+    assert(max(abs(r.graph.semanticEvidence.landingCondition-ratio./(1+ratio))) < 1e-12);
+    if strcmp(features,'tosm7_v3')
+        assert(all(r.graph.X(1:5,7)==0),'LandingCondition is latent in tosm7_v3.');
+    elseif strcmp(features,'tosm7_v4')
+        o = r.observation(:); entry = @(name)o(strcmp(names,name));
+        assert(isequal(r.graph.X(1:5,7),[entry('relative_x');entry('relative_vx'); ...
+            entry('drone_vz');entry('drone_sinTheta');entry('drone_pitchRate')]), ...
+            'LandingCondition holds the signed o_t entries in tosm7_v4.');
+    else
+        assert(max(abs(r.graph.X(1:5,7)'-ratio./(1+ratio))) < 1e-12);
+    end
 end
 X = landing2d.trace.explainDecision(T,1);
 assert(any(contains(X.sections{4,2},'착륙 승인·안전 보장·미래 접촉 예측·PPO 행동이 아님')));
@@ -287,8 +309,9 @@ vs = T.context.observationNames; v = zeros(numel(vs),1); G = landing2d.observati
 tolerance = F.arm.experiment.safety.touchdownPositionTolerance; s = G.normalization.relativePosition;
 v(strcmp(vs,'relative_x')) = tolerance/(tolerance+s); v(strcmp(vs,'drone_cosTheta')) = 1;
 [~,d] = landing2d.graphstate.observationVectorGraph(v,G,F.arm);
-assert(abs(d.X(1,7)-0.5) < 1e-6,'Position ratio at the tolerance is %.6f, not 0.5.',d.X(1,7));
-detail = sprintf('%d decisions without affirmative safety wording; feature = 0.5 at the limit',numel(T.records));
+ratioAtLimit = d.semanticEvidence.landingCondition(1);
+assert(abs(ratioAtLimit-0.5) < 1e-6,'Position ratio at the tolerance is %.6f, not 0.5.',ratioAtLimit);
+detail = sprintf('%d decisions without affirmative safety wording; ratio = 0.5 at the limit',numel(T.records));
 end
 
 function detail = checkNonInterference(F)

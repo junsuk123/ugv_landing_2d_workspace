@@ -54,5 +54,15 @@ function version = algorithmVersion()
 % (no registered relation effect), read only the ontology sink
 % LandingCondition in the same ungated two-layer R-GAT, so the other nodes
 % reach the policy only through typed edges. Totals remain 1,800 and 6,101.
-version = 'relational-policy-v2.12';
+% relational-policy-v2.13 (2026-10-23): graph features tosm7_v3, the readout
+% sink LandingCondition latent (typeId only). Its unsigned touchdown ratios
+% gave the readout a copy of the relative-velocity / descent evidence that
+% bypassed every typed edge with 5-29x the o_t gain. Encoder, readout,
+% parameters (1,800 / 6,101), PPO and the plain-PPO path are unchanged
+% (landing2d.rl.baselineVersion).
+% relational-policy-v2.14 (2026-10-23, user decision after the failed v2.13
+% gate): tosm7_v4, LandingCondition holds the signed o_t entries of the same
+% five touchdown quantities (o_t gain and sign) instead of nothing. Encoder,
+% readout, parameters, PPO and the plain-PPO path are unchanged.
+version = 'relational-policy-v2.14';
 end

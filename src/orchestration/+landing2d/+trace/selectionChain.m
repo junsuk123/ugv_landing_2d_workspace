@@ -47,6 +47,12 @@ offset = offset+D.nChannels;
 for n = find(closure(offset+(1:D.nNodes)))
     feats = L.nodes(n).features; parts = strings(1,numel(feats));
     for j = 1:numel(feats), parts(j) = sprintf('%s=%+.3f',strtok(feats{j},' '),r.graph.X(j,n)); end
+    if strcmp(S.nodeNames{n},'LandingCondition') && strcmp(r.graph.featureVersion,'tosm7_v3')
+        parts = L.latentSink;
+    elseif strcmp(S.nodeNames{n},'LandingCondition') && strcmp(r.graph.featureVersion,'tosm7_v4')
+        feats = L.sinkFeaturesV4;
+        for j = 1:numel(feats), parts(j) = sprintf('%s=%+.3f',strtok(feats{j},' '),r.graph.X(j,n)); end
+    end
     content{end+1} = sprintf('[노드 특징 X_%d] %s (%s, %s): %s',n,S.nodeNames{n}, ...
         S.nodePerspective{n},L.nodes(n).label,strjoin(parts,', ')); %#ok<AGROW>
 end

@@ -20,7 +20,7 @@ end
 assert(strcmp(mode,'context_rgat') && strcmp(gs.readout,'grouped_factorized'), ...
     'landing2d:StateRepresentation', ...
     'Only baseline and context_rgat with the grouped_factorized readout are supported.');
-[schema,T] = landing2d.graphstate.contextSchema(mode);
+[schema,T] = landing2d.graphstate.contextSchema(mode,[],[],gs.observationFeatures);
 % v2.6 computational semantics: observation quality qualifies estimates;
 % the other relations transport signed state/context evidence additively.
 % Set this before relation perturbation so the shuffled-arm acceptance rule

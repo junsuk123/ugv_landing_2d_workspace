@@ -20,6 +20,13 @@ function [agent,history] = ppoTrain(agent,c,rs)
 % policy entropy, approximate KL, clip fraction and the pre-clip gradient
 % norms of the actor/critic heads and encoders (encoder NaN for plain PPO).
 % The diagnostics only read the update; they do not change it.
+% c.trainingMonitor (optional, display only): a function handle or
+% parallel.pool.DataQueue that receives one progress message per update
+% (landing2d.viz.TrainingMonitor). It is outside the training signature, is
+% removed from c before any episode is collected and only reads values, so
+% the trained policy and history are the same with or without it.
+monitor = [];
+if isfield(c,'trainingMonitor'), monitor = c.trainingMonitor; c = rmfield(c,'trainingMonitor'); end
 rl = agent.rl;
 assert(isfield(c,'experiment') && c.experiment.enabled && ...
     strcmp(rl.trainingRegime,'direct_ppo_v1'),'landing2d:TrainingRegime', ...
@@ -55,6 +62,9 @@ if rl.verbose
     fprintf('  %s[INIT] return %8.2f | select %8.2f | landing %3.0f%%\n', ...
         tag,validationReturn,info.selectionScore,100*info.landingRate);
 end
+progress = progressMessage(c,rl,'init',0,toc(wall));
+progress.validation = validationProgress(validationReturn,info,true);
+notifyMonitor(monitor,progress);
 for iteration = 1:rl.ppoIterations
     episodeSeed = randi(episodeRs,seedRange,rl.episodesPerIteration,1);
     episodePolicyInput = cell(rl.episodesPerIteration,1); episodePreTanhAction = episodePolicyInput;
@@ -91,6 +101,8 @@ for iteration = 1:rl.ppoIterations
     environmentSteps = environmentSteps+n;
     episodes = episodes+rl.episodesPerIteration;
     updatePolicy = iteration > rl.valueWarmup;
+    % This update's own diagnostics for the live monitor (read only).
+    current = emptyWindow();
     for epoch = 1:rl.ppoEpochs
         order = randperm(rs,n);
         for start = 1:rl.miniBatch:n
@@ -101,13 +113,18 @@ for iteration = 1:rl.ppoIterations
                     policyInput(:,index),preTanhAction(:,index),oldLogProbability(index), ...
                     advantage(index),rl,gs);
                 window.policy = accumulate(window.policy,stats);
+                current.policy = accumulate(current.policy,stats);
             end
             [agent,valueOptimizerState,valueEncoderOptimizerState,stats] = valueStep(agent, ...
                 valueOptimizerState,valueEncoderOptimizerState,policyInput(:,index), ...
                 valueTarget(index),rl,gs);
             window.value = accumulate(window.value,stats);
+            current.value = accumulate(current.value,stats);
         end
     end
+    current.returnSum = sum(episodeReturn); current.success = sum(episodeSuccess);
+    current.episodes = numel(episodeReturn); current.decisions = n;
+    progress = progressMessage(c,rl,'update',iteration,toc(wall),current);
     isLast = iteration == rl.ppoIterations;
     if mod(iteration,rl.evaluateEvery) == 0 || isLast
         trainReturn = window.returnSum/max(window.episodes,1);
@@ -122,6 +139,9 @@ for iteration = 1:rl.ppoIterations
         else
             evaluationsWithoutImprovement = evaluationsWithoutImprovement+1;
         end
+        progress.validation = validationProgress(validationReturn,info, ...
+            bestIndex == numel(history));
+        notifyMonitor(monitor,progress);
         if rl.verbose
             fprintf(['  %s[%3d/%3d] train %8.2f | land %3.0f%% | validation %8.2f | ' ...
                 'select %8.2f | land %3.0f%% | unsafe %3.0f%% | timeout %3.0f%%\n'], ...
@@ -146,6 +166,8 @@ for iteration = 1:rl.ppoIterations
             end
             break;
         end
+    else
+        notifyMonitor(monitor,progress);
     end
 end
 history(bestIndex).selected = true;
@@ -153,6 +175,10 @@ best.trainingSelection = struct('iteration',history(bestIndex).iteration, ...
     'selectionScore',bestSelectionScore,'lastIteration',history(end).iteration, ...
     'stopReason',stopReason);
 agent = best;
+progress = progressMessage(c,rl,'done',history(end).iteration,toc(wall));
+progress.selectedIteration = history(bestIndex).iteration;
+progress.stopReason = stopReason;
+notifyMonitor(monitor,progress);
 if rl.verbose
     fprintf('  %sselected update %d: validation return %.2f | selection score %.2f\n', ...
         tag,history(bestIndex).iteration,bestValidationReturn,bestSelectionScore);
@@ -181,6 +207,51 @@ function options = validationOptions(rl)
 % The common validation screen (validation_screen_v1) when configured.
 options = struct();
 if isfield(rl,'validationScreen'), options.screen = rl.validationScreen; end
+end
+
+% ------------------------------------------------ live monitor (display only)
+function message = progressMessage(c,rl,event,iteration,seconds,current)
+% One message per event: 'init' (initial validation), 'update' (after every
+% PPO update; CURRENT = that update's episodes and minibatch diagnostics,
+% plus the validation when one was run) and 'done' (selected checkpoint).
+runName = c.graphState.stateRepresentation; methodId = runName; label = runName;
+trainSeed = NaN;
+if isfield(c,'comparisonRun')
+    runName = c.comparisonRun.runName; methodId = c.comparisonRun.methodId;
+    label = c.comparisonRun.label; trainSeed = c.comparisonRun.trainSeed;
+end
+message = struct('event',event,'runName',runName,'methodId',methodId,'label',label, ...
+    'trainSeed',trainSeed,'iteration',iteration,'ppoIterations',rl.ppoIterations, ...
+    'evaluateEvery',rl.evaluateEvery,'wallSeconds',seconds,'trainReturn',NaN, ...
+    'trainLandingRate',NaN,'episodeDecisions',NaN,'approxKL',NaN,'entropy',NaN, ...
+    'clipFraction',NaN,'validation',[],'selectedIteration',NaN,'stopReason','');
+if nargin < 6, return; end
+d = windowDiagnostics(current);
+message.trainReturn = current.returnSum/max(current.episodes,1);
+message.trainLandingRate = current.success/max(current.episodes,1);
+message.episodeDecisions = d.episodeLength;
+message.approxKL = d.approxKL; message.entropy = d.entropy;
+message.clipFraction = d.clipFraction;
+end
+
+function v = validationProgress(validationReturn,info,isBest)
+v = struct('return',validationReturn,'selectionScore',info.selectionScore, ...
+    'landingRate',info.landingRate,'unsafeRate',info.unsafeRate, ...
+    'timeoutRate',info.timeoutRate,'episodes',info.episodeCount,'best',isBest);
+end
+
+function notifyMonitor(monitor,message)
+% A failing display never stops or changes training.
+if isempty(monitor), return; end
+try
+    if isa(monitor,'parallel.pool.DataQueue')
+        send(monitor,message);
+    else
+        monitor(message);
+    end
+catch err
+    warning('landing2d:TrainingMonitor','Training monitor update failed: %s',err.message);
+end
 end
 
 % ------------------------------------------------------ update diagnostics

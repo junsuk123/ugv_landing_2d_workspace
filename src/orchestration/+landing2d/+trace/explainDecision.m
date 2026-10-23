@@ -80,7 +80,7 @@ for n = 1:5
     sec3{end+1} = sprintf('%s %s (%s): %s',q.computed,S.nodeNames{n}, ...
         L.perspectives.Explicit,featureText(L.nodes(n).features,Xt(:,n))); %#ok<AGROW>
 end
-sec3{end+1} = ['[해석 주의] tosm7_v2: RelativePosition은 정규화 수평 위치와 고도만 받는다. ' ...
+sec3{end+1} = ['[해석 주의] tosm7_v2 이후: RelativePosition은 정규화 수평 위치와 고도만 받는다. ' ...
     '정규화 축이 달라 미터 aim error와 맞지 않던 cross-track 특징은 v2.3에서 제거했다.'];
 % 4. implicit features --------------------------------------------------------
 sec4 = {};
@@ -92,7 +92,7 @@ if s.camera.markerCount > 0
 else
     sec4{end+1} = sprintf('%s 같은 시각 실제 마커 검출: 없음 (예측 시야 여유와 별개의 관측).',q.observed);
 end
-[conditionLines,exceeded] = landingLines(ev,est,ctx,L);
+[conditionLines,exceeded] = landingLines(ev,est,ctx,L,r.graph.featureVersion);
 sec4 = [sec4,conditionLines];
 % 5. declared relations -------------------------------------------------------
 sec5 = {};
@@ -236,14 +236,21 @@ facts = struct('time',t,'decisionIndex',k,'frameCaptured',s.camera.frameCaptured
 X = struct('banner',banner,'sections',{sections},'facts',facts);
 end
 
-function [content,exceeded] = landingLines(ev,est,ctx,L)
+function [content,exceeded] = landingLines(ev,est,ctx,L,featureVersion)
 td = ctx.touchdown;
 raw = [abs(est.relativeX),abs(est.relativeVx),abs(est.droneVz),abs(rad2deg(est.theta)), ...
     abs(rad2deg(est.pitchRate))];
 limitValue = [td.position,td.speedX,td.speedZ,rad2deg(td.pitch),rad2deg(td.pitchRate)];
 units = {'m','m/s','m/s','deg','deg/s'};
 content = {sprintf(['[착륙 조건] LandingCondition (Implicit): 현재 추정 상태의 접지 한계비 r = |값|/한계, ' ...
-    '특징 r/(1+r) (0.5 = 한계값, 1에 가까울수록 초과). 착륙 승인·안전 보장·미래 접촉 예측·PPO 행동이 아님.'])};
+    'r/(1+r) (0.5 = 한계값, 1에 가까울수록 초과). 착륙 승인·안전 보장·미래 접촉 예측·PPO 행동이 아님.'])};
+if strcmp(featureVersion,'tosm7_v3')
+    content{end+1} = ['  tosm7_v3: 아래 값은 서술용이며 정책 입력이 아님. LandingCondition 노드는 특징 없이 ' ...
+        'conditionsLanding 메시지로만 상태가 정해진다.'];
+elseif strcmp(featureVersion,'tosm7_v4')
+    content{end+1} = ['  tosm7_v4: 아래 값은 서술용이며 정책 입력이 아님. LandingCondition 노드 특징은 같은 다섯 ' ...
+        '양의 부호 있는 정규화 o_t 값(relative_x, relative_vx, drone_vz, sinθ, pitchRate)이다.'];
+end
 exceeded = {};
 if ~est.estimateInitialized
     content{end+1} = ['  UGV 추정 없음: 위치·상대 속도 비율은 0으로 채운 정규화 입력에서 계산된 값이며 ' ...

@@ -5,14 +5,23 @@ function gs = defaultGraphStateConfig()
 %   stateRepresentation
 %     'baseline'      plain PPO: the 10-D common observation o_t enters the
 %                     policy/value MLP directly (identity encoder)
-%     'context_rgat'  TOSM 7-node graph of the same o_t (tosm7_v2) encoded by
+%     'context_rgat'  TOSM 7-node graph of the same o_t (tosm7_v4) encoded by
 %                     one relational graph-attention layer with a local node
 %                     path and the grouped factorized readout
 %   relationPerturbation (shuffled_rgat_ppo only, landing2d.config.applyMethod)
 %                     fixed permutation of the semantic relation types
+% Plain PPO reads none of the graph settings below; its training signature
+% ignores them (landing2d.rl.signatureMatches, landing2d.rl.baselineVersion).
 gs.stateRepresentation = 'baseline';
 gs.observationSource = 'commonObservation';
-gs.observationFeatures = 'tosm7_v2';
+% relational-policy-v2.13: tosm7_v3 = tosm7_v2 with the readout sink
+% LandingCondition latent (no node features, typeId only), so its state is
+% formed only by the conditionsLanding messages (docs/RGAT_V2_DESIGN_KO.md
+% section 21); neither graph arm learned. relational-policy-v2.14: tosm7_v4,
+% LandingCondition holds the signed o_t entries relative_x, relative_vx,
+% drone_vz, drone_sinTheta, drone_pitchRate (section 22). 'tosm7_v2'
+% reproduces v2.3-v2.12, 'tosm7_v3' v2.13.
+gs.observationFeatures = 'tosm7_v4';
 % Encoder: 16-D node state, 4-D relation embedding, 16-D graph embedding.
 % Legacy relation-specific heads are 35-38 / 35-30. The default
 % operator-shared encoder uses 38-42 / 40-36 below; both allocations total

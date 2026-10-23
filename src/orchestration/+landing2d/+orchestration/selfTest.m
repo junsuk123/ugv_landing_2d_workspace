@@ -43,7 +43,7 @@ assert(strcmp(c.rl.trainingRegime,'direct_ppo_v1') ...
     && strcmp(c.experiment.actionApplication,'direct_policy_v1') ...
     && strcmp(c.graphState.readout,'grouped_factorized') ...
     && strcmp(c.graphState.attentionMode,'input_dependent_v1') ...
-    && strcmp(c.graphState.observationFeatures,'tosm7_v2') ...
+    && strcmp(c.graphState.observationFeatures,'tosm7_v4') ...
     && c.rl.ppoIterations==750 && c.rl.episodesPerIteration==6);
 % relational-policy-v2.0: rgat_v2 encoder and the common validation-plateau
 % stop (3 validations >= 95% landing, >= 150 updates; budget 750 stays the cap).
@@ -58,7 +58,10 @@ assert(strcmp(c.rl.trainingRegime,'direct_ppo_v1') ...
 % equal-energy node-role codebook readout, with no gate/operator class.
 % relational-policy-v2.12: the same encoder reading only the ontology sink
 % LandingCondition, with no gate/operator class.
-assert(strcmp(landing2d.rl.algorithmVersion(),'relational-policy-v2.12') ...
+% relational-policy-v2.13: the same encoder and readout on tosm7_v3 (latent
+% LandingCondition sink).
+% relational-policy-v2.14: the same on tosm7_v4 (signed o_t-scale sink features).
+assert(strcmp(landing2d.rl.algorithmVersion(),'relational-policy-v2.14') ...
     && strcmp(c.graphState.v2Operators,'none') ...
     && strcmp(c.graphState.v2RelationParameterization,'fixed_semantic_codebook_v1') ...
     && strcmp(c.graphState.v2ReadoutParameterization,'landing_sink_v1') ...
@@ -135,6 +138,16 @@ assert(isequal(registry.trainSeeds.v212Dev,201:204) ...
     && isequal(registry.trainSeeds.v212,211:220) ...
     && isempty(intersect(registry.trainSeeds.v212Dev,earlier)) ...
     && isempty(intersect(registry.trainSeeds.v212,[earlier,registry.trainSeeds.v212Dev])));
+earlier=[earlier,registry.trainSeeds.v212Dev,registry.trainSeeds.v212];
+% v2.13 develops on the default seeds 1-5 (graph arms retrained, plain PPO
+% reused); its confirmatory seeds are fresh.
+assert(isequal(registry.trainSeeds.v213Dev,registry.trainSeeds.default) ...
+    && isequal(registry.trainSeeds.v213,221:230) ...
+    && isempty(intersect(registry.trainSeeds.v213,[earlier,registry.trainSeeds.v213Dev])));
+earlier=[earlier,registry.trainSeeds.v213];
+assert(isequal(registry.trainSeeds.v214Dev,registry.trainSeeds.default) ...
+    && isequal(registry.trainSeeds.v214,231:240) ...
+    && isempty(intersect(registry.trainSeeds.v214,[earlier,registry.trainSeeds.v214Dev])));
 arms=landing2d.config.comparisonArms(c);
 assert(numel(arms)==3 && isequal([arms.trainSeed],[1 1 1]) && arms(3).graphSeed==1 ...
     && isnan(arms(1).graphSeed));
@@ -162,6 +175,74 @@ worker=arms(1).config; worker.rl.parallelWorkers=3; worker.rl.parallelEpisodes=f
 worker.evaluation.factorial.replicates=3;
 assert(landing2d.rl.signatureMatches(landing2d.rl.trainingSignature(worker),arms(1).config) ...
     && strcmp(landing2d.environment.taskFingerprint(worker),prints(1)));
+% Plain PPO ignores graph-only settings: a v2.12 plain-PPO signature (tosm7_v2
+% features) still fits, a v2.12 graph-arm signature does not, and every
+% plain-PPO setting (rl, experiment) still has to match.
+for i=1:3
+    old=signatures{i}; old.algorithmVersion='relational-policy-v2.12';
+    old.graphState.observationFeatures='tosm7_v2';
+    assert(landing2d.rl.signatureMatches(old,arms(i).config)==(i==1));
+end
+older=signatures{1}; older.algorithmVersion='relational-policy-v2.11';
+changed=signatures{1}; changed.rl.policyLearnRate=2*changed.rl.policyLearnRate;
+assert(~landing2d.rl.signatureMatches(older,arms(1).config) ...
+    && ~landing2d.rl.signatureMatches(changed,arms(1).config));
+checkFrozenLoading(c,arms);
+end
+
+function checkFrozenLoading(c,arms)
+% run.m train.<method> = false: the most recent usable validated checkpoint is
+% loaded and nothing is trained (landing2d.rl.loadLatestCheckpoint, trainRuns
+% option trainMethods). Usable = matching signature, or a graph arm of an
+% encoder-compatible version with the same task contract (then evaluated with
+% its own graph features); another task contract is skipped even when newer.
+root=tempname; cleanup=onCleanup(@()rmdir(root,'s'));
+ppo=arms(1).config; ppo.outputDir=root;
+onto=arms(2).config; onto.outputDir=root;
+current=fullfile(root,ppo.rl.policyFile); mkdir(fileparts(current));
+oldDir=fullfile(root,'archive','old','checkpoints'); mkdir(oldDir);
+olderDir=fullfile(root,'archive','older','checkpoints'); mkdir(olderDir);
+store=@(file,arm,signature,age)saveCheckpoint(file,landing2d.rl.initialAgent(arm),signature,age);
+store(current,ppo,landing2d.rl.trainingSignature(ppo),2);
+[~,~,file]=landing2d.rl.loadLatestCheckpoint(ppo);
+assert(strcmp(file,current));
+v213=retagSignature(landing2d.rl.trainingSignature(onto),'relational-policy-v2.13','tosm7_v3');
+v212=retagSignature(landing2d.rl.trainingSignature(onto),'relational-policy-v2.12','tosm7_v2');
+otherTask=landing2d.rl.trainingSignature(onto); otherTask.rl.policyLearnRate=2*otherTask.rl.policyLearnRate;
+[~,name,ext]=fileparts(onto.rl.policyFile);
+store(fullfile(olderDir,[name,ext]),onto,v212,5);
+store(fullfile(oldDir,[name,ext]),onto,v213,3);
+store(fullfile(root,onto.rl.policyFile),onto,otherTask,1);
+[~,~,file,loadedConfig,note]=landing2d.rl.loadLatestCheckpoint(onto);
+assert(strcmp(file,fullfile(oldDir,[name,ext])) ...
+    && strcmp(loadedConfig.graphState.observationFeatures,'tosm7_v3') ...
+    && strcmp(loadedConfig.graphState.policyFile,onto.graphState.policyFile) && contains(note,'v2.13'));
+shuffled=arms(3).config; shuffled.outputDir=root;
+try
+    landing2d.rl.loadLatestCheckpoint(shuffled); missing=false;
+catch err
+    missing=strcmp(err.identifier,'landing2d:NoValidatedCheckpoint');
+end
+assert(missing);
+cfg=c; cfg.outputDir=root;
+quiet=warning('off','landing2d:FrozenCheckpointVersion'); restore=onCleanup(@()warning(quiet));
+runs=landing2d.orchestration.trainRuns(cfg,struct('methods',{{'ppo','onto_rgat_ppo'}}, ...
+    'trainSeeds',1,'trainMethods',{{}}));
+assert(numel(runs)==2 && strcmp(runs(1).file,current) ...
+    && strcmp(runs(2).config.graphState.observationFeatures,'tosm7_v3'));
+end
+
+function signature = retagSignature(signature,algorithmVersion,features)
+% The signature an earlier R-GAT version with other graph features would store.
+signature.algorithmVersion = algorithmVersion;
+signature.graphState.observationFeatures = features;
+end
+
+function saveCheckpoint(file,agent,signature,daysAgo)
+% A checkpoint file as landing2d.rl.loadOrTrainAgent writes it, dated daysAgo.
+info=struct(); run=struct(); %#ok<NASGU>
+save(file,'agent','info','signature','run');
+java.io.File(file).setLastModified(java.lang.System.currentTimeMillis()-daysAgo*86400000);
 end
 
 function checkSeeds()
@@ -320,17 +401,34 @@ assert(schema.nNodes==7 && schema.nRelations==5 && numel(schema.src)==20 ...
 assert(numel(state)==schema.inDim*schema.nNodes ...
     && all(abs(state)<=1));
 nodeFeatures=reshape(state,schema.inDim,schema.nNodes);
-% LandingCondition holds the five soft-bounded touchdown ratios.
+% tosm7_v4: LandingCondition holds the signed o_t entries of the five
+% touchdown quantities; the soft-bounded touchdown ratios stay descriptive
+% semanticEvidence (node features in the archived tosm7_v2), and tosm7_v3 has
+% a latent sink. The other six nodes are identical in every version.
+o=detail.observationVector; on=landing2d.observation.vectorSchema(env.observationContext).names;
+entry=@(name)o(strcmp(on,name));
+v2=c; v2.graphState.observationFeatures='tosm7_v2';
+v3=c; v3.graphState.observationFeatures='tosm7_v3';
+nodeFeaturesV2=reshape(landing2d.graphstate.environmentGraph(noPacket,v2),schema.inDim,schema.nNodes);
+nodeFeaturesV3=reshape(landing2d.graphstate.environmentGraph(noPacket,v3),schema.inDim,schema.nNodes);
 assert(isfield(detail,'semanticEvidence') ...
-    && max(abs(nodeFeatures(1:5,7)-detail.semanticEvidence.landingCondition(:)))<1e-12 ...
-    && all(nodeFeatures(1:5,7)>=0 & nodeFeatures(1:5,7)<1));
+    && isequal(nodeFeatures(1:5,7),[entry('relative_x');entry('relative_vx'); ...
+        entry('drone_vz');entry('drone_sinTheta');entry('drone_pitchRate')]) ...
+    && nodeFeatures(6,7)==1 && all(nodeFeaturesV3(1:5,7)==0) ...
+    && max(abs(nodeFeaturesV2(1:5,7)-detail.semanticEvidence.landingCondition(:)))<1e-12 ...
+    && all(nodeFeaturesV2(1:5,7)>=0 & nodeFeaturesV2(1:5,7)<1) ...
+    && isequal(nodeFeaturesV2(:,1:6),nodeFeatures(:,1:6)) ...
+    && isequal(nodeFeaturesV3(:,1:6),nodeFeatures(:,1:6)));
 assert(isequal(state,landing2d.graphstate.environmentGraph(noPacket,c, ...
     detail.observationVector)));
 [~,spec]=landing2d.graphstate.encoderInit(c.graphState,c.rl.observationDim, ...
     RandStream('threefry','Seed',17));
-% The graph keeps one group per node; the v2.12 readout reads only the
-% ontology sink LandingCondition (landing_sink_v1).
+% The graph keeps one group per node; the readout reads only the ontology
+% sink LandingCondition (landing_sink_v1).
 assert(strcmp(spec.schema.variant,'tosm7_rgat_v2') ...
+    && strcmp(spec.schema.observationFeatures,'tosm7_v4') ...
+    && isequal(spec.schema.nodeFeatureNames(7,1:5),{'relative_x','relative_vx', ...
+        'drone_vz','drone_sinTheta','drone_pitchRate'}) ...
     && isequal(schema.groupMatrix,eye(7)) ...
     && isequal(spec.groupMatrix,[0 0 0 0 0 0 1]));
 % ViewMargin follows the camera projection: on the optical axis the bearing
@@ -422,6 +520,35 @@ end
 screen.episodes=3;
 [~,~,covering]=landing2d.rl.evaluateV2(initial,c,seeds,struct('screen',screen));
 assert(~covering.screened && isequal(covering.returns,full.returns));
+% The live training monitor (c.trainingMonitor) is display only: training with
+% it is bit-identical to training without it (wall time aside), and it gets
+% init, one message per update (validation every evaluateEvery) and done.
+% ppoTrain reads its budget and schedule from agent.rl.
+am=agent; am.rl.ppoIterations=2; am.rl.evaluateEvery=2;
+[plainAgent,plainHistory]=landing2d.rl.ppoTrain(am,c,RandStream('threefry','Seed',4321));
+messages=containers.Map('KeyType','double','ValueType','any');
+cm=c; cm.trainingMonitor=@(message)recordMessage(messages,message);
+[monitoredAgent,monitoredHistory]=landing2d.rl.ppoTrain(am,cm, ...
+    RandStream('threefry','Seed',4321));
+assert(isequaln(plainAgent,monitoredAgent) && isequaln(rmfield(plainHistory,'wallSeconds'), ...
+    rmfield(monitoredHistory,'wallSeconds')));
+received=values(messages);
+assert(isequal(cellfun(@(m)m.event,received,'UniformOutput',false), ...
+    {'init','update','update','done'}) && isempty(received{2}.validation) ...
+    && ~isempty(received{3}.validation) && received{3}.iteration==2 ...
+    && all(cellfun(@(m)isfinite(m.trainReturn),received(2:3))) ...
+    && received{4}.selectedIteration==monitoredAgent.trainingSelection.iteration);
+monitor=landing2d.viz.TrainingMonitor(struct('visible',false));
+for i=1:numel(received), monitor.update(received{i}); end
+assert(monitor.MessageCount==numel(received) && isscalar(monitor.Runs) ...
+    && isequal(monitor.Runs.iteration,[1 2]) && isequal(monitor.Runs.validationIteration,[0 2]) ...
+    && strcmp(monitor.Runs.state,'done') ...
+    && monitor.Runs.bestIteration==received{4}.selectedIteration && isvalid(monitor.Figure));
+close(monitor.Figure);
+end
+
+function recordMessage(messages,message)
+messages(messages.Count+1)=message;
 end
 
 function checkRelationAttention()
