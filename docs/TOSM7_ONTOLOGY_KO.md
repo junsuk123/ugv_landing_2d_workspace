@@ -1,4 +1,4 @@
-# TOSM 축소 온톨로지 (`tosm7_v4`)
+# TOSM 축소 온톨로지 (`tosm7_v5`)
 
 R-GAT 비교군(`onto_rgat_ppo`, `shuffled_rgat_ppo`)의 상태 표현이다. 10차원 공통 관측 $o_t$
 (`COMMON_OBSERVATION_KO.md`)의 결정론적 함수이고, 새 센서·추정기·참값을 쓰지 않는다. 실험 설계와 주장 범위는
@@ -23,9 +23,15 @@ R-GAT 비교군(`onto_rgat_ppo`, `shuffled_rgat_ppo`)의 상태 표현이다. 10
 | N4 | `RelativeVelocity` | Explicit | relative_vx, relative_vx² |
 | N5 | `DroneMotion` | Explicit | drone_vz, sinθ, pitchRate |
 | N6 | `ViewMargin` | Implicit | $(\theta_{FOV}/2-|\hat\beta|)/(\theta_{FOV}/2)$, $\hat\beta/(\theta_{FOV}/2)$ |
-| N7 | `LandingCondition` | Implicit | relative_x, relative_vx, drone_vz, sinθ, pitchRate (부호 있는 o_t 값). `tosm7_v3`: 없음(잠재). `tosm7_v2`: $r/(1+r)$, $r$ = \|e_x\|, \|v_r\|, \|v_z\|, \|θ\|, \|θ̇\| ÷ 접지 한계 |
+| N7 | `LandingCondition` | Implicit | relative_x, relative_vx, **0**, sinθ, pitchRate (부호 있는 o_t 값). 수직속도는 N5에서 관계 메시지로 전달. `tosm7_v4`: f3=drone_vz. `tosm7_v3`: 없음(잠재). `tosm7_v2`: 접지 한계비 $r/(1+r)$ |
 
 - N2–N5의 값은 정규화된 $o_t$ 성분 $x/(\lvert x\rvert+s)$이다. N6(과 `tosm7_v2`의 N7)은 역정규화한 미터·라디안 값으로 계산한다.
+- `tosm7_v5`(`relational-policy-v2.15`, 2026-10-24, `RGAT_V2_DESIGN_KO.md` §23):
+  v2.14 validation 잡음 진단에서 수직속도와 종착 노드 직접 경로의 큰 민감도가 남았다.
+  N7 f3의 중복 사본만 0으로 바꾸고 N5의 수직속도, 다른 모든 특징·위상·인코더 수식은 유지한다.
+  새 관측·필터·손실·가드는 없다. v2.13의 전체 잠재화와 다르며, 재학습 전 후보다.
+  위치·상대속도·자세의 직접 경로는 남아 있으므로 관계 의미의 필요성을 보장하지 않는다.
+  `tosm7_v2/v3/v4`는 저장된 특징 그대로 기록 재현에 사용한다.
 - `tosm7_v2`에서 `tosm7_v3`으로 바뀐 것(`relational-policy-v2.13`, 2026-10-23, `RGAT_V2_DESIGN_KO.md` §21). readout 종착 노드 LandingCondition을 잠재 노드로 바꿨다.
   - 상태는 `conditionsLanding` 메시지로만 정해진다. 노드·간선·채널 수는 그대로다.
   - v2.12 readout은 이 노드만 읽는데, 이 노드의 접지 한계비는 RelativePosition·RelativeVelocity·DroneMotion 증거의 부호 없는 사본이었다. 0 근처 이득은 $o_t$ 정규화의 5–29배였다. 그래서 의미 간선을 거치지 않는 고이득 경로가 정책의 주 입력이 됐다.
@@ -65,7 +71,7 @@ R-GAT 비교군(`onto_rgat_ppo`, `shuffled_rgat_ppo`)의 상태 표현이다. 10
 상대 위치 변화에 영향을 준다는 뜻이다. 현재 상대 위치를 상대 속도만으로 정한다는 뜻은 아니다.
 관계 구조는 고정되어 있고, 매 시점 바뀌는 것은 노드 특징뿐이다.
 
-## 인코더 (`rgat_v2`, 기본값 `relational-policy-v2.14`, 2026-10-23; 인코더·readout은 v2.12와 같고 그래프 특징만 `tosm7_v4`)
+## 인코더 (`rgat_v2`, 기본값 `relational-policy-v2.15`, 2026-10-24; 인코더·readout은 v2.12와 같고 그래프 특징만 `tosm7_v5`)
 
 설계 근거와 사전 등록은 `RGAT_V2_DESIGN_KO.md`에 있다.
 
@@ -80,6 +86,8 @@ R-GAT 비교군(`onto_rgat_ppo`, `shuffled_rgat_ppo`)의 상태 표현이다. 10
 - 파라미터:
   - 인코더 하나 1,800개, Actor MLP 26-28, Critic MLP 27-27
   - 전체 6,101개로 일반 PPO(MLP 48-48)와 같다(selfTest `contract`, `relation-attention`)
+- v2.15에서 수직속도는 N5에서 의미 간선을 거쳐서만 readout에 닿는다. N7 f3은 항상 0이다.
+  두 층 안의 `DroneMotion → LandingCondition` 경로와 수직속도에 대한 정책 반응 경로는 self-test가 검사한다.
 - `schema.relationOperators`(modulate/propagate)는 v1.x 기록을 위한 서술용 메타데이터다. `rgat_v2` 계산에는 쓰이지 않는다.
 
 ### 이전 인코더 (`rgat_v1`, v1.x 기록 재현용)

@@ -11,7 +11,9 @@ function version = baselineVersion(algorithmVersion)
 %   relational-policy-v2.13  graph features tosm7_v3 only (2026-10-23)
 %   relational-policy-v2.14  graph features tosm7_v4 only (2026-10-23)
 % Every other version maps to itself.
-samePath = {'relational-policy-v2.12','relational-policy-v2.13','relational-policy-v2.14'};
+%   relational-policy-v2.15  graph features tosm7_v5 only (2026-10-24)
+samePath = {'relational-policy-v2.12','relational-policy-v2.13', ...
+    'relational-policy-v2.14','relational-policy-v2.15'};
 if ismember(algorithmVersion,samePath)
     version = 'plain-ppo-v2.12';
 else

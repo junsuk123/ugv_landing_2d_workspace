@@ -1,5 +1,7 @@
 # 코드 유지 가이드 (`relational_policy_v1`, 2026-10-17 재설계)
 
+> **진행 중 작업 (2026-10-24, v2.15, 본학습 전):** v2.14는 G2·G3·G5를 통과했으나 G4(잡음)에서 실패했다. validation 진단에 근거해 `tosm7_v5`는 LandingCondition f3의 수직속도 사본만 0으로 두고 DroneMotion의 수직속도는 유지한다. 나머지 특징·인코더·PPO는 동일하다. 설계·결과·논문 정합성은 `docs/RGAT_V2_DESIGN_KO.md` §22.5–23. 학습은 사용자가 `run.m`으로 실행한다. 개발 1–5(PPO 재사용), 확인 241–250(게이트 통과 시만). v2.14 원본 101개 파일은 `results/archive/v2.14_s01-05_2026-10-24/`에 바이트 동일하게 보관했다.
+
 > **진행 중 작업 (2026-10-23, v2.14):** v2.13(잠재 종착 노드)은 두 그래프 비교군 모두 학습이 무너져 개발 게이트 G2에서 실패했다(§21.5). 사용자 선택(A)으로 v2.14(`tosm7_v4`)는 종착 노드 특징을 같은 다섯 양의 부호 있는 o_t 값으로 바꾼다(§22). PPO는 계속 고정한다.
 >
 > **v2.13 (2026-10-23):** 사용자 결정으로 구조 탐색을 다시 열었다. `run_live`(S4)에서 본 TOSM의 이탈·a_z 떨림의 원인을 validation probe로 찾았다. v2.12 종착 노드 LandingCondition의 부호 없는 고이득 접지 한계비가 의미 간선을 우회했고, 두 R-GAT 비교군의 속도 반응이 천막 모양이었다(§21.1). v2.13(`tosm7_v3`)은 이 노드를 잠재 노드로 바꾸고 두 그래프 비교군만 다시 학습한다. PPO는 고정한다(시드 1–5 체크포인트 재사용, `landing2d.rl.baselineVersion`). 개발 게이트는 §21.4이고, v2.12 시드 1–5 결과는 `results/archive/v2.12_s01-05_2026-10-22/`에 있다.
@@ -41,7 +43,7 @@
 
 ## 유지 계약
 
-- 행동 출력: `[a_x,a_z]`. 정책 입력은 10차원 공통 관측(`experiment.observationSchema`, v2.3부터 상수 항법 유효·경과 제외)과 그것의 `tosm7_v2` 그래프만 허용
+- 행동 출력: `[a_x,a_z]`. 정책 입력은 10차원 공통 관측(`experiment.observationSchema`, v2.3부터 상수 항법 유효·경과 제외)과 그것의 `tosm7_v5` 그래프만 허용(이전 특징은 기록 재현용)
 - 비가시 시점 hidden truth·미래 상태·보상·결과 라벨 입력 금지
 - 공통 관측: `landing2d.observation.capture` 단일 경로, 설정 `defaultCommonObservationConfig`, 잡음은 시간 기준 잡음표(`time_indexed_v1`)
 - 공통 reward·environment·action·termination 변경 금지
@@ -51,7 +53,7 @@
   - 2026-10-17 R-GAT 전용 명령 평활화 항 삭제
   - 손실 기울기는 `landing2d.rl.policyLossGradient`·`valueLossGradient` 단일 경로(PPO 갱신과 학습 진단이 공유)
   - 갱신 진단(손실·엔트로피·KL·clip 비율·기울기 노름)은 읽기만 한다. 진단 추가로 학습 수치가 바뀌면 안 된다(바뀌면 `algorithmVersion` 갱신)
-- R-GAT (`relational-policy-v2.14`, 2026-10-23, `docs/RGAT_V2_DESIGN_KO.md` §22; 인코더·readout은 v2.12 §19와 같고 그래프 특징만 `tosm7_v4`)
+- R-GAT (`relational-policy-v2.15`, 2026-10-24, `docs/RGAT_V2_DESIGN_KO.md` §23; 인코더·readout은 v2.12 §19와 같고 그래프 특징만 `tosm7_v5`)
   - 기본 인코더 `rgat_v2`
     - 표준 관계형 그래프 어텐션 2층, 노드 폭 16
     - 관계별 가중치 $W_r=\sum_b C_{rb}V_b$(공통 기저 3개). $C_r$는 온톨로지 관계 역할의 고정 의미 기술자이고 학습하지 않는다
@@ -61,6 +63,7 @@
     - 곱셈 게이트·연산군·잔차 혼합 없음(`v2Operators = none`, `residualMix = 0`)
     - `grouped_factorized` readout은 온톨로지 종착 노드 `LandingCondition` 하나만 읽는다(`landing_sink_v1`). 나머지 노드의 증거는 의미 간선으로만 정책에 닿는다(2홉 안에 7개 노드 모두 도달). 종착 노드는 온톨로지가 선언한 노드이고 readout 시작값이 아니다
     - v2.14: 종착 노드 특징은 relative_x, relative_vx, drone_vz, sinθ, pitchRate의 부호 있는 o_t 값이다(`tosm7_v4`). o_t와 같은 이득·부호다. 종착 노드에 부호 없는 값이나 o_t보다 고이득인 사본을 넣지 않는다(v2.12 천막 반응, §21.1). 잠재 종착 노드(v2.13, `tosm7_v3`)는 학습되지 않았다(§21.5)
+    - 현재 v2.15(`tosm7_v5`): 위 f3만 0이다. 수직속도는 DroneMotion의 원래 특징에서 의미 간선으로 전달한다. G2–G5 기준 유지, 수직 반응 소실 방지 G6 추가. 성능 개선은 재학습·게이트 전까지 주장하지 않는다.
     - 인코더당 1,800개, Actor 26-28, Critic 27-27로 총 6,101개
   - v2.7(§14)은 고정 순환 코드북으로 실패했고, v2.8(§15)은 3/4 양의 방향이나 평균 AUC −0.039917로 실패했다. v2.9(§16)는 산술평균 공유 readout에서 두 arm 모두 `Reached80` 1/4로 실패했다. v2.11(§18, 7노드 고정 코드북 readout)은 개발 게이트를 통과했지만 확인 실험에서 목적 판정 0/5였다
   - v2.0–v2.13(`tosm7_v2`·`tosm7_v3` 포함)과 `rgat_v1`은 기록 재현용 선택지로만 유지한다
@@ -75,10 +78,10 @@
     - `run`의 `liveTraining` 옵션. MATLAB 데스크톱에서는 기본으로 켜지고, smoke·`-batch`에서는 꺼진다
     - 매 PPO update마다 학습 return·학습 착륙률(최근 `rl.evaluateEvery` update 이동평균)·approx KL을 그린다. validation 착륙·위험 접촉은 `rl.evaluateEvery`(25)마다 표시한다. 검증 일정은 체크포인트 선택·조기 종료·learning AUC 계약이라 그림 때문에 바꾸지 않는다
     - 훅 `c.trainingMonitor`(함수 핸들, 동시 학습은 `parallel.pool.DataQueue`)는 학습 서명 밖이다. `ppoTrain`이 에피소드 수집 전에 떼어 내고 값만 읽으며, 반환 run 설정·체크포인트에 남지 않는다. 모니터 유무로 학습 결과가 비트 단위로 같아야 한다(self-test `ppo-smoke`)
-- 그래프(`docs/TOSM7_ONTOLOGY_KO.md`, `tosm7_v4`)
+- 그래프(`docs/TOSM7_ONTOLOGY_KO.md`, `tosm7_v5`)
   - 7노드·4관계+self·20간선·6채널
   - 모든 특징은 $o_t$와 공개 보정 상수의 결정론적 함수
-  - `tosm7_v4`: LandingCondition f1–f5 = 부호 있는 o_t 값(relative_x, relative_vx, drone_vz, sinθ, pitchRate). 접지 한계비는 `semanticEvidence` 서술값으로만 남는다. `tosm7_v2`·`tosm7_v3`은 기록 재현용
+  - `tosm7_v5`: LandingCondition f1–f5 = (relative_x, relative_vx, 0, sinθ, pitchRate). 나머지는 부호 있는 o_t 값 그대로다. 접지 한계비는 `semanticEvidence` 서술값으로만 남는다. `tosm7_v2`·`tosm7_v3`·`tosm7_v4`는 기록 재현용
   - Implicit 노드는 guard가 아님
 - 학습 분포(`defaultPlanarVisibilityConfig`)
   - UGV CV/CA 요인과 마커 정상/누락 요인을 독립 표본(각 셀 약 25%)
@@ -131,7 +134,7 @@
 - 체크포인트: `results/checkpoints/<method>_sNN[_gNN].mat`
   - 학습 서명(알고리즘 버전·rl·experiment·graphState) 불일치 시 재학습
   - `trainMethods`(run.m의 `train.<비교군> = false`)에서 빠진 비교군은 학습하지 않는다. `results/checkpoints`와 `results/archive/*/checkpoints`에서 쓸 수 있는 가장 최근 체크포인트를 쓰고, 없으면 오류로 멈춘다(학습으로 넘어가지 않음)
-    - 쓸 수 있는 체크포인트: 서명이 일치하는 것, 또는 인코더 코드가 같은 R-GAT 버전(v2.12–v2.14)이면서 rl·experiment·행동 상수가 같은 그래프 비교군 체크포인트
+    - 쓸 수 있는 체크포인트: 서명이 일치하는 것, 또는 인코더 코드가 같은 R-GAT 버전(v2.12–v2.15)이면서 rl·experiment·행동 상수가 같은 그래프 비교군 체크포인트
     - 후자는 학습 당시의 graphState(그래프 특징)로 평가하고 경고를 띄운다
   - PPO(`baseline`)의 서명은 graphState를 보지 않고, 알고리즘 버전 대신 PPO 경로 버전(`landing2d.rl.baselineVersion`)으로 비교한다(v2.13). 그래프 비교군만 바꾸는 버전은 PPO 경로를 건드리지 않았음을 확인한 뒤에만 그 목록에 넣는다. PPO 경로(o_t·MLP·PPO 손실·검증·난수열)를 바꾸면 새 PPO 경로 버전을 만든다
   - 평가 설정(`c.evaluation`)은 서명 밖
@@ -142,12 +145,13 @@
 run_check                    % self-test + smoke
 run_check('learnability')    % 새 환경에서 과제 학습 가능성 사전 점검
 run                          % 스크립트(2026-10-23): run.m 맨 위 runSettings(학습 시드, 비교군별 학습 여부 train.<비교군>, 포함 비교군, 재학습, 실시간 학습 그림, 동시 학습, 평가 항목, 그림 표시, self-test)를 고친 뒤 F5. 학습은 사용자가 직접 실행한다
-                             % 현재 값 = v2.14 개발: 시드 1–5, PPO false(재사용), TOSM·Shuffled true, 평가 6종
+                             % 현재 값 = v2.15 개발: 시드 1–5, PPO false(재사용), TOSM·Shuffled true, 평가 6종
 landing2d.orchestration.runPipeline(struct('trainSeeds',1:5,'trainMethods',{{'onto_rgat_ppo','shuffled_rgat_ppo'}}))   % 코드에서 옵션으로 실행 (필드 = runSettings, 비교군별 학습 여부는 trainMethods 목록)
 % 기록: v2.3 확인(시드 21–30)·v2.4 확인(51–60)·v2.11 확인(191–200, 커밋 387e935)은 당시 함수 run(struct('trainSeeds',...,'concurrentRuns',8,'concurrentPool','threads'))로 실행했다
 % (판정표 results/evaluation/v23_/v24_/v211_primary_endpoints.csv, v2.11 학습은 results/v211_scripts/chain_v211.sh, 결과 §18.5)
 % v2.12 개발 게이트는 results/v212_scripts/train_v212_dev.m
 % 그 뒤 results/v214_scripts/gate_v214_dev.m (개발 게이트 G2–G5, §22.4; v2.13은 v213_scripts, §21.4)
+landing2d.evaluation.v215DevelopmentGate()  % v2.15 학습 후: validation G2–G6, 체크포인트 history로 계산
 % §20 종합 그림·표는 results/summary_scripts/summary_confirmatory.m
 run_scenario('S4')
 run_live                                   % S4, 세 비교군 × 학습 시드 1, 센서 잡음 반복 10개를 라이브로 겹쳐 그림 (비교군별 창 + 확산 비교 창)
@@ -155,6 +159,8 @@ run_live('S4',struct('replicates',20,'trainSeeds',1:3,'speed',1))   % 반복 수
 run_scenario('S4',struct('trace',true))    % 결정 추적 대시보드 (학습된 M2, 기본 시드 21; 현재 버전 체크포인트가 필요)
 run_scenario([],struct('replay','results/trace/<저장한 파일>.mat'))   % 대시보드에서 저장한 기록 재생
 run_check('trace')                         % 결정 추적 수용 시험 A01–A13
+run_check('trace',struct('trainSeed',1))    % v2.15 학습 후 시드 1로 검사
+% 이전 특징 모델을 명시적으로 검사할 때만 allowArchivedCheckpoint=true (자기 특징을 복원해 검사).
 ```
 
 ## 명명 규칙 (2026-10-19, INCSL 용어 DB)

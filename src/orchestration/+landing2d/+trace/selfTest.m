@@ -15,7 +15,14 @@ root = landing2d.orchestration.projectRoot();
 cfg = landing2d.config.primaryConfig(root);
 if isfield(options,'outputDir') && ~isempty(options.outputDir), cfg.outputDir = options.outputDir; end
 arm = landing2d.config.applyMethod(cfg,'onto_rgat_ppo',options.trainSeed);
-[agent,~,file] = landing2d.rl.loadCheckpoint(arm);
+% Explicit opt-in to test an archived feature version with its OWN inputs.
+% This never labels an old policy as trained on the new feature version.
+if isfield(options,'allowArchivedCheckpoint') && options.allowArchivedCheckpoint
+    [agent,~,file,arm,note] = landing2d.rl.loadLatestCheckpoint(arm);
+    fprintf('  trace checkpoint features %s: %s\n',arm.graphState.observationFeatures,note);
+else
+    [agent,~,file] = landing2d.rl.loadCheckpoint(arm);
+end
 agentBefore = agent;
 specs = landing2d.evaluation.factorialCases(cfg);
 fixture = struct();
@@ -115,10 +122,13 @@ expected = { ...
 % tosm7_v3: the latent LandingCondition has no o_t provenance; tosm7_v4: the
 % signed o_t entries of the five touchdown quantities, without constants.
 features = F.arm.graphState.observationFeatures;
-latent = ismember(features,{'tosm7_v3','tosm7_v4'});
+latent = ismember(features,{'tosm7_v3','tosm7_v4','tosm7_v5'});
 if strcmp(features,'tosm7_v3'), expected{7} = {}; end
 if strcmp(features,'tosm7_v4')
     expected{7} = {'relative_x','relative_vx','drone_vz','drone_sinTheta','drone_pitchRate'};
+end
+if strcmp(features,'tosm7_v5')
+    expected{7} = {'relative_x','relative_vx','drone_sinTheta','drone_pitchRate'};
 end
 for n = 1:7
     assert(isempty(setxor(names(P.channelToNode(:,n)),expected{n})), ...
@@ -294,11 +304,13 @@ for k = 1:numel(T.records)
     assert(max(abs(r.graph.semanticEvidence.landingCondition-ratio./(1+ratio))) < 1e-12);
     if strcmp(features,'tosm7_v3')
         assert(all(r.graph.X(1:5,7)==0),'LandingCondition is latent in tosm7_v3.');
-    elseif strcmp(features,'tosm7_v4')
+    elseif ismember(features,{'tosm7_v4','tosm7_v5'})
         o = r.observation(:); entry = @(name)o(strcmp(names,name));
-        assert(isequal(r.graph.X(1:5,7),[entry('relative_x');entry('relative_vx'); ...
-            entry('drone_vz');entry('drone_sinTheta');entry('drone_pitchRate')]), ...
-            'LandingCondition holds the signed o_t entries in tosm7_v4.');
+        expected = [entry('relative_x');entry('relative_vx'); ...
+            entry('drone_vz');entry('drone_sinTheta');entry('drone_pitchRate')];
+        if strcmp(features,'tosm7_v5'), expected(3)=0; end
+        assert(isequal(r.graph.X(1:5,7),expected), ...
+            'LandingCondition must match the registered signed-feature version.');
     else
         assert(max(abs(r.graph.X(1:5,7)'-ratio./(1+ratio))) < 1e-12);
     end
@@ -357,14 +369,25 @@ assertThrows(@()landing2d.rl.loadCheckpoint(stale),'landing2d:CheckpointMismatch
 missing = stale; missing.rl.policyFile = 'checkpoints/does_not_exist.mat';
 assertThrows(@()landing2d.rl.loadCheckpoint(missing),'landing2d:CheckpointNotFound');
 landing2d.rl.verifyCheckpointGraph(F.agent,F.arm);
-mockAgent = landing2d.rl.agentInit(F.arm.rl,RandStream('threefry','Seed',3),F.arm.graphState);
+% The mock exercises CURRENT features even when the trained fixture is archived.
+mockArm = landing2d.config.applyMethod(F.cfg,'onto_rgat_ppo',F.options.trainSeed);
+mockAgent = landing2d.rl.agentInit(mockArm.rl,RandStream('threefry','Seed',3),mockArm.graphState);
 spec = F.specs(1);
-T = landing2d.trace.recordEpisode(mockAgent,F.arm,spec.seed,struct('scenario',spec.scenario, ...
+T = landing2d.trace.recordEpisode(mockAgent,mockArm,spec.seed,struct('scenario',spec.scenario, ...
     'sensorEvents',spec.sensorEvents,'maxDecisions',5,'identity', ...
     struct('modelStatus','TEST ONLY: untrained agentInit weights (not a trained policy)')));
 dash = landing2d.viz.TosmTraceDashboard(T,struct('mode','test','visible',false));
 cleanup = onCleanup(@()delete(dash));
 assert(contains(dash.snapshot().mode,'TEST ONLY') && contains(T.identity.modelStatus,'TEST ONLY'));
+if strcmp(mockArm.graphState.observationFeatures,'tosm7_v5')
+    vz=strcmp(T.provenance.channelNames,'drone_vz');
+    assert(T.provenance.channelToNode(vz,5) && ~T.provenance.channelToNode(vz,7));
+    for k=1:numel(T.records)
+        assert(T.records(k).graph.X(3,7)==0);
+        explanation=landing2d.trace.explainDecision(T,k);
+        assert(any(contains(explanation.sections{4,2},'tosm7_v5')));
+    end
+end
 detail = sprintf('%s (%s), stale signature and missing file refused, mock labeled TEST ONLY', ...
     info.name,F.agent.encoderSpec.graph.hash(1:12));
 end

@@ -23,22 +23,26 @@ function [policyInput,detail] = observationVectorGraph(observationVector,G,c)
 % o_t). The latent sink of tosm7_v3 removed the unsigned high-gain copy but
 % also the learnable direct path: neither graph arm learned (section 21.5).
 % policyInput is the flattened node-feature matrix X(:) of the R-GAT arms.
+% tosm7_v5 (relational-policy-v2.15): remove ONLY the duplicate drone_vz
+% feature at LandingCondition. Signed vertical velocity stays in DroneMotion
+% and reaches the sink through typed messages. No input gain/filter changes.
 version = c.graphState.observationFeatures;
-assert(ismember(version,{'tosm7_v2','tosm7_v3','tosm7_v4'}),'landing2d:GraphObservationFeatures', ...
+assert(ismember(version,{'tosm7_v2','tosm7_v3','tosm7_v4','tosm7_v5'}),'landing2d:GraphObservationFeatures', ...
     'Unknown planar graph feature version.');
 observationSchema = landing2d.observation.vectorSchema(G);
 observationVector = observationVector(:);
 assert(numel(observationVector)==observationSchema.dimension && all(isfinite(observationVector)), ...
     'landing2d:GraphObservation','The graph needs the registered observation vector.');
-schema = cachedSchema();
+schema = cachedSchema(version);
 observationComponent = @(name)observationVector(strcmp(observationSchema.names,name));
 [X,semanticEvidence] = tosmFeatures(observationComponent,schema,G,c);
 if strcmp(version,'tosm7_v3')
     X(1:end-1,schema.landingConditionNodes) = 0;
-elseif strcmp(version,'tosm7_v4')
+elseif ismember(version,{'tosm7_v4','tosm7_v5'})
     X(1:end-1,schema.landingConditionNodes) = [observationComponent('relative_x'); ...
         observationComponent('relative_vx');observationComponent('drone_vz'); ...
         observationComponent('drone_sinTheta');observationComponent('drone_pitchRate')];
+    if strcmp(version,'tosm7_v5'), X(3,schema.landingConditionNodes) = 0; end
 end
 X=min(max(X,-1),1);
 policyInput=X(:);
@@ -121,9 +125,11 @@ x = min(max(x,-(1-1e-6)),1-1e-6);
 y = scale*x/(1-abs(x));
 end
 
-function schema = cachedSchema()
+function schema = cachedSchema(features)
 % The schema is constant; build it once per MATLAB session (and worker).
 persistent cached
-if isempty(cached), cached = landing2d.graphstate.contextSchema('context_rgat'); end
+if isempty(cached) || ~strcmp(cached.observationFeatures,features)
+    cached = landing2d.graphstate.contextSchema('context_rgat',[],[],features);
+end
 schema = cached;
 end

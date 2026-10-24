@@ -17,7 +17,7 @@ function [agent,info,file,c,note] = loadLatestCheckpoint(c)
 % Versions whose R-GAT computation is the current code with only the graph
 % features (graphState.observationFeatures) differing:
 sameEncoderVersions = {'relational-policy-v2.12','relational-policy-v2.13', ...
-    'relational-policy-v2.14'};
+    'relational-policy-v2.14','relational-policy-v2.15'};
 candidates = {fullfile(c.outputDir,c.rl.policyFile)};
 archives = dir(fullfile(c.outputDir,'archive'));
 for k = 1:numel(archives)

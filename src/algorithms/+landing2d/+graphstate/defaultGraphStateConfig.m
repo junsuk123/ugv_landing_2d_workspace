@@ -21,7 +21,9 @@ gs.observationSource = 'commonObservation';
 % LandingCondition holds the signed o_t entries relative_x, relative_vx,
 % drone_vz, drone_sinTheta, drone_pitchRate (section 22). 'tosm7_v2'
 % reproduces v2.3-v2.12, 'tosm7_v3' v2.13.
-gs.observationFeatures = 'tosm7_v4';
+% v2.15: only the duplicate vertical-velocity feature at the sink is zero.
+% DroneMotion retains drone_vz; the encoder, readout and PPO are unchanged.
+gs.observationFeatures = 'tosm7_v5';
 % Encoder: 16-D node state, 4-D relation embedding, 16-D graph embedding.
 % Legacy relation-specific heads are 35-38 / 35-30. The default
 % operator-shared encoder uses 38-42 / 40-36 below; both allocations total

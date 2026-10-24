@@ -49,8 +49,9 @@ for n = find(closure(offset+(1:D.nNodes)))
     for j = 1:numel(feats), parts(j) = sprintf('%s=%+.3f',strtok(feats{j},' '),r.graph.X(j,n)); end
     if strcmp(S.nodeNames{n},'LandingCondition') && strcmp(r.graph.featureVersion,'tosm7_v3')
         parts = L.latentSink;
-    elseif strcmp(S.nodeNames{n},'LandingCondition') && strcmp(r.graph.featureVersion,'tosm7_v4')
+    elseif strcmp(S.nodeNames{n},'LandingCondition') && ismember(r.graph.featureVersion,{'tosm7_v4','tosm7_v5'})
         feats = L.sinkFeaturesV4;
+        if strcmp(r.graph.featureVersion,'tosm7_v5'), feats = L.sinkFeaturesV5; end
         for j = 1:numel(feats), parts(j) = sprintf('%s=%+.3f',strtok(feats{j},' '),r.graph.X(j,n)); end
     end
     content{end+1} = sprintf('[노드 특징 X_%d] %s (%s, %s): %s',n,S.nodeNames{n}, ...

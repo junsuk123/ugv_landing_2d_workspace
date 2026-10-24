@@ -1,4 +1,4 @@
-function output = runCheck(mode)
+function output = runCheck(mode,options)
 % RUNCHECK  Checks before the main study.
 %   runCheck()               self-test + bounded smoke of every stage (minutes)
 %   runCheck('learnability') also train plain PPO (seed 1, full budget) on the
@@ -13,11 +13,12 @@ function output = runCheck(mode)
 % The learnability check is a feasibility test of the environment, not a fourth
 % comparison arm; its checkpoint is saved under checkpoints/precheck_*.
 if nargin < 1 || isempty(mode), mode = 'smoke'; end
+if nargin < 2, options = struct(); end
 mode = char(mode);
 assert(ismember(mode,{'smoke','learnability','trace'}),'landing2d:CheckMode', ...
     'mode must be smoke, learnability or trace.');
 if strcmp(mode,'trace')
-    output = struct('trace',landing2d.trace.selfTest());
+    output = struct('trace',landing2d.trace.selfTest(options));
     return;
 end
 learnabilityThreshold = 0.7;

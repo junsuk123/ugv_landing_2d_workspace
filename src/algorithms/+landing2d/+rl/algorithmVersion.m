@@ -64,5 +64,7 @@ function version = algorithmVersion()
 % gate): tosm7_v4, LandingCondition holds the signed o_t entries of the same
 % five touchdown quantities (o_t gain and sign) instead of nothing. Encoder,
 % readout, parameters, PPO and the plain-PPO path are unchanged.
-version = 'relational-policy-v2.14';
+% v2.15 (2026-10-24): tosm7_v5 removes only LandingCondition's duplicate
+% drone_vz; DroneMotion, all encoder equations, PPO and its RNG are unchanged.
+version = 'relational-policy-v2.15';
 end

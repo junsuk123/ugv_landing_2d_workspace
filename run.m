@@ -13,13 +13,15 @@ runSettings = struct();   % 이전 실행의 값이 남지 않도록 새로 만�
 
 % 학습 시드. 비교군 차이는 학습 시드별 짝 차이로 보고한다.
 runSettings.trainSeeds = 1:5;
+% v2.15 개발: 학습 완료 후 landing2d.evaluation.v215DevelopmentGate()로 판정한다.
+% v2.14 원본은 results/archive/v2.14_s01-05_2026-10-24에 보관되어 있다.
 
 % 비교군별 학습 여부
 %   true   학습한다. 현재 설정과 맞는 체크포인트가 있으면 다시 학습하지 않고 재사용한다.
 %   false  학습하지 않는다. 가장 최근 검증 모델을 불러온다. 검증 모델은 PPO 학습 중
 %          validation으로 고른 체크포인트이고, results/checkpoints와
 %          results/archive/*/checkpoints에서 찾는다. 그래프 비교군의 이전 버전 모델
-%          (v2.12-v2.14)은 학습 당시의 그래프 특징으로 평가하고 경고를 띄운다. 환경·보상·
+%          (v2.12-v2.15)은 학습 당시의 그래프 특징으로 평가하고 경고를 띄운다. 환경·보상·
 %          PPO 설정이 다른 모델만 있거나 모델이 없으면 학습하지 않고 오류로 멈춘다.
 runSettings.train.ppo = false;               % PPO: 고정 (relational-policy-v2.13부터)
 runSettings.train.onto_rgat_ppo = true;      % TOSM-RGAT PPO (제안 모델)
