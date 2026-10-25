@@ -17,6 +17,10 @@ if strcmp(mode,'baseline')
     spec.schema = []; spec.T = []; spec.graph = [];
     return;
 end
+if ismember(gs.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2'})
+    [params,spec] = landing2d.minimal.encoderInit(gs,observationDim,rs);
+    return;
+end
 assert(strcmp(mode,'context_rgat') && strcmp(gs.readout,'grouped_factorized'), ...
     'landing2d:StateRepresentation', ...
     'Only baseline and context_rgat with the grouped_factorized readout are supported.');

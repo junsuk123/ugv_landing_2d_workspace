@@ -1,4 +1,4 @@
-function output = runScenario(caseId,options)
+function output = runScenario(caseId,options,cfg)
 % RUNSCENARIO  Fly one controlled factorial case (S1-S4) with trained checkpoints.
 %   output = landing2d.orchestration.runScenario('S4')
 %   output = landing2d.orchestration.runScenario('S4',struct('trainSeeds',1:5,'replicates',5))
@@ -14,6 +14,10 @@ function output = runScenario(caseId,options)
 % A look at trajectories only; the study numbers come from run.
 if nargin < 1 || isempty(caseId), caseId = 'S4'; end
 if nargin < 2, options = struct(); end
+if nargin>=3 && ismember(cfg.graphState.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2'})
+    assert(~isfield(options,'trace') && ~isfield(options,'replay'), ...
+        'landing2d:MinimalTrace','The archived trace dashboard supports seven-node models only.');
+end
 if (isfield(options,'trace') && options.trace) || (isfield(options,'replay') && ~isempty(options.replay))
     output = landing2d.orchestration.runTrace(caseId,options);
     return;
@@ -28,11 +32,12 @@ assert(isempty(unknown),'landing2d:UnknownOption','Unknown option: %s',strjoin(u
 for i = 1:numel(names)
     if ~isfield(options,names{i}), options.(names{i}) = defaults.(names{i}); end
 end
-cfg = landing2d.config.primaryConfig(landing2d.orchestration.projectRoot());
+if nargin<3, cfg = landing2d.config.primaryConfig(landing2d.orchestration.projectRoot()); end
 specs = landing2d.evaluation.factorialCases(cfg);
+if ismember(cfg.graphState.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2'}), specs = landing2d.minimal.cases(cfg); end
 caseId = upper(char(caseId));
 spec = specs(strcmp({specs.id},caseId));
-assert(~isempty(spec),'landing2d:ScenarioId','caseId must be S1, S2, S3 or S4.');
+assert(~isempty(spec),'landing2d:ScenarioId','caseId must be one of %s.',strjoin({specs.id},', '));
 runs = landing2d.orchestration.loadRuns(cfg,struct('methods',{cellstr(options.methods)}, ...
     'trainSeeds',options.trainSeeds));
 seeds = landing2d.evaluation.replicateSeeds(cfg,cfg.evaluation.factorial.seed,options.replicates);

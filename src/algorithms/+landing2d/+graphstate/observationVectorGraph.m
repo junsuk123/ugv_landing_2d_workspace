@@ -2,7 +2,7 @@ function [policyInput,detail] = observationVectorGraph(observationVector,G,c)
 % OBSERVATIONVECTORGRAPH Build the planar graph from an existing 10-D vector.
 % This is the runtime path: environment.step already returns the vector, so
 % graph policies need not vectorize the same common-observation structure twice.
-% graphState.observationFeatures = 'tosm7_v4' (reduced 7-node TOSM ontology).
+% graphState.observationFeatures = 'tosm7_v5' (reduced 7-node TOSM ontology).
 % tosm7_v2 (relational-policy-v2.3) = tosm7_v1 without the features whose
 % defect was confirmed by construction: the constant navigation validity/age
 % (DroneMotion f4-f5; no longer in o_t) and the normalized cross-track
@@ -27,6 +27,10 @@ function [policyInput,detail] = observationVectorGraph(observationVector,G,c)
 % feature at LandingCondition. Signed vertical velocity stays in DroneMotion
 % and reaches the sink through typed messages. No input gain/filter changes.
 version = c.graphState.observationFeatures;
+if strcmp(version,'tosm4_v1')
+    [policyInput,detail] = landing2d.minimal.features(observationVector);
+    return;
+end
 assert(ismember(version,{'tosm7_v2','tosm7_v3','tosm7_v4','tosm7_v5'}),'landing2d:GraphObservationFeatures', ...
     'Unknown planar graph feature version.');
 observationSchema = landing2d.observation.vectorSchema(G);

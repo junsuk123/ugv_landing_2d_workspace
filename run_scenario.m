@@ -1,20 +1,17 @@
 function output = run_scenario(caseId,options)
-% RUN_SCENARIO  Fly one controlled case with trained checkpoints and plot it.
-%   run_scenario('S4')   % S1 CV+clean, S2 CV+dropout, S3 CA+clean, S4 CA+dropout
-%   run_scenario('S4',struct('trainSeeds',1:5,'replicates',5))
-%   run_scenario('S4',struct('trace',true))     % live decision-trace dashboard of
-%                                               % the trained TOSM R-GAT Actor (M2)
-%   run_scenario('S1',struct('trace',true,'visible',false))   % headless record + export
-%   run_scenario([],struct('replay','results/trace/S4_onto_rgat_ppo_s11_r01.mat'))
-% Needs the checkpoints written by run. A look at trajectories only; the study
-% numbers come from run (results/evaluation). See docs/TRACE_DASHBOARD_KO.md.
-if nargin < 1 || isempty(caseId), caseId = 'S4'; end
-if nargin < 2, options = struct(); end
+% RUN_SCENARIO Current trained policies: S1 reference, S2 dropout, S3 acceleration.
+% run_scenario('S2',struct('trainSeeds',271:275,'replicates',5))
+if nargin<1 || isempty(caseId), caseId = 'S1'; end
+if nargin<2, options = struct(); end
 root = fileparts(mfilename('fullpath'));
 for name = {'orchestration','simulations','algorithms'}
-    folder = fullfile(root,'src',name{1});
-    if ~contains([path pathsep],[folder pathsep]), addpath(folder); end
+    addpath(fullfile(root,'src',name{1}));
 end
-output = landing2d.orchestration.runScenario(caseId,options);
-if nargout == 0, clear output; end
+assert(~isfield(options,'trace') && ~isfield(options,'replay'), ...
+    'landing2d:MinimalTrace','The old trace dashboard is seven-node only. Use landing2d.orchestration.runTrace explicitly for archives.');
+assert(ismember(upper(string(caseId)),["S1","S2","S3"]), ...
+    'landing2d:ScenarioId','The active cases are S1, S2 and S3.');
+if ~isfield(options,'trainSeeds'), options.trainSeeds = 271; end
+output = landing2d.orchestration.runScenario(caseId,options,landing2d.minimal.config(root));
+if nargout==0, clear output; end
 end

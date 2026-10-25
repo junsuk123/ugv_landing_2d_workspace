@@ -1,28 +1,15 @@
 function output = run_live(caseId,options)
-% RUN_LIVE  Live overlay of sensor-noise replicates: every method flies one controlled case.
-%   run_live                                      % S4 (CA + dropout), training seed 1, 10 replicates
-%   run_live('S2')                                % another case S1-S4
-%   run_live('S4',struct('replicates',20))        % more noise realizations
-%   run_live('S4',struct('trainSeeds',1:3))       % several trained checkpoints (one color each)
-%   run_live('S4',struct('speed',1))              % paced to real time
-% All replicates share the scenario, UGV motion, initial state and injected
-% marker dropout; only the perception/localization sensor noise differs
-% (marker corners, fused localization, tracker). One window per method shows
-% the trajectories and requested accelerations of every replicate growing
-% live, and a comparison window shows their across-replicate spread over
-% time (behavioral consistency). Needs trained checkpoints of the current
-% configuration (run first). Options: landing2d.orchestration.runLive.
-if nargin < 1, caseId = []; end
-if nargin < 2, options = struct(); end
-addSources();
-output = landing2d.orchestration.runLive(caseId,options);
-if nargout == 0, assignin('base','liveReplicates',output); clear output; end
-end
-
-function addSources()
+% RUN_LIVE Current trained policies over repeated sensor noise; diagnostic only.
+% run_live('S2',struct('replicates',10,'trainSeeds',271,'speed',1))
+if nargin<1 || isempty(caseId), caseId = 'S1'; end
+if nargin<2, options = struct(); end
 root = fileparts(mfilename('fullpath'));
 for name = {'orchestration','simulations','algorithms'}
-    folder = fullfile(root,'src',name{1});
-    if ~contains([path pathsep],[folder pathsep]), addpath(folder); end
+    addpath(fullfile(root,'src',name{1}));
 end
+assert(ismember(upper(string(caseId)),["S1","S2","S3"]), ...
+    'landing2d:ScenarioId','The active cases are S1, S2 and S3.');
+if ~isfield(options,'trainSeeds'), options.trainSeeds = 271; end
+output = landing2d.orchestration.runLive(caseId,options,landing2d.minimal.config(root));
+if nargout==0, assignin('base','liveReplicates',output); clear output; end
 end

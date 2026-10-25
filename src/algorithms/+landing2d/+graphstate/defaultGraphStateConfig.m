@@ -1,13 +1,14 @@
 function gs = defaultGraphStateConfig()
+% Legacy graph settings; the active study uses landing2d.minimal.config.
 % DEFAULTGRAPHSTATECONFIG  State-representation settings (the only difference between methods).
 % Reward, action, environment, termination, PPO algorithm, hyperparameters,
 % budget and seeds are identical for every method; only this struct differs.
 %   stateRepresentation
 %     'baseline'      plain PPO: the 10-D common observation o_t enters the
 %                     policy/value MLP directly (identity encoder)
-%     'context_rgat'  TOSM 7-node graph of the same o_t (tosm7_v4) encoded by
-%                     one relational graph-attention layer with a local node
-%                     path and the grouped factorized readout
+%     'context_rgat'  TOSM 7-node graph of the same o_t (tosm7_v5) encoded by
+%                     two relational graph-attention layers and the
+%                     grouped factorized readout at LandingCondition
 %   relationPerturbation (shuffled_rgat_ppo only, landing2d.config.applyMethod)
 %                     fixed permutation of the semantic relation types
 % Plain PPO reads none of the graph settings below; its training signature

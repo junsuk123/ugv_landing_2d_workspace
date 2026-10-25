@@ -1,5 +1,6 @@
 function cfg = primaryConfig(projectRoot)
 % PRIMARYCONFIG  Configuration of the relational_policy_v1 study (planar contract).
+% Legacy assembly/base contract. Active root entry points use landing2d.minimal.config.
 %   cfg = landing2d.config.primaryConfig()
 % Single place where the pieces are assembled:
 %   experiment  environment, sensors, reward, scenario family and seed manifest

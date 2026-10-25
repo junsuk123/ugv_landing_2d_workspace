@@ -1,5 +1,6 @@
 function output = runPipeline(options)
 % RUNPIPELINE  Self-test -> train -> evaluate -> figures (relational_policy_v1).
+% Legacy study only. Active run.m calls landing2d.minimal.runPipeline.
 %   output = landing2d.orchestration.runPipeline(options)
 % options
 %   trainSeeds   training seeds of every method (default registry.trainSeeds.default

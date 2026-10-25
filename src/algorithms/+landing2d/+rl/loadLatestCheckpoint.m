@@ -56,6 +56,9 @@ graphState = c.graphState; why = '';
 usable = landing2d.rl.signatureMatches(saved,c);
 if usable || strcmp(c.graphState.stateRepresentation,'baseline'), return; end
 current = landing2d.rl.trainingSignature(c);
+% Cross-feature fallback is confined to the documented legacy encoder family.
+% In particular, the active four-node study requires an exact signature.
+if ~ismember(current.algorithmVersion,sameEncoderVersions), return; end
 if ~isfield(saved,'algorithmVersion') || ~ismember(saved.algorithmVersion,sameEncoderVersions) ...
         || ~isfield(saved,'graphState') ...
         || ~strcmp(saved.graphState.stateRepresentation,c.graphState.stateRepresentation)

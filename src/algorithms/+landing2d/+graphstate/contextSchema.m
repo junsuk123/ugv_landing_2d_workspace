@@ -1,5 +1,5 @@
 function [schema,T] = contextSchema(mode,~,~,features)
-% CONTEXTSCHEMA  Reduced TOSM ontology graph of the planar study (tosm7_v4).
+% CONTEXTSCHEMA  Reduced TOSM ontology graph of the planar study (tosm7_v5).
 %   [schema,T] = landing2d.graphstate.contextSchema('context_rgat')
 %   [schema,T] = landing2d.graphstate.contextSchema('context_rgat',[],[],'tosm7_v2')
 % 7 nodes, 4 semantic relations + self (13 semantic + 7 self edges), 6 node
@@ -7,7 +7,7 @@ function [schema,T] = contextSchema(mode,~,~,features)
 % 10-D o_t (landing2d.graphstate.observationVectorGraph); see
 % docs/TOSM7_ONTOLOGY_KO.md. The second and third arguments are accepted for
 % call compatibility (2-D, common observation only). FEATURES (default
-% tosm7_v4) changes only the descriptive feature labels of LandingCondition;
+% tosm7_v5) changes only the descriptive feature labels of LandingCondition;
 % topology and every structural field are the same for every version.
 if nargin < 1 || isempty(mode), mode = 'context_rgat'; end
 if nargin < 4 || isempty(features), features = 'tosm7_v5'; end
@@ -27,7 +27,8 @@ function [schema,T] = tosmReducedSchema(mode,features)
 %         camera constants (no new sensor, estimator, covariance or
 %         innovation), and LandingCondition: the signed o_t entries of the
 %         five touchdown quantities in tosm7_v4, latent in tosm7_v3 (typeId
-%         only) and the touchdown-limit ratios in tosm7_v2. Neither is a guard: no
+%         only) and the touchdown-limit ratios in tosm7_v2. In tosm7_v5 only
+%         LandingCondition's duplicate drone_vz is zero. Neither is a guard: no
 %         action, approval, reward or termination depends on them.
 % The relation structure is fixed; only node features change every step.
 assert(strcmp(mode,'context_rgat'),'landing2d:ContextMode', ...

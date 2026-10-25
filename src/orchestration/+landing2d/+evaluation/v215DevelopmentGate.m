@@ -11,10 +11,14 @@ assert(strcmp(c.graphState.observationFeatures,'tosm7_v5'));
 registry=landing2d.config.methodRegistry(); seeds=registry.trainSeeds.v215Dev;
 runs=landing2d.orchestration.loadRuns(c,struct('trainSeeds',seeds));
 L=landing2d.evaluation.learningEfficiency(runs,c);
-D=landing2d.evaluation.verticalResponseProbe(runs,c);
 referenceFile=fullfile(c.outputDir,'review_2026-10-24','v214_vertical_probe.csv');
 assert(isfile(referenceFile),'landing2d:GateReference','Missing frozen v2.14 reference: %s',referenceFile);
+fid=fopen(referenceFile,'rb'); cleanup=onCleanup(@()fclose(fid));
+referenceHash=landing2d.util.sha256(fread(fid,Inf,'*uint8')); clear cleanup;
+assert(strcmp(referenceHash,'826c7b350c3a55786b20245599ddf3905d4691fd447762eb4dfcce76639f0dff'), ...
+    'landing2d:GateReference','The frozen v2.14 vertical reference has changed.');
 reference=readtable(referenceFile,'TextType','string');
+D=landing2d.evaluation.verticalResponseProbe(runs,c);
 graphArms=["onto_rgat_ppo","shuffled_rgat_ppo"];
 noiseReference=[0.020898,0.018859]; rows=cell(1,2);
 for m=1:2

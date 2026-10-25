@@ -1,4 +1,4 @@
-function output = runLive(caseId,options)
+function output = runLive(caseId,options,cfg)
 % RUNLIVE  Live overlay of sensor-noise replicates of one controlled case, every method.
 %   output = landing2d.orchestration.runLive('S4')
 %   output = landing2d.orchestration.runLive('S4',struct('replicates',20,'trainSeeds',1:3))
@@ -35,12 +35,13 @@ registry = landing2d.config.methodRegistry();
 defaults = struct('trainSeeds',1,'replicates',10,'methods',{{registry.methods.id}}, ...
     'speed',Inf,'drawEvery',1,'visible',true,'metrics',true,'outputDir','');
 options = parseOptions(options,defaults);
-cfg = landing2d.config.primaryConfig(landing2d.orchestration.projectRoot());
+if nargin<3, cfg = landing2d.config.primaryConfig(landing2d.orchestration.projectRoot()); end
 if ~isempty(options.outputDir), cfg.outputDir = char(options.outputDir); end
 specs = landing2d.evaluation.factorialCases(cfg);
+if ismember(cfg.graphState.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2'}), specs = landing2d.minimal.cases(cfg); end
 caseId = upper(char(caseId));
 spec = specs(strcmp({specs.id},caseId));
-assert(isscalar(spec),'landing2d:ScenarioId','caseId must be S1, S2, S3 or S4.');
+assert(isscalar(spec),'landing2d:ScenarioId','caseId must be one of %s.',strjoin({specs.id},', '));
 try
     runs = landing2d.orchestration.loadRuns(cfg,struct('methods',{options.methods}, ...
         'trainSeeds',options.trainSeeds));

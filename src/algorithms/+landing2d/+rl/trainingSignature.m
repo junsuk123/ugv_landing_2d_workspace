@@ -8,7 +8,7 @@ function signature = trainingSignature(c)
 % and execution-only settings do not (verbose, retrain; parallel settings are
 % ignored by landing2d.rl.signatureMatches). Evaluation settings (c.evaluation)
 % are outside the signature, so a new evaluation never invalidates a run.
-signature = struct('algorithmVersion',landing2d.rl.algorithmVersion(),'rl',c.rl);
+signature = struct('algorithmVersion',landing2d.rl.algorithmVersion(c),'rl',c.rl);
 signature.rl.verbose = false;
 signature.rl.retrain = false;
 signature.experiment = c.experiment;

@@ -1,4 +1,4 @@
-function version = algorithmVersion()
+function version = algorithmVersion(c)
 % ALGORITHMVERSION  Behaviour-changing implementation version of trained policies.
 % Bump when a code change makes a saved policy incompatible although the
 % numeric configuration is unchanged. relational-policy-v1.0 (2026-10-17):
@@ -67,4 +67,9 @@ function version = algorithmVersion()
 % v2.15 (2026-10-24): tosm7_v5 removes only LandingCondition's duplicate
 % drone_vz; DroneMotion, all encoder equations, PPO and its RNG are unchanged.
 version = 'relational-policy-v2.15';
+if nargin>0 && strcmp(c.graphState.encoderVersion,'rgat_minimal_v1')
+    version = 'minimal-relational-v3.0';
+elseif nargin>0 && strcmp(c.graphState.encoderVersion,'rgat_minimal_v2')
+    version = 'minimal-relational-v3.1';
+end
 end
