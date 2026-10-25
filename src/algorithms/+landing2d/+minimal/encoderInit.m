@@ -15,7 +15,7 @@ params.W = randn(rs,d,d,R)/sqrt(d);
 params.a = randn(rs,1,2*d+R)/sqrt(2*d+R);
 params.W0 = randn(rs,d,d)/sqrt(d);
 params.b = zeros(d,1);
-if strcmp(gs.encoderVersion,'rgat_minimal_v2')
+if ismember(gs.encoderVersion,{'rgat_minimal_v2','rgat_minimal_v3'})
     spec.encoderVersion = gs.encoderVersion;
     spec.attentionMode = 'dynamic_joint_v1';
     spec.layers = 2; spec.weightSharing = 'across_hops';
@@ -23,5 +23,8 @@ if strcmp(gs.encoderVersion,'rgat_minimal_v2')
     % Preserve RNG draw order; the two graph arms start identically.
     params.a(1:d) = params.a(1:d)*sqrt((2*d+R)/d);
     params.a(d+1:end) = 0;
+    if strcmp(gs.encoderVersion,'rgat_minimal_v3')
+        spec.evidenceSource = 'initial_projection';
+    end
 end
 end

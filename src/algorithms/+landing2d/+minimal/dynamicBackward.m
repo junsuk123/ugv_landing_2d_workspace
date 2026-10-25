@@ -1,4 +1,4 @@
-function [dX,grads] = dynamicBackward(dZ,cache)
+function [dX,grads,dQuery] = dynamicBackward(dZ,cache)
 % DYNAMICBACKWARD Exact derivative including the joint-query attention path.
 T = cache.T; d = cache.d; N = cache.N; B = cache.B; E = T.nEdges;
 dWeighted = dZ(:,T.dst,:);
@@ -13,6 +13,22 @@ dJoint = reshape(cache.a(1:d),d,1,1).*reshape(dScore,1,E,B) ...
 grads.a(d+(1:d)) = sum(reshape(dJoint,d,E*B),2)';
 dSource = dJoint+dWeighted.*reshape(cache.alpha,1,E,B);
 grads.W = zeros(size(cache.W)); dXf = zeros(size(cache.Xf));
+if isfield(cache,'queryFlat')
+    dQueryFlat = zeros(size(cache.queryFlat));
+    for r = 1:T.nRelations
+        dProjected = zeros(d,N,B); dQueryProjected = zeros(d,N,B);
+        for e = find(T.rel==r)
+            dProjected(:,T.src(e),:) = dProjected(:,T.src(e),:)+dSource(:,e,:);
+            dQueryProjected(:,T.dst(e),:) = dQueryProjected(:,T.dst(e),:)+dJoint(:,e,:);
+        end
+        flat = reshape(dProjected,d,N*B); queryFlat = reshape(dQueryProjected,d,N*B);
+        grads.W(:,:,r) = flat*cache.Xf'+queryFlat*cache.queryFlat';
+        dXf = dXf+cache.W(:,:,r)'*flat;
+        dQueryFlat = dQueryFlat+cache.W(:,:,r)'*queryFlat;
+    end
+    dX = reshape(dXf,d,N,B); dQuery = reshape(dQueryFlat,d,N,B);
+    return;
+end
 for r = 1:T.nRelations
     dProjected = zeros(d,N,B);
     for e = find(T.rel==r)
@@ -24,4 +40,5 @@ for r = 1:T.nRelations
     dXf = dXf+cache.W(:,:,r)'*flat;
 end
 dX = reshape(dXf,d,N,B);
+dQuery = [];
 end

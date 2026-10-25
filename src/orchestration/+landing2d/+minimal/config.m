@@ -2,7 +2,7 @@ function c = config(root,version)
 % CONFIG Active compact study; the existing 2D physical and PPO contracts stay.
 if nargin<1, root = landing2d.orchestration.projectRoot(); end
 if nargin<2, version = 'v31'; end
-assert(ismember(version,{'v3','v31'}),'landing2d:MinimalVersion','Use v3 (archive) or v31 (active).');
+assert(ismember(version,{'v3','v31','v32'}),'landing2d:MinimalVersion','Use v3, v31 or v32 (development candidate).');
 c = landing2d.config.primaryConfig(root);
 expected = {'relative_x','relative_height','relative_vx','ugv_vx','drone_vz', ...
     'drone_sinTheta','drone_cosTheta','drone_pitchRate','ugv_visionUpdated','ugv_visionAge'};
@@ -20,11 +20,12 @@ c.graphState = struct('stateRepresentation','baseline', ...
     'attentionMode','input_dependent_v1','hiddenDim',8,'graphDim',8, ...
     'relationDim',3,'policyHiddenSizes',32,'valueHiddenSizes',32, ...
     'encoderLearnRate',encoderLearnRate);
-if strcmp(version,'v31')
-    c.outputDir = fullfile(root,'results','minimal_v31');
+if ismember(version,{'v31','v32'})
+    c.outputDir = fullfile(root,'results',['minimal_',version]);
     c.graphState.encoderVersion = 'rgat_minimal_v2';
     c.graphState.attentionMode = 'dynamic_joint_v1';
 end
+if strcmp(version,'v32'), c.graphState.encoderVersion = 'rgat_minimal_v3'; end
 % Evaluation contract is unchanged between v3 and v3.1; outside signatures.
 c.evaluation.protocolVersion = 'minimal_generalization_v1';
 c.evaluation.generalization.conditions = {'motion','dropout','noise'};

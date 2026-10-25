@@ -7,7 +7,7 @@ if nargin < 2 || isempty(tolerance), tolerance = 1e-10; end
 required = strcmp(agent.encoderSpec.mode,'context_rgat');
 policyReadout = NaN; valueReadout = NaN; active = true;
 if required
-    if ismember(agent.encoderSpec.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2'})
+    if ismember(agent.encoderSpec.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2','rgat_minimal_v3'})
         % Fixed node selection has unit norm. This is a structural audit only;
         % nonzero message weights do not establish causal importance.
         policyReadout = 1; valueReadout = 1;

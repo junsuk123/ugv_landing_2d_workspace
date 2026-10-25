@@ -7,7 +7,7 @@ function [grads,dPolicyInput] = encoderBackward(params,spec,cache,dG)
 if strcmp(spec.mode,'baseline')
     grads = struct(); dPolicyInput = dG; return;
 end
-if isfield(spec,'encoderVersion') && ismember(spec.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2'})
+if isfield(spec,'encoderVersion') && ismember(spec.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2','rgat_minimal_v3'})
     [grads,dPolicyInput] = landing2d.minimal.encoderBackward(params,spec,cache,dG);
     return;
 end

@@ -22,7 +22,7 @@ if nargin < 4 || isempty(graphSeed), graphSeed = trainSeed; end
 cfg = landing2d.graphstate.applyStateRepresentation(cfg,method.representation);
 name = sprintf('%s_s%02d',method.id,trainSeed);
 if perturbed
-    if ismember(cfg.graphState.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2'})
+    if ismember(cfg.graphState.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2','rgat_minimal_v3'})
         registry.relationShuffle.minChangedFraction = registry.relationShuffle.minimalChangedFraction;
     end
     validateattributes(graphSeed,{'numeric'},{'scalar','integer','positive'},mfilename,'graphSeed');

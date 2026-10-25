@@ -22,7 +22,7 @@ if strcmp(spec.mode,'baseline')
     cache = struct('mode',spec.mode);
     return;
 end
-if isfield(spec,'encoderVersion') && ismember(spec.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2'})
+if isfield(spec,'encoderVersion') && ismember(spec.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2','rgat_minimal_v3'})
     [g,cache] = landing2d.minimal.encoderForward(params,spec,policyInput);
     return;
 end

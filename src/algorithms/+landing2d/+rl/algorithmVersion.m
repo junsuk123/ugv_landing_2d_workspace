@@ -71,5 +71,7 @@ if nargin>0 && strcmp(c.graphState.encoderVersion,'rgat_minimal_v1')
     version = 'minimal-relational-v3.0';
 elseif nargin>0 && strcmp(c.graphState.encoderVersion,'rgat_minimal_v2')
     version = 'minimal-relational-v3.1';
+elseif nargin>0 && strcmp(c.graphState.encoderVersion,'rgat_minimal_v3')
+    version = 'minimal-relational-v3.2';
 end
 end

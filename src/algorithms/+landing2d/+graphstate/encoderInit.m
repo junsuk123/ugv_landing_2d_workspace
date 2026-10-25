@@ -17,7 +17,7 @@ if strcmp(mode,'baseline')
     spec.schema = []; spec.T = []; spec.graph = [];
     return;
 end
-if ismember(gs.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2'})
+if ismember(gs.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2','rgat_minimal_v3'})
     [params,spec] = landing2d.minimal.encoderInit(gs,observationDim,rs);
     return;
 end

@@ -1,6 +1,6 @@
 function validateGraphStateConfig(gs)
 % VALIDATEGRAPHSTATECONFIG  State-representation settings of the planar contract.
-if isfield(gs,'encoderVersion') && ismember(gs.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2'})
+if isfield(gs,'encoderVersion') && ismember(gs.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2','rgat_minimal_v3'})
     landing2d.minimal.validateGraphConfig(gs);
     return;
 end

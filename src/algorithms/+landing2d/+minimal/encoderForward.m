@@ -3,11 +3,18 @@ function [g,cache] = encoderForward(params,spec,policyInput)
 B = size(policyInput,2); N = spec.nNodes; d = spec.hiddenDim;
 Xf = reshape(policyInput,spec.inDim,N*B);
 H0 = tanh(params.P*Xf+params.bp);
-if strcmp(spec.encoderVersion,'rgat_minimal_v2')
+if ismember(spec.encoderVersion,{'rgat_minimal_v2','rgat_minimal_v3'})
     H = reshape(H0,d,N,B); layers = cell(1,spec.layers);
     for k = 1:spec.layers
         previous = H;
-        [Z,relationCache] = landing2d.minimal.dynamicForward(H,params.W,params.a,spec.T);
+        if strcmp(spec.encoderVersion,'rgat_minimal_v3')
+            % Fixed evidence travels through the same allowed edges. Only
+            % the destination interpretation/context is refined across hops.
+            [Z,relationCache] = landing2d.minimal.dynamicForward( ...
+                reshape(H0,d,N,B),params.W,params.a,spec.T,H);
+        else
+            [Z,relationCache] = landing2d.minimal.dynamicForward(H,params.W,params.a,spec.T);
+        end
         H = reshape(tanh(reshape(Z,d,N*B)+params.W0*reshape(H,d,N*B)+params.b),d,N,B);
         layers{k} = struct('previous',previous,'H',H,'relation',relationCache);
     end

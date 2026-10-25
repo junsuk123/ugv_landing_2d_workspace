@@ -4,7 +4,9 @@
 
 ## 현재 경로
 
+- **진행 중 목표(2026-10-25):** 사용자의 최신 지시 “목표 만들어서 그거 해결할 때까지 수정해줘”에 따라 수정·필요한 본 학습·평가를 반복하는 목표를 생성했다. 이 목표 작업에서는 아래의 이전 일회성 학습 제한을 대신해 반복 실행을 허용한다. 2D 물리·센서·공통 관측·보상·PPO 손실·공정한 비교와 결과 보존 계약은 유지한다. 세부 완료 기준과 개발/확인 분리는 `docs/GENERALIZATION_GOAL_KO.md`를 따른다. 결과가 부족하면 목표를 완료로 표시하지 않는다.
 - 개요 `docs/MINIMAL_SYSTEM_KO.md`, 온톨로지·수식 `docs/TOSM4_ONTOLOGY_KO.md`, 귀납적 편향·업데이트 `docs/INDUCTIVE_BIAS_KO.md`, 실험·주장 `docs/EXPERIMENT_DESIGN_KO.md`.
+- **v3.2 개발 후보:** `minimal.config(root,'v32')`, `rgat_minimal_v3`, `minimal-relational-v3.2`. 원래 투영 H0를 두 홉의 증거로 유지하고 도착 질의와 root만 갱신한다. 파라미터·초기값·PPO·그래프·관측은 v3.1과 같다. 기본 실행 버전은 아직 v3.1이다. 학습 전에 고정한 validation 개발 게이트·수식은 `docs/GENERALIZATION_GOAL_KO.md`. 12개 최소 구조 검사(기존 11 + anchored-evidence), legacy 14개, trace 13개 및 두 버전의 3방법 smoke/저장/재생 검사를 통과했다. 성능은 아직 검증 중이다.
 - 루트 MATLAB 파일은 `run.m`, `run_check.m`, `run_scenario.m`, `run_live.m` 네 개만 둔다.
 - `run.m` → `landing2d.minimal.runPipeline`. 학습은 사용자가 직접 실행한다. 에이전트는 self-test·1 update smoke만 실행할 수 있다.
 - **이번 작업의 명시적 예외 승인(2026-10-24):** 사용자가 v3.1 개발 시드 271–275 × 세 비교군의 본 학습과 고정 일반화 평가를 에이전트가 실행하도록 허용했다. 이 15개 모델과 해당 평가에 한해 위 직접 실행 제한을 해제한다. 확인 시드 281–290이나 다른 버전의 자동 학습 허가는 아니다.

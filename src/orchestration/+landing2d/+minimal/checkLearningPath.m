@@ -1,7 +1,8 @@
-function checkLearningPath()
+function checkLearningPath(c)
 % CHECKLEARNINGPATH TEST ONLY: shared relations receive the actual PPO gradient.
 % No new objective, optimizer hook, data collection or bias metric is added.
-c = landing2d.config.applyMethod(landing2d.minimal.config(),'onto_rgat_ppo',251);
+if nargin<1, c = landing2d.minimal.config(); end
+c = landing2d.config.applyMethod(c,'onto_rgat_ppo',251);
 agent = landing2d.rl.initialAgent(c); original = agent;
 x = zeros(40,4);
 for k = 1:4
