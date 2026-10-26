@@ -7,6 +7,14 @@
 - 확인 환경 9101–9200과 확인 예약 시드는 미사용 상태로 보존한다.
 - 공개 진입점(`run`, `run_check` 등)은 v5 재현 경로로 유지한다.
 - 아래 v5 절과 그 이하 내용은 보관 재현용이다.
+- **귀납 편향 진단 v1(2026-10-26):** `docs/INDUCTIVE_BIAS_DIAGNOSTICS_KO.md`, 모듈 `landing2d.bias_diagnostics`, 결과 `results/inductive_bias_diagnostics_v1/`.
+  - 동결 v5 정책만 사용하며 학습하지 않는다. `runAll`은 기존 출력 폴더가 있으면 거부한다.
+  - 결론: 네 방법 모두 미지 가속에 같은 과소 반응을 보이고, 학습된 그래프는 관계 타입에 거의 의존하지 않는다.
+  - 프로토콜 v2의 누락 상한 근거(감독기 개입)는 틀렸다. direct policy에는 감독·승인이 없다. 해당 문서에 정정 절을 추가했다.
+- **수평 이득 감사 v1(2026-10-26):** `docs/CONTROL_GAIN_AUDIT_KO.md`, 모듈 `landing2d.gain_audit`, 결과 `results/control_gain_audit_v1/`.
+  - 동결 v5 20모델에 `a_x = clip(k·tanh μ_x)`(a_z 불변), k ∈ {1,2}를 적용했다. v2 6셀 × 개발 환경 9001–9050, 12,000회. 학습 없음. 기준은 실행 전 Codex 판단으로 고정했다. `runAll`은 기존 출력 폴더가 있으면 거부한다.
+  - 등록 판정은 `trade_off_supported`다. 미지 가속 OOD 착륙률 +14.4%p [7.97, 20.83], 잡음 ×3 OOD 위험 접촉 +4.0%p [1.12, 6.88]. 원인 분리·관계 배치 효과는 주장하지 않는다(Codex REVISE 반영).
+  - Codex 협업 규약은 `.claude/skills/cics-dual-agent/`에 있다. Codex CLI는 PATH에 없고 VS Code 확장의 `codex.exe`로 `exec --sandbox read-only`를 호출한다. 다음 학습(가속 범위 확대·가속 추정 관측)은 사용자 승인 전 시작하지 않는다.
 
 ---
 

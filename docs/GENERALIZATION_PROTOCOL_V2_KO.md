@@ -76,3 +76,9 @@ PPO 10개×100개×14개 수준, 총 14,000개 보정을 종료 코드 0으로 �
 **판정:** 학습 기준 통과, OOD 평균 방향 실패(TOSM−PPO, TOSM−Shuffled 음수), motion/noise 강인성 방향 실패. 사전 계획대로 확인 431–450은 열지 않는다.
 
 **해석:** 위쪽 여지가 생긴 조건에서도 TOSM은 PPO와 비슷했고, 의미 간선을 교란한 Shuffled보다 낮았다. 따라서 v1의 실패를 천장 효과만으로 설명할 수는 없다. 이 다섯 시드에서는 관계 유형 배치(TOSM vs Shuffled)의 이점이 관찰되지 않았다. 시드별 TOSM−비교군 차이의 SD는 8.0–11.0%p였다. 이를 확인 20개 시드에 적용하면 개별 99.1667% 구간의 반폭은 약 5.1–7.0%p다. 확인을 통과하려면 이보다 큰 실제 효과가 필요하다. 이 수치는 사후 기술이며 판정 규칙을 바꾸지 않는다.
+
+## 정정 (2026-10-26, 귀납 편향 진단 중 발견)
+
+위 사다리 표의 누락 상한 근거("3.0 s 이상이면 안전 감독기 hold가 개입")는 **틀렸다**. 현재 평면 계약은 `actionApplication = 'direct_policy_v1'`이다. `environment.step`은 요청 명령을 그대로 적용하고(`applied = requested`), `evaluateTermination`은 direct policy에서 착륙 승인을 항상 참으로 두며 SAFE_ABORT도 만들지 않는다. `prolongedLoss` 3.0 s는 결정 문맥 플래그(`abortRequested`)만 바꾸고 명령이나 종료 판정에는 영향을 주지 않는다.
+
+따라서 누락 요인이 천장(PPO 95.7%)에 남은 것은 잘못된 상한 때문일 수 있다. 등록된 v2 선택값과 결과는 바꾸지 않고 그대로 보존한다. 이 오류는 v2 개발 판정에 쓰인 비교 조건을 바꾸지 않으며, 네 방법은 같은 조건에서 평가됐다. 향후 평가 계약을 다시 만든다면 누락 사다리 상한은 감독기가 아니라 에피소드 시간과 시야 재획득 가능성을 근거로 정해야 한다. 근거 코드는 `src/simulations/+landing2d/+environment/step.m`(direct policy 주석과 `applied = requested`)와 `evaluateTermination.m`(`directPlanar`)이다.

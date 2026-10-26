@@ -11,7 +11,9 @@ function [agent,history] = ppoTrain(agent,c,rs)
 % (landing2d.rl.evaluateV2), behind the common validation screen
 % rl.validationScreen when configured; the best selection score is returned
 % (validation only - test, stress and fixed-case seeds never select a
-% checkpoint).
+% checkpoint). The validation episodes follow the training scenario family
+% unless the experiment registers experiment.validationScenario (then only
+% the validation episodes use it; training episodes keep experiment.scenario).
 % history: one row per evaluation with the validation outcome (and the number
 % of validation episodes flown, validationEpisodes), the training
 % window (return, landing rate, episode length), cumulative environment steps
@@ -54,7 +56,8 @@ stopReason = 'budget';
 window = emptyWindow();
 % validationReturn: mean episode return on the validation episodes;
 % info.selectionScore: the outcome-ordered score that selects the checkpoint.
-[~,validationReturn,info] = landing2d.rl.evaluateV2(agent,c,[],validationOptions(rl));
+validationConfig = validationEnvironment(c);
+[~,validationReturn,info] = landing2d.rl.evaluateV2(agent,validationConfig,[],validationOptions(rl));
 history = historyRow(0,validationReturn,info,NaN,NaN,0,0,0,windowDiagnostics(window));
 best = agent; bestValidationReturn = validationReturn;
 bestSelectionScore = info.selectionScore; bestIndex = 1;
@@ -129,7 +132,7 @@ for iteration = 1:rl.ppoIterations
     if mod(iteration,rl.evaluateEvery) == 0 || isLast
         trainReturn = window.returnSum/max(window.episodes,1);
         trainLandingRate = window.success/max(window.episodes,1);
-        [~,validationReturn,info] = landing2d.rl.evaluateV2(agent,c,[],validationOptions(rl));
+        [~,validationReturn,info] = landing2d.rl.evaluateV2(agent,validationConfig,[],validationOptions(rl));
         history(end+1) = historyRow(iteration,validationReturn,info,trainReturn,trainLandingRate, ...
             environmentSteps,episodes,toc(wall),windowDiagnostics(window)); %#ok<AGROW>
         if info.selectionScore > bestSelectionScore
@@ -207,6 +210,15 @@ function options = validationOptions(rl)
 % The common validation screen (validation_screen_v1) when configured.
 options = struct();
 if isfield(rl,'validationScreen'), options.screen = rl.validationScreen; end
+end
+
+function cv = validationEnvironment(c)
+% Configuration of the validation episodes: C itself, or C with the registered
+% experiment.validationScenario in place of the training scenario family.
+cv = c;
+if isfield(c.experiment,'validationScenario')
+    cv.experiment.scenario = c.experiment.validationScenario;
+end
 end
 
 % ------------------------------------------------ live monitor (display only)
