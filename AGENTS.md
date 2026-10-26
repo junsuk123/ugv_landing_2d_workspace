@@ -15,6 +15,14 @@
   - 동결 v5 20모델에 `a_x = clip(k·tanh μ_x)`(a_z 불변), k ∈ {1,2}를 적용했다. v2 6셀 × 개발 환경 9001–9050, 12,000회. 학습 없음. 기준은 실행 전 Codex 판단으로 고정했다. `runAll`은 기존 출력 폴더가 있으면 거부한다.
   - 등록 판정은 `trade_off_supported`다. 미지 가속 OOD 착륙률 +14.4%p [7.97, 20.83], 잡음 ×3 OOD 위험 접촉 +4.0%p [1.12, 6.88]. 원인 분리·관계 배치 효과는 주장하지 않는다(Codex REVISE 반영).
   - Codex 협업 규약은 `.claude/skills/cics-dual-agent/`에 있다. Codex CLI는 PATH에 없고 VS Code 확장의 `codex.exe`로 `exec --sandbox read-only`를 호출한다. 다음 학습(가속 범위 확대·가속 추정 관측)은 사용자 승인 전 시작하지 않는다.
+- **학습 가속 범위 R1(2026-10-26, 사용자 승인 "진행해", 1회 실행 완료):** `docs/ACCELERATION_RANGE_R1_KO.md`, 모듈 `landing2d.accel_range`, 결과 `results/acceleration_range_r1_v1/`.
+  - 학습 `a2Range` [0.3,0.8]→[0.3,1.4]만 바꿨다. 421–425×네 방법 20모델을 새로 학습했다. validation은 `experiment.validationScenario`로 v5 분포에 고정했고, 평가는 `evaluationRuns`로 v5 환경에 고정했다. 등록 소스 279개는 `registration.json`에 있다.
+  - 공통 코드 변경: `ppoTrain`의 `experiment.validationScenario` 분기. 필드가 없으면 기존 경로와 비트 단위로 같다(네 방법 1 update 확인).
+  - 판정은 `insufficient_evidence_of_improvement`다(L 충족, motion OOD +4.0%p [−5.67, 13.67]). 무효과·반증 주장은 하지 않는다. 다음 후보(D1 동결 응답 진단, H3, 시드 확대)는 사용자 승인 전 시작하지 않는다. `runAll`은 완료 표시가 있으면 거부한다.
+- **동결 응답 이득 진단 D1(2026-10-26, 사용자 승인 "1", 완료):** `docs/RESPONSE_GAIN_R1_KO.md`, 모듈 `landing2d.response_gain`, 결과 `results/response_gain_r1_v1/`.
+  - Q2 기준 상태·probe·분기를 R1 20모델과 v5 20모델에 적용했다. 학습·체크포인트 재선택은 없다. Q2 코드·상태·v5 응답·v5 분기를 재현했다.
+  - motion_v2 R1−v5: RugvX +0.040 [−0.059, 0.140], RposX +0.012, −RdroneX +0.048. Bonferroni 98.33% 기준으로 셋 모두 변화 미검출이다. R1 RugvX는 기준 구동기의 23–26%다.
+  - Codex는 N0(보고·종료)를 권고했다. H3(관측 계약 변경·새 학습)는 사용자 승인 전 시작하지 않는다.
 
 ---
 
