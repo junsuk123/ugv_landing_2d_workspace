@@ -1,6 +1,6 @@
 function [mu,cache] = encoderForward(p,spec,o)
 % Direct mean correction: the base actor has its own unchanged output path.
-assert(size(o,1)==10 && all(isfinite(o),'all'));
+assert(size(o,1)==spec.inDim && all(isfinite(o),'all'));
 B = size(o,2); d = 8; N = 4;
 [correctionInput,coordinateJacobian] = landing2d.residual_motion.motionCoordinates(o);
 baseHidden = tanh(p.B1*o+p.b1);

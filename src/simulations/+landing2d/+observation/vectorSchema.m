@@ -17,6 +17,13 @@ groups.motion = {'ugv_vx','drone_vz','drone_sinTheta', ...
     'drone_cosTheta','drone_pitchRate'};
 groups.quality = {'ugv_visionUpdated','ugv_visionAge'};
 order = {'relative','motion','quality'};
+% minimal_common_observation_v4_ugv_accel (hypothesis H3, 2026-10-26): the same
+% ten entries plus the constant-acceleration KF UGV horizontal acceleration as
+% the last entry (index 11), so every existing index is unchanged.
+if strcmp(version,'minimal_common_observation_v4_ugv_accel')
+    groups.acceleration = {'ugv_ax'};
+    order = [order,{'acceleration'}];
+end
 names = {};
 groupIndex = struct();
 cursor = 0;

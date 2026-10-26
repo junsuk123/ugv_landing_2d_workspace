@@ -78,7 +78,8 @@ firstNodeFeature = nan(schema.nNodes,n); edgeAttention = nan(numel(schema.src),n
 for i = 1:n
     if isempty(finalPolicyInputs{i}), continue; end
     if residual
-        X = reshape(landing2d.minimal.features(finalPolicyInputs{i}),10,4);
+        % Diagnostic node features of the shared ten entries (an H3 11th entry is not logged here).
+        X = reshape(landing2d.minimal.features(finalPolicyInputs{i}(1:10)),10,4);
     else
         X = reshape(finalPolicyInputs{i},schema.inDim,schema.nNodes);
     end

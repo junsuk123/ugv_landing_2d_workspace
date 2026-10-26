@@ -1,6 +1,9 @@
 function [p,spec] = encoderInit(gs,rs,baseRs)
 % ENCODERINIT Preserve every V4 parameter and draw; replace fixed topology only.
 if nargin<3, baseRs = rs; end
+if strcmp(gs.topologyVersion,'tosm4_context_accel_v1')
+    [p,spec] = landing2d.residual_context.accelerationEncoderInit(gs,rs,baseRs); return;
+end
 unperturbed = gs;
 if isfield(unperturbed,'relationPerturbation'), unperturbed=rmfield(unperturbed,'relationPerturbation'); end
 [p,spec] = landing2d.residual_base_init.encoderInit(unperturbed,rs,baseRs);

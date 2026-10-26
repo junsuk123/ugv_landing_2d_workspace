@@ -30,6 +30,22 @@ if filter.initialized
     ugv.velocityXZ = filter.state(3:4);
     ugv.visionAge = max(t-filter.lastUpdateTime,0);
 end
+if isfield(G.estimator,'acceleration')
+    % Parallel constant-acceleration filter (landing2d.observation.updateUgvAcceleration),
+    % only in the registered UGV-acceleration observation version; same y, R and validity.
+    if isfield(memory,'accelerationFilter')
+        accelerationFilter = memory.accelerationFilter;
+    else
+        accelerationFilter = struct('initialized',false,'time',NaN,'state',zeros(6,1), ...
+            'covariance',zeros(6),'updated',false);
+    end
+    accelerationFilter = landing2d.observation.updateUgvAcceleration(accelerationFilter,y, ...
+        measurementCovariance,pose.valid,navigation,t,G);
+    ugv.accelerationX = 0;
+    ugv.accelerationInitialized = accelerationFilter.initialized;
+    if accelerationFilter.initialized, ugv.accelerationX = accelerationFilter.state(5); end
+    memory.accelerationFilter = accelerationFilter;
+end
 drone = navigation;
 drone.navigationAge = 0;
 if drone.navigationValid

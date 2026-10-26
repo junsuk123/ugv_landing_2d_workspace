@@ -17,6 +17,15 @@ observationVector = [signedScale(ex,scales.relativePosition);signedScale(h,scale
 if ~ugv.estimateInitialized
     observationVector(1:4) = 0;
 end
+if strcmp(G.version,'minimal_common_observation_v4_ugv_accel')
+    % o11: constant-acceleration KF estimate of the UGV horizontal acceleration
+    % (landing2d.observation.updateUgvAcceleration), 0 before that filter is initialized.
+    accelerationEntry = 0;
+    if ugv.accelerationInitialized
+        accelerationEntry = signedScale(ugv.accelerationX,G.estimator.acceleration.observationScale);
+    end
+    observationVector = [observationVector;accelerationEntry];
+end
 assert(numel(observationVector) == landing2d.observation.vectorSchema(G).dimension ...
     && all(isfinite(observationVector)), ...
     'landing2d:CommonObservation','Common observation vector is malformed.');

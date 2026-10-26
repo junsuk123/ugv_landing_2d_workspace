@@ -1,8 +1,9 @@
 function [coordinates,jacobian] = motionCoordinates(o)
-% Same ten observations; slot 3 becomes masked normalized own horizontal speed.
+% Same observations (ten, or eleven with the H3 acceleration entry, which passes
+% through unchanged); slot 3 becomes masked normalized own horizontal speed.
 % Original r = softsign(v_target-v_own), t = softsign(v_target), same scale.
 % This rational form avoids explicitly inverting either near-saturated input.
-assert(size(o,1)==10 && all(isfinite(o),'all') && all(abs(o(3:4,:))<=1,'all'));
+assert(ismember(size(o,1),[10 11]) && all(isfinite(o),'all') && all(abs(o(3:4,:))<=1,'all'));
 r = o(3,:); t = o(4,:);
 A = 1-abs(r); B = 1-abs(t);
 numerator = t.*A-r.*B;

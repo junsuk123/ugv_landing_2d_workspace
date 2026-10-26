@@ -29,7 +29,7 @@ function [policyInput,detail] = observationVectorGraph(observationVector,G,c)
 version = c.graphState.observationFeatures;
 if strcmp(version,'raw_residual_v1')
     policyInput = observationVector(:);
-    assert(numel(policyInput)==10 && all(isfinite(policyInput)));
+    assert(numel(policyInput)==c.rl.observationDim && all(isfinite(policyInput)));
     detail = struct('observationVector',policyInput,'featureVersion',version); return;
 end
 if strcmp(version,'tosm4_v1')

@@ -18,7 +18,8 @@ if strcmp(mode,'baseline')
     return;
 end
 if strcmp(gs.encoderVersion,'relational_residual_v5')
-    assert(observationDim==10);
+    % 10-D o_t, or 11-D with the H3 UGV-acceleration entry (topology tosm4_context_accel_v1).
+    assert(observationDim==landing2d.residual_context.inputDimension(gs));
     [params,spec] = landing2d.residual_context.encoderInit(gs,rs); return;
 end
 if strcmp(gs.encoderVersion,'relational_residual_v4')

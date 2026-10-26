@@ -24,7 +24,7 @@ if strcmp(spec.mode,'baseline')
 end
 if isfield(spec,'encoderVersion') && ismember(spec.encoderVersion,{'relational_residual_v3','relational_residual_v4','relational_residual_v5'})
     if strcmp(head,'value')
-        assert(isempty(fieldnames(params)) && size(policyInput,1)==10);
+        assert(isempty(fieldnames(params)) && size(policyInput,1)==spec.inDim);
         g = policyInput; cache = struct('mode','baseline');
     else
         [g,cache] = landing2d.residual_motion.encoderForward(params,spec,policyInput);

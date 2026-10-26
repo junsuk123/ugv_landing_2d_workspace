@@ -23,6 +23,10 @@
   - Q2 기준 상태·probe·분기를 R1 20모델과 v5 20모델에 적용했다. 학습·체크포인트 재선택은 없다. Q2 코드·상태·v5 응답·v5 분기를 재현했다.
   - motion_v2 R1−v5: RugvX +0.040 [−0.059, 0.140], RposX +0.012, −RdroneX +0.048. Bonferroni 98.33% 기준으로 셋 모두 변화 미검출이다. R1 RugvX는 기준 구동기의 23–26%다.
   - Codex는 N0(보고·종료)를 권고했다. H3(관측 계약 변경·새 학습)는 사용자 승인 전 시작하지 않는다.
+- **H3 UGV 가속 관측(2026-10-26, 사용자 승인 "게이트 통과 시 학습까지"): 사전 정보성 게이트 미통과, 본 학습 미실행.** `docs/UGV_ACCEL_H3_GATE_KO.md`, 모듈 `landing2d.ugv_accel`, 결과 `results/ugv_accel_h3_v1/gate/`.
+  - 병렬 CA KF(`observation.updateUgvAcceleration`), 스키마 `minimal_common_observation_v4_ugv_accel`(o11 = â_x/(|â_x|+1 m/s²), 초기화 전 0), 토폴로지 `tosm4_context_accel_v1`. 공통 코드는 이 버전에서만 분기한다. v5 관측·1 update는 비트 단위로 같다(`results/ugv_accel_h3_v1/test_only/`).
+  - 보정 q_x = 0.01. 게이트 7개 기준 모두 실패(시간 제한 안 검출 0/20, 두 CA 가족의 평균 r < 0)했다. 규칙상 재보정·학습은 하지 않는다. `config`의 기본 q는 게이트 통과 기록이 없으면 오류를 낸다.
+  - 구현은 비활성으로 보관한다. 새 추정기·정보원·재개는 사용자 승인 전 시작하지 않는다.
 
 ---
 
