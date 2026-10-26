@@ -12,6 +12,9 @@ function C = methodContrasts(R,keys,metrics,pairs)
 if nargin < 4 || isempty(pairs)
     pairs = {'onto_rgat_ppo','ppo';'onto_rgat_ppo','shuffled_rgat_ppo'; ...
         'shuffled_rgat_ppo','ppo'};
+    if any(string(R.MethodId)=="residual_mlp_ppo")
+        pairs(end+1,:) = {'onto_rgat_ppo','residual_mlp_ppo'};
+    end
 end
 keys = cellstr(keys); metrics = cellstr(metrics);
 present = unique(string(R.MethodId));

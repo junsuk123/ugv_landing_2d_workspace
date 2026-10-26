@@ -17,6 +17,25 @@ if strcmp(mode,'baseline')
     spec.schema = []; spec.T = []; spec.graph = [];
     return;
 end
+if strcmp(gs.encoderVersion,'relational_residual_v5')
+    assert(observationDim==10);
+    [params,spec] = landing2d.residual_context.encoderInit(gs,rs); return;
+end
+if strcmp(gs.encoderVersion,'relational_residual_v4')
+    assert(observationDim==10);
+    [params,spec] = landing2d.residual_base_init.encoderInit(gs,rs); return;
+end
+if strcmp(gs.encoderVersion,'relational_residual_v3')
+    assert(observationDim==10);
+    [params,spec] = landing2d.residual_motion.encoderInit(gs,rs); return;
+end
+if strcmp(gs.encoderVersion,'relational_residual_v2')
+    assert(observationDim==10);
+    [params,spec] = landing2d.residual_logits.encoderInit(gs,rs); return;
+end
+if strcmp(gs.encoderVersion,'relational_residual_v1')
+    [params,spec] = landing2d.residual.encoderInit(gs,observationDim,rs); return;
+end
 if ismember(gs.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2','rgat_minimal_v3'})
     [params,spec] = landing2d.minimal.encoderInit(gs,observationDim,rs);
     return;

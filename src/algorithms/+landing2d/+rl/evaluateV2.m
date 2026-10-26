@@ -69,12 +69,19 @@ info = struct('returns',returns,'captureRate',markerUpdateRate,'landed',success,
     'outcomeRates',outcomeRates,'episodeCount',n,'screened',screened, ...
     'nodeMean',[],'edgeAttentionMean',[],'graphSchema',struct());
 if strcmp(agent.encoderSpec.mode,'baseline'), return; end
+residual = isfield(agent.encoderSpec,'encoderVersion') ...
+    && ismember(agent.encoderSpec.encoderVersion,{'relational_residual_v1','relational_residual_v2','relational_residual_v3','relational_residual_v4','relational_residual_v5'});
+if residual && strcmp(agent.encoderSpec.correctionType,'mlp'), return; end
 % Graph arms: the agent's own typed graph (canonical or relation-shuffled).
 schema = agent.encoderSpec.schema;
 firstNodeFeature = nan(schema.nNodes,n); edgeAttention = nan(numel(schema.src),n);
 for i = 1:n
     if isempty(finalPolicyInputs{i}), continue; end
-    X = reshape(finalPolicyInputs{i},schema.inDim,schema.nNodes);
+    if residual
+        X = reshape(landing2d.minimal.features(finalPolicyInputs{i}),10,4);
+    else
+        X = reshape(finalPolicyInputs{i},schema.inDim,schema.nNodes);
+    end
     firstNodeFeature(:,i) = X(1,:)';
     [~,cache] = landing2d.graphstate.encoderForward(agent.policy.encoder, ...
         agent.encoderSpec,finalPolicyInputs{i},'policy');

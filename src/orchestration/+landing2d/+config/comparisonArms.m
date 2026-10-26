@@ -8,7 +8,7 @@ trainSeed = fieldOr(options,'trainSeed',1);
 graphSeed = fieldOr(options,'graphSeed',[]);
 arms = struct('id',{},'label',{},'representation',{},'graphPerturbation',{}, ...
     'trainSeed',{},'graphSeed',{},'color',{},'lineStyle',{},'marker',{},'config',{});
-registry = landing2d.config.methodRegistry();
+registry = landing2d.config.methodRegistry(cfg);
 ids = fieldOr(options,'methods',{registry.methods.id});
 unknown = setdiff(ids,{registry.methods.id});
 assert(isempty(unknown),'landing2d:UnknownMethod','Unknown method(s): %s',strjoin(unknown,', '));

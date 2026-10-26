@@ -36,7 +36,7 @@ classdef TrainingMonitor < handle
         function obj = TrainingMonitor(options)
             if nargin < 1, options = struct(); end
             obj.Visible = ~isfield(options,'visible') || logical(options.visible);
-            registry = landing2d.config.methodRegistry();
+            registry = landing2d.config.methodRegistry(options);
             obj.Colors = containers.Map({registry.methods.id},{registry.methods.color});
             obj.Labels = containers.Map({registry.methods.id},{registry.methods.label});
         end

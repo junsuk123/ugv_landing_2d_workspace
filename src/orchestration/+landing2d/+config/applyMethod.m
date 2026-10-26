@@ -9,7 +9,7 @@ function cfg = applyMethod(cfg,methodId,trainSeed,graphSeed)
 % are part of the training signature, so runs never share checkpoints.
 % Reward, PPO loss, dynamics, node features, readout and action limits are
 % not touched.
-registry = landing2d.config.methodRegistry();
+registry = landing2d.config.methodRegistry(cfg);
 index = find(strcmp({registry.methods.id},methodId),1);
 assert(~isempty(index),'landing2d:UnknownMethod','Unknown comparison method %s.',methodId);
 assert(~isfield(cfg,'comparisonRun'),'landing2d:MethodApplied', ...
@@ -19,6 +19,10 @@ if nargin < 3 || isempty(trainSeed), trainSeed = 1; end
 validateattributes(trainSeed,{'numeric'},{'scalar','integer','positive'},mfilename,'trainSeed');
 perturbed = ~strcmp(method.graphPerturbation,'none');
 if nargin < 4 || isempty(graphSeed), graphSeed = trainSeed; end
+if isfield(cfg,'methodProfile') && ismember(cfg.methodProfile,{'relational_residual_v1','relational_residual_v2','relational_residual_v3','relational_residual_v4','relational_residual_v5'})
+    cfg.graphState.correctionType = 'graph';
+    if strcmp(methodId,'residual_mlp_ppo'), cfg.graphState.correctionType = 'mlp'; end
+end
 cfg = landing2d.graphstate.applyStateRepresentation(cfg,method.representation);
 name = sprintf('%s_s%02d',method.id,trainSeed);
 if perturbed

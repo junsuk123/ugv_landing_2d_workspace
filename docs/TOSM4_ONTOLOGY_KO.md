@@ -1,3 +1,5 @@
+> 2026-10-26: 현재 개발 후보의 구조·비교·실행 계약은 [관계 문맥 잔차 v5](RELATIONAL_RESIDUAL_V5_KO.md)를 따른다. 이 문서는 이전 minimal v3 설계의 재현 기록이다.
+
 # 4노드 온톨로지와 공유 동적 집계 (`tosm4_v1`, v3.1)
 
 현재 구현: `landing2d.minimal.schema`, `features`, `encoderInit/Forward/Backward`.

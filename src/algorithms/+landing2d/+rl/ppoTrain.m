@@ -295,7 +295,12 @@ function [agent,optimizerState,encoderOptimizerState,stats] = policyStep(agent, 
     advantage,rl,gs)
 [grads,encoderGrads,stats] = landing2d.rl.policyLossGradient(agent,policyInput, ...
     preTanhAction,oldLogProbability,advantage,rl);
-grads = landing2d.util.clipGradient(grads,rl.maxGradNorm);
+if ismember(gs.encoderVersion,{'relational_residual_v1','relational_residual_v2','relational_residual_v3','relational_residual_v4','relational_residual_v5'})
+    joint = landing2d.util.clipGradient(struct('head',grads,'encoder',encoderGrads),rl.maxGradNorm);
+    grads = joint.head; encoderGrads = joint.encoder;
+else
+    grads = landing2d.util.clipGradient(grads,rl.maxGradNorm);
+end
 [core,optimizerState] = landing2d.util.adamUpdate(policyCore(agent),grads,optimizerState, ...
     rl.policyLearnRate);
 agent.policy.mean = core.mean;
@@ -320,7 +325,9 @@ end
 function [params,optimizerState] = encoderStep(params,grads,optimizerState,rl,gs)
 % Plain PPO has an empty encoder: nothing to update.
 if isempty(fieldnames(params)), return; end
-grads = landing2d.util.clipGradient(grads,rl.maxGradNorm);
+if ~ismember(gs.encoderVersion,{'relational_residual_v1','relational_residual_v2','relational_residual_v3','relational_residual_v4','relational_residual_v5'})
+    grads = landing2d.util.clipGradient(grads,rl.maxGradNorm);
+end
 [params,optimizerState] = landing2d.util.adamUpdate(params,grads,optimizerState, ...
     gs.encoderLearnRate);
 end

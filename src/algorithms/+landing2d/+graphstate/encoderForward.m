@@ -16,10 +16,37 @@ function [g,cache] = encoderForward(params,spec,policyInput,head)
 % registered node-shared form with one Wn column and a fixed pooling scale.
 % HEAD ('policy' or 'value') is informational: Actor and Critic have
 % separate encoders.
-if nargin < 4 || isempty(head), head = 'policy'; end %#ok<NASGU>
+if nargin < 4 || isempty(head), head = 'policy'; end
 if strcmp(spec.mode,'baseline')
     g = policyInput;
     cache = struct('mode',spec.mode);
+    return;
+end
+if isfield(spec,'encoderVersion') && ismember(spec.encoderVersion,{'relational_residual_v3','relational_residual_v4','relational_residual_v5'})
+    if strcmp(head,'value')
+        assert(isempty(fieldnames(params)) && size(policyInput,1)==10);
+        g = policyInput; cache = struct('mode','baseline');
+    else
+        [g,cache] = landing2d.residual_motion.encoderForward(params,spec,policyInput);
+    end
+    return;
+end
+if isfield(spec,'encoderVersion') && strcmp(spec.encoderVersion,'relational_residual_v2')
+    if strcmp(head,'value')
+        assert(isempty(fieldnames(params)) && size(policyInput,1)==10);
+        g = policyInput; cache = struct('mode','baseline');
+    else
+        [g,cache] = landing2d.residual_logits.encoderForward(params,spec,policyInput);
+    end
+    return;
+end
+if isfield(spec,'encoderVersion') && strcmp(spec.encoderVersion,'relational_residual_v1')
+    if strcmp(head,'value')
+        assert(isempty(fieldnames(params)) && size(policyInput,1)==10);
+        g = policyInput; cache = struct('mode','baseline');
+    else
+        [g,cache] = landing2d.residual.encoderForward(params,spec,policyInput);
+    end
     return;
 end
 if isfield(spec,'encoderVersion') && ismember(spec.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2','rgat_minimal_v3'})

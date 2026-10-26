@@ -1,0 +1,19 @@
+function c = config(root)
+% CONFIG Relational residual stage 1, with an unchanged physical task.
+if nargin<1, root = landing2d.orchestration.projectRoot(); end
+c = landing2d.minimal.config(root,'v31');
+c.methodProfile = 'relational_residual_v1';
+c.experiment.designVersion = 'relational_residual_v1';
+c.outputDir = fullfile(root,'results','relational_residual_v1');
+c.rl.baselinePolicyHiddenSizes = 110; c.rl.baselineValueHiddenSizes = 55;
+c.graphState = struct('stateRepresentation','baseline', ...
+    'encoderVersion','relational_residual_v1','correctionType','graph', ...
+    'observationSource','commonObservation','observationFeatures','raw_residual_v1', ...
+    'readout','all_nodes','attentionMode','dynamic_joint_v1', ...
+    'hiddenDim',8,'graphDim',16,'relationDim',3, ...
+    'policyHiddenSizes',16,'valueHiddenSizes',55, ...
+    'encoderLearnRate',c.rl.policyLearnRate);
+% All actor parameters use the same rate and one joint gradient norm cap.
+% PPO's objective, rollout/GAE/validation schedule and critic rate stay.
+landing2d.config.validateConfig(c);
+end

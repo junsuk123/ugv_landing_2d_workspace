@@ -39,6 +39,7 @@ end
 
 function S = orderMethods(S)
 registry = landing2d.config.methodRegistry();
+if any(string(S.MethodId)=="residual_mlp_ppo"), registry = landing2d.residual.registry(); end
 [~,order] = ismember(string(S.MethodId),string({registry.methods.id}));
 [~,index] = sortrows([order(:),(1:height(S))'],[1,2]);
 S = S(index,:);

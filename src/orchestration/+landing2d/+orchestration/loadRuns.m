@@ -3,7 +3,7 @@ function runs = loadRuns(cfg,options)
 %   runs = landing2d.orchestration.loadRuns(cfg,struct('trainSeeds',1))
 % A checkpoint whose training signature does not match the current
 % configuration is an error (retrain with run first).
-registry = landing2d.config.methodRegistry();
+registry = landing2d.config.methodRegistry(cfg);
 if nargin < 2, options = struct(); end
 methods = {registry.methods.id}; seeds = registry.trainSeeds.default;
 if isfield(options,'methods') && ~isempty(options.methods), methods = cellstr(options.methods); end

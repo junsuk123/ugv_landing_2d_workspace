@@ -66,6 +66,21 @@ function version = algorithmVersion(c)
 % readout, parameters, PPO and the plain-PPO path are unchanged.
 % v2.15 (2026-10-24): tosm7_v5 removes only LandingCondition's duplicate
 % drone_vz; DroneMotion, all encoder equations, PPO and its RNG are unchanged.
+if nargin>0 && strcmp(c.graphState.encoderVersion,'relational_residual_v5')
+    version = 'relational-residual-v5.0'; return;
+end
+if nargin>0 && strcmp(c.graphState.encoderVersion,'relational_residual_v4')
+    version = 'relational-residual-v4.0'; return;
+end
+if nargin>0 && strcmp(c.graphState.encoderVersion,'relational_residual_v3')
+    version = 'relational-residual-v3.0'; return;
+end
+if nargin>0 && strcmp(c.graphState.encoderVersion,'relational_residual_v2')
+    version = 'relational-residual-v2.0'; return;
+end
+if nargin>0 && strcmp(c.graphState.encoderVersion,'relational_residual_v1')
+    version = 'relational-residual-v1.0'; return;
+end
 version = 'relational-policy-v2.15';
 if nargin>0 && strcmp(c.graphState.encoderVersion,'rgat_minimal_v1')
     version = 'minimal-relational-v3.0';
@@ -73,5 +88,10 @@ elseif nargin>0 && strcmp(c.graphState.encoderVersion,'rgat_minimal_v2')
     version = 'minimal-relational-v3.1';
 elseif nargin>0 && strcmp(c.graphState.encoderVersion,'rgat_minimal_v3')
     version = 'minimal-relational-v3.2';
+    if isfield(c.graphState,'relationInitialization')
+        assert(strcmp(c.graphState.relationInitialization,'shared_semantic_v1'), ...
+            'landing2d:MinimalInitialization','Unsupported relation initialization.');
+        version = 'minimal-relational-v3.3';
+    end
 end
 end

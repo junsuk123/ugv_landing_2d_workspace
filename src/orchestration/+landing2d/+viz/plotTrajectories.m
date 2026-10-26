@@ -8,7 +8,7 @@ function fig = plotTrajectories(F,cfg,visible)
 % Bold = replicate 1, faint = other noise replicates.
 if nargin < 3, visible = false; end
 vis = 'off'; if visible, vis = 'on'; end
-registry = landing2d.config.methodRegistry();
+registry = landing2d.config.methodRegistry(cfg);
 specs = F.cases;
 present = intersect({specs.id},{F.display.case},'stable');
 specs = specs(ismember({specs.id},present));

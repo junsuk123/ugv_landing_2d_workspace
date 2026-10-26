@@ -31,14 +31,15 @@ function output = runLive(caseId,options,cfg)
 % The spread is read together with the aim error and outcomes of the same runs.
 if nargin < 1 || isempty(caseId), caseId = 'S4'; end
 if nargin < 2, options = struct(); end
-registry = landing2d.config.methodRegistry();
+if nargin<3, cfg = landing2d.config.primaryConfig(landing2d.orchestration.projectRoot()); end
+registry = landing2d.config.methodRegistry(cfg);
 defaults = struct('trainSeeds',1,'replicates',10,'methods',{{registry.methods.id}}, ...
     'speed',Inf,'drawEvery',1,'visible',true,'metrics',true,'outputDir','');
 options = parseOptions(options,defaults);
 if nargin<3, cfg = landing2d.config.primaryConfig(landing2d.orchestration.projectRoot()); end
 if ~isempty(options.outputDir), cfg.outputDir = char(options.outputDir); end
 specs = landing2d.evaluation.factorialCases(cfg);
-if ismember(cfg.graphState.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2','rgat_minimal_v3'}), specs = landing2d.minimal.cases(cfg); end
+if ismember(cfg.graphState.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2','rgat_minimal_v3','relational_residual_v1','relational_residual_v2','relational_residual_v3','relational_residual_v4','relational_residual_v5'}), specs = landing2d.minimal.cases(cfg); end
 caseId = upper(char(caseId));
 spec = specs(strcmp({specs.id},caseId));
 assert(isscalar(spec),'landing2d:ScenarioId','caseId must be one of %s.',strjoin({specs.id},', '));

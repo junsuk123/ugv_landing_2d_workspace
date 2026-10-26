@@ -11,7 +11,7 @@ function fig = plotCaseTimeSeries(F,cfg,caseId,visible)
 if nargin < 3 || isempty(caseId), caseId = 'S4'; end
 if nargin < 4, visible = false; end
 vis = 'off'; if visible, vis = 'on'; end
-registry = landing2d.config.methodRegistry();
+registry = landing2d.config.methodRegistry(cfg);
 spec = F.cases(strcmp({F.cases.id},caseId));
 entries = F.display(strcmp({F.display.case},caseId));
 assert(~isempty(spec) && ~isempty(entries),'landing2d:CaseTimeSeries', ...

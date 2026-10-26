@@ -1,10 +1,11 @@
-function fig = plotGeneralization(results,visible)
+function fig = plotGeneralization(results,visible,c)
 % PLOTGENERALIZATION Display each shift so a macro average cannot hide it.
 visibility = 'off'; if visible, visibility = 'on'; end
 fig = figure('Visible',visibility,'Name','Generalization: predeclared shifts', ...
     'Color','w','Position',[80 80 1100 700]);
 tiledlayout(2,2);
-registry = landing2d.config.methodRegistry(); factors = ["motion","dropout","noise"];
+if nargin<3, c = struct(); end
+registry = landing2d.config.methodRegistry(c); factors = ["motion","dropout","noise"];
 S = results.generalizationSummary; S = S(S.Shift=="OOD",:);
 metrics = {'Success','SuccessDrop','AimErrorRMS_m','Unsafe'};
 labels = {'OOD landing rate','Paired ID minus OOD landing rate', ...

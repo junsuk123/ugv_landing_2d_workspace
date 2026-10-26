@@ -1,5 +1,20 @@
 function validateGraphStateConfig(gs)
 % VALIDATEGRAPHSTATECONFIG  State-representation settings of the planar contract.
+if isfield(gs,'encoderVersion') && strcmp(gs.encoderVersion,'relational_residual_v5')
+    landing2d.residual_context.validateGraphConfig(gs); return;
+end
+if isfield(gs,'encoderVersion') && strcmp(gs.encoderVersion,'relational_residual_v4')
+    landing2d.residual_base_init.validateGraphConfig(gs); return;
+end
+if isfield(gs,'encoderVersion') && strcmp(gs.encoderVersion,'relational_residual_v3')
+    landing2d.residual_motion.validateGraphConfig(gs); return;
+end
+if isfield(gs,'encoderVersion') && strcmp(gs.encoderVersion,'relational_residual_v2')
+    landing2d.residual_logits.validateGraphConfig(gs); return;
+end
+if isfield(gs,'encoderVersion') && strcmp(gs.encoderVersion,'relational_residual_v1')
+    landing2d.residual.validateGraphConfig(gs); return;
+end
 if isfield(gs,'encoderVersion') && ismember(gs.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2','rgat_minimal_v3'})
     landing2d.minimal.validateGraphConfig(gs);
     return;

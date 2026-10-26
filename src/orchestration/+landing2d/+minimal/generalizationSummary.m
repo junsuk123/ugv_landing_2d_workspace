@@ -54,6 +54,9 @@ primaryMetrics = {'OODSuccess','ReferenceSuccess','SuccessDrop','WorstSuccess', 
     'OODUnsafe','OODAimErrorRMS_m','OODCommandRateRMS_mps3'};
 out.primarySummary = landing2d.evaluation.seedSummary(primary,{},primaryMetrics);
 pairs = {'onto_rgat_ppo','shuffled_rgat_ppo';'onto_rgat_ppo','ppo'};
+if any(primary.MethodId=="residual_mlp_ppo")
+    pairs(end+1,:) = {'onto_rgat_ppo','residual_mlp_ppo'};
+end
 C = landing2d.evaluation.methodContrasts(primary,{},primaryMetrics,pairs);
 % Two predeclared primary comparisons. Exact Student-t quantile via base
 % MATLAB betaincinv: 97.5% individual intervals, >=95% Bonferroni family level.
@@ -68,6 +71,6 @@ for k = 1:height(C)
     half = sqrt(df*(1-q)/q)*std(delta)/sqrt(n);
     C.PrimaryLower(k) = mean(delta)-half; C.PrimaryUpper(k) = mean(delta)+half;
 end
-C.PrimaryIndividualCoverage = repmat(0.975,height(C),1);
+C.PrimaryIndividualCoverage = repmat(1-0.05/size(pairs,1),height(C),1);
 out.primaryContrasts = C;
 end

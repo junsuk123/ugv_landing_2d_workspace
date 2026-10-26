@@ -1,10 +1,10 @@
 function figures = plotResults(results,c,visible,folder)
 % PLOTRESULTS Generalization performance first; no numerical bias score.
 if visible, visibility = 'on'; else, visibility = 'off'; end
-registry = landing2d.config.methodRegistry();
+registry = landing2d.config.methodRegistry(c);
 figures = struct();
 if isfield(results,'generalizationSummary')
-    figures.generalization = landing2d.minimal.plotGeneralization(results,visible);
+    figures.generalization = landing2d.minimal.plotGeneralization(results,visible,c);
 end
 figures.learning = figure('Visible',visibility,'Name','Minimal study: learning','Color','w');
 hold on;

@@ -6,6 +6,17 @@ function [active,audit] = relationalPathActive(agent,tolerance)
 if nargin < 2 || isempty(tolerance), tolerance = 1e-10; end
 required = strcmp(agent.encoderSpec.mode,'context_rgat');
 policyReadout = NaN; valueReadout = NaN; active = true;
+if isfield(agent.encoderSpec,'encoderVersion') && ismember(agent.encoderSpec.encoderVersion,{'relational_residual_v1','relational_residual_v2','relational_residual_v3','relational_residual_v4','relational_residual_v5'})
+    required = strcmp(agent.encoderSpec.correctionType,'graph');
+    if required
+        p = agent.policy.encoder;
+        policyReadout = norm(p.R,'fro')/(1+exp(-p.beta));
+        active = policyReadout>tolerance && norm(p.W(:))>tolerance;
+    end
+    audit = struct('required',required,'active',active,'tolerance',tolerance, ...
+        'policyReadoutNorm',policyReadout,'valueReadoutNorm',NaN);
+    return;
+end
 if required
     if ismember(agent.encoderSpec.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2','rgat_minimal_v3'})
         % Fixed node selection has unit norm. This is a structural audit only;

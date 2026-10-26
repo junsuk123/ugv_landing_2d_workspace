@@ -25,7 +25,7 @@ function runs = trainRuns(cfg,options)
 %                     and is not stored in the returned runs; default false)
 % Seeds are the outer loop, so every method of seed 1 finishes before seed 2.
 % Methods with the same seed share the training-episode sequence.
-registry = landing2d.config.methodRegistry();
+registry = landing2d.config.methodRegistry(cfg);
 defaults = struct('methods',{{registry.methods.id}}, ...
     'trainSeeds',registry.trainSeeds.default,'retrain',false,'smoke',false, ...
     'concurrentRuns',1,'concurrentPool','processes','liveTraining',false);
@@ -45,7 +45,7 @@ assert(isempty(unknown),'landing2d:UnknownMethod','Unknown method(s) to train: %
 cfg.rl.retrain = logical(options.retrain);
 monitor = [];
 if options.liveTraining && ~isempty(intersect(options.methods,options.trainMethods))
-    monitor = landing2d.viz.TrainingMonitor();
+    monitor = landing2d.viz.TrainingMonitor(cfg);
 end
 if options.concurrentRuns > 1 && ~options.smoke
     runs = trainConcurrently(cfg,options,monitor);

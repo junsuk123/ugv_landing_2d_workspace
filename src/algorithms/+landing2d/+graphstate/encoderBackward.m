@@ -7,6 +7,15 @@ function [grads,dPolicyInput] = encoderBackward(params,spec,cache,dG)
 if strcmp(spec.mode,'baseline')
     grads = struct(); dPolicyInput = dG; return;
 end
+if isfield(spec,'encoderVersion') && ismember(spec.encoderVersion,{'relational_residual_v3','relational_residual_v4','relational_residual_v5'})
+    [grads,dPolicyInput] = landing2d.residual_motion.encoderBackward(params,spec,cache,dG); return;
+end
+if isfield(spec,'encoderVersion') && strcmp(spec.encoderVersion,'relational_residual_v2')
+    [grads,dPolicyInput] = landing2d.residual_logits.encoderBackward(params,spec,cache,dG); return;
+end
+if isfield(spec,'encoderVersion') && strcmp(spec.encoderVersion,'relational_residual_v1')
+    [grads,dPolicyInput] = landing2d.residual.encoderBackward(params,spec,cache,dG); return;
+end
 if isfield(spec,'encoderVersion') && ismember(spec.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2','rgat_minimal_v3'})
     [grads,dPolicyInput] = landing2d.minimal.encoderBackward(params,spec,cache,dG);
     return;
