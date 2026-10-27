@@ -27,7 +27,7 @@ function [policyInput,detail] = observationVectorGraph(observationVector,G,c)
 % feature at LandingCondition. Signed vertical velocity stays in DroneMotion
 % and reaches the sink through typed messages. No input gain/filter changes.
 version = c.graphState.observationFeatures;
-if strcmp(version,'raw_residual_v1')
+if ismember(version,{'raw_residual_v1','raw_current_v1'})
     policyInput = observationVector(:);
     assert(numel(policyInput)==c.rl.observationDim && all(isfinite(policyInput)));
     detail = struct('observationVector',policyInput,'featureVersion',version); return;

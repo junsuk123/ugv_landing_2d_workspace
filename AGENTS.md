@@ -1,4 +1,49 @@
-# 진행 중 — 후보 C3 관계 의미 연산자 (relational_residual_v8, 2026-10-27, Claude 판정)
+# 현재 계약 — current_semantics_v1 (2026-10-27)
+
+사용자 요청("이렇게해서 전체 실험 및 알고리즘 재구성해줘", "이 내용들 참고해서 수정해줘")으로 다른 어시스턴트가 만든 전달본을 이 작업본에 적용했다. 전달본은 Notion "13 현재 관측 관계 모델" 첨부이고, 기준 커밋은 `d438a7d`다. **현재 10D만 쓰고 GRU·관측 이력·이전 행동·보조 손실은 넣지 않는다.** 변경 전 소스는 `results/archive/pre_current_semantics_20261027/`에 있다. C3는 07:32 UTC에 중단됐다(아래 C3 절).
+
+- **문서:** 알고리즘 `docs/CURRENT_SEMANTICS_ALGORITHM_KO.md`, 실험 `docs/CURRENT_SEMANTICS_EXPERIMENT_KO.md`, 연구 `docs/CURRENT_SEMANTICS_RESEARCH_KO.md`, 구현 상태 `docs/CURRENT_SEMANTICS_IMPLEMENTATION_KO.md`.
+- **패키지:** `landing2d.current_semantics`(algorithms·orchestration). 공통 dispatch는 `encoderVersion='current_semantics_v1'` 또는 `methodProfile='current_semantics_v1'`일 때만 새 경로로 들어간다.
+- **구조:** 현재 10D → Φ19 → 7노드·16간선(의미 9 + self 7, 관계 4종 + self) → 공유 R-GAT 두 홉 → `[o10; LandingContext8]` → Actor.
+  - 접근 특징은 `e_a = e_x − m·max(h,0)`(보상·`aimError`와 같은 m), `v_a = v_r − m v_z`, `B(e_a v_a; 3)`이다. h ≤ 0이면 `e_x v_r`로 줄어든다.
+  - 접촉 특징은 `evaluateTermination`의 판정 기준(padHalfLength, touchdown 허용치)에 대한 부호 있는 비율이다.
+  - 특징은 현재 관측과 공개 고정 상수만 쓴다.
+- **네 방법:** `ppo`, `semantic_mlp_ppo`, `untyped_gnn_ppo`, `onto_rgat_ppo`.
+  - Raw Actor 폭은 110이고, 공통 raw Critic 폭은 55다. 총 파라미터는 2095/2095/2094/2100이다.
+  - 물리·센서·원 관측·보상·PPO 목적·행동 적용·종료는 유지한다.
+  - 주 비교는 R-GAT−MLP와 R-GAT−Untyped다(각 97.5%). 둘 다 통과한 뒤에만 R-GAT−PPO(95%)를 판정한다.
+- **진입점:** `run`·`run_check`·`run_scenario`·`run_live`의 기본이 새 버전이다.
+  - 이전 v5 검사는 `run_check('residual-v5')`, 재생은 `profile='residual-v5'`로 지정한다.
+  - `run_live('ranking'|'showcase')`는 그대로 보관 v5 자료를 재생한다.
+- **시드:** 개발은 학습 61001–61005·환경 12001–12100, 확인은 학습 61101–61120·환경 12201–12300, smoke는 61000/12999다.
+  - 과거 봉인 시드 431–450·9101–9200과 C3/C4 예약 471–475·481–485는 쓰지 않는다.
+  - 2026-10-27에 `results/`를 직접 검색했고, 새 시드와 겹치는 기록은 없었다.
+- **실행 순서:** `run`을 누르면 native smoke → 개발 등록 → 20모델 학습 → 16,000회 평가가 자동으로 이어진다.
+  - 본 학습은 사용자가 `run.m`으로 시작한다. 에이전트는 사용자 지시 없이 등록·학습하지 않는다.
+  - 확인은 개발 통과 후 `landing2d.current_semantics.runConfirmation(struct('root',pwd))`로 연다. `run.m`을 고치면 등록 해시가 깨진다.
+- **소스 봉인 범위:** `src/**/*.m`, 루트 `*.m`, `AGENTS.md`, `README.md`, `docs/**/*.md`, `tools/**/*.py`가 포함된다(`sourceManifest`).
+  - 개발 등록부터 확인 완료까지 이 파일들을 고치면 확인 등록·검증이 거부된다.
+  - 그 기간의 결과·판정 기록은 `results/current_semantics_v1/` 아래에만 남긴다. 개발이 실패해 확인을 닫은 뒤에는 문서를 갱신해도 된다.
+- **native 검사(2026-10-27):** R2025b `run_check`가 통과했다(TEST ONLY). 기록은 `results/current_semantics_v1/native_checks/`, 요약은 구현 문서 0절에 있다.
+  - 첫 실행은 전달본 `registry.m`의 `struct([])` 첨자 대입 오류로 실패해 그 부분만 고쳤다.
+  - 학습·등록은 아직 없다. Python 독립 수치 검사(`tools/current_semantics_audit.py`)는 MATLAB 실행을 대신하지 않는다. 성능·일반화·안정성 개선은 확인 결과가 나오기 전까지 입증되지 않았다.
+- 아래 절들은 과거 버전의 계약·결과 이력이다. 과거 재현 경로를 임의로 바꾸지 않는다.
+
+---
+
+# 시각화 — run_live('ranking'), run_live('showcase') (2026-10-27)
+
+사용자 요청("학습 종료하고 … 가장 결과가 좋은 비교군부터 … 제안 모델의 이점이 가장 잘 보이는 구성으로")으로 추가했다. 패키지는 `landing2d.showcase`다.
+- `run_live('ranking')`: 저장된 네 방법 OOD 셀(데이터셋 × 학습 시드 × 요인)을 TOSM 우위 순으로 정렬한다. 1위는 `v5_p2` 시드 423 motion OOD로, PPO/MLP/TOSM/Shuffled 70/76/95/69%다.
+- `run_live('showcase')`: 저장 지표 개요 그림(결과 구성, 짝 에피소드 지도, a₂별 착륙률, aim RMS, 위험·타임아웃, 시드 맥락)을 보여 준 뒤, 선택한 에피소드를 네 방법이 동시에 움직이도록 재생한다(접근, 조준 오차, 속도, a_x, 고도, 보정/base 분해, RelativeState attention, 결과 지표).
+  - 재생은 저장된 평가 행과 일치해야 한다(Success·Unsafe·FailureClass·AimErrorRMS).
+  - TOSM 보정을 끈 반사실 결과를 함께 보여 준다(셀 80%, 위험 16%).
+  - 에피소드 선택은 `episodes = 'tosm_alone' | 'tosm_over_ps' | 'graph_decisive' | 'all' | 시드 벡터`로 한다.
+- 모든 표시는 사후 선택이며 연구 결과가 아니다. 학습하지 않고, 확인 자원을 쓰지 않는다. 개발 환경 9001–9100만 재생한다.
+
+# 중단 — 후보 C3 관계 의미 연산자 (relational_residual_v8, 2026-10-27, Claude 판정)
+
+**사용자 요청으로 2026-10-27 07:32 UTC에 학습을 중단했다.** 모델당 약 125–150/750 update까지 진행했고, 체크포인트와 평가는 없다. 기록은 `results/relational_residual_v8/development/stopped_attempt_01/`에 있다. 등록은 유지한다. 다시 실행하려면 같은 등록 소스로 20모델을 처음부터 학습해야 하며, 사용자 지시가 있을 때만 한다.
 
 C1·C2가 종료된 뒤 사용자가 새로 지시했다("코덱스 한도 복원되기 전까지 너가 판단해서 수정해줘", "관계를 셔플 하면 잘 안되는게 맞아"). Codex를 2026-11-02까지 쓸 수 없어서 Claude가 판정자를 맡는다. 계약은 `docs/RELATIONAL_RESIDUAL_V8_KO.md`, 패키지는 `landing2d.residual_semantic`이다.
 

@@ -1,17 +1,22 @@
 function output = run_check(mode,options)
-% RUN_CHECK Current compact contracts + bounded smoke; never full training.
-% run_check                  residual candidate checks and one PPO update per arm
+% RUN_CHECK Current-observation semantics contracts + bounded smoke; never full training.
+% run_check                  current-semantics core, one PPO update per arm, eight cells
+% run_check('current-semantics') same TEST ONLY suite
+% run_check('residual-v5')    archived residual checks and one PPO update per arm
 % run_check('smoke')         archived minimal v3.1 smoke
 % run_check('contracts')      archived minimal v3.1 contracts
 % run_check('legacy')         archived 14-check suite
 % run_check('trace',options)  archived seven-node trace tests (not tosm4)
-if nargin<1, mode = 'residual'; end
+if nargin<1, mode = 'current-semantics'; end
 if nargin<2, options = struct(); end
 root = fileparts(mfilename('fullpath'));
 for name = {'orchestration','simulations','algorithms'}
     addpath(fullfile(root,'src',name{1}));
 end
 switch mode
+    case 'current-semantics'
+        assert(isempty(fieldnames(options)),'landing2d:UnknownOption','Smoke takes no options.');
+        output = landing2d.current_semantics.smokeTest();
     case {'residual','residual-v5'}
         assert(isempty(fieldnames(options)),'landing2d:UnknownOption','Smoke takes no options.');
         tests = landing2d.residual_context.selfTest();
@@ -50,7 +55,7 @@ switch mode
         fprintf('ARCHIVED seven-node trace acceptance tests; not the active four-node study.\n');
         output = landing2d.trace.selfTest(options);
     otherwise
-        error('landing2d:CheckMode','Use residual, residual-v5, residual-v4, residual-v3, residual-v2, residual-v1, smoke, contracts, legacy or trace.');
+        error('landing2d:CheckMode','Use current-semantics, residual, residual-v5, residual-v4, residual-v3, residual-v2, residual-v1, smoke, contracts, legacy or trace.');
 end
 if nargout==0, clear output; end
 end

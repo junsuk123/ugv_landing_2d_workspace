@@ -19,6 +19,10 @@ if nargin < 3 || isempty(trainSeed), trainSeed = 1; end
 validateattributes(trainSeed,{'numeric'},{'scalar','integer','positive'},mfilename,'trainSeed');
 perturbed = ~strcmp(method.graphPerturbation,'none');
 if nargin < 4 || isempty(graphSeed), graphSeed = trainSeed; end
+if isfield(cfg,'methodProfile') && strcmp(cfg.methodProfile,'current_semantics_v1')
+    cfg.graphState.encoderMode = method.encoderMode;
+    cfg.graphState.policyHiddenSizes = method.policyHiddenSize;
+end
 if isfield(cfg,'methodProfile') && ismember(cfg.methodProfile,{'relational_residual_v1','relational_residual_v2','relational_residual_v3','relational_residual_v4','relational_residual_v5'})
     cfg.graphState.correctionType = 'graph';
     if strcmp(methodId,'residual_mlp_ppo'), cfg.graphState.correctionType = 'mlp'; end

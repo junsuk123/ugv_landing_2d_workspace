@@ -17,6 +17,20 @@ function [g,cache] = encoderForward(params,spec,policyInput,head)
 % HEAD ('policy' or 'value') is informational: Actor and Critic have
 % separate encoders.
 if nargin < 4 || isempty(head), head = 'policy'; end
+if isfield(spec,'encoderVersion') && strcmp(spec.encoderVersion,'current_semantics_v1')
+    if strcmp(head,'value') || strcmp(spec.mode,'baseline')
+        assert(isempty(fieldnames(params)) && size(policyInput,1)==10, ...
+            'landing2d:CurrentSemanticsInput','The common critic and raw actor read current 10-D only.');
+        g = policyInput; cache = struct('mode','baseline');
+    else
+        if nargout>1
+            [g,cache] = landing2d.current_semantics.encoderForward(params,spec,policyInput);
+        else
+            g = landing2d.current_semantics.encoderForward(params,spec,policyInput);
+        end
+    end
+    return;
+end
 if strcmp(spec.mode,'baseline')
     g = policyInput;
     cache = struct('mode',spec.mode);

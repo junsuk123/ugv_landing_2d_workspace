@@ -14,7 +14,7 @@ function output = runScenario(caseId,options,cfg)
 % A look at trajectories only; the study numbers come from run.
 if nargin < 1 || isempty(caseId), caseId = 'S4'; end
 if nargin < 2, options = struct(); end
-if nargin>=3 && ismember(cfg.graphState.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2','rgat_minimal_v3','relational_residual_v1','relational_residual_v2','relational_residual_v3','relational_residual_v4','relational_residual_v5'})
+if nargin>=3 && ismember(cfg.graphState.encoderVersion,{'current_semantics_v1','rgat_minimal_v1','rgat_minimal_v2','rgat_minimal_v3','relational_residual_v1','relational_residual_v2','relational_residual_v3','relational_residual_v4','relational_residual_v5'})
     assert(~isfield(options,'trace') && ~isfield(options,'replay'), ...
         'landing2d:MinimalTrace','The archived trace dashboard supports seven-node models only.');
 end
@@ -35,7 +35,7 @@ for i = 1:numel(names)
 end
 if nargin<3, cfg = landing2d.config.primaryConfig(landing2d.orchestration.projectRoot()); end
 specs = landing2d.evaluation.factorialCases(cfg);
-if ismember(cfg.graphState.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2','rgat_minimal_v3','relational_residual_v1','relational_residual_v2','relational_residual_v3','relational_residual_v4','relational_residual_v5'}), specs = landing2d.minimal.cases(cfg); end
+if ismember(cfg.graphState.encoderVersion,{'current_semantics_v1','rgat_minimal_v1','rgat_minimal_v2','rgat_minimal_v3','relational_residual_v1','relational_residual_v2','relational_residual_v3','relational_residual_v4','relational_residual_v5'}), specs = landing2d.minimal.cases(cfg); end
 caseId = upper(char(caseId));
 spec = specs(strcmp({specs.id},caseId));
 assert(~isempty(spec),'landing2d:ScenarioId','caseId must be one of %s.',strjoin({specs.id},', '));

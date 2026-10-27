@@ -7,6 +7,11 @@ function [params,spec] = encoderInit(gs,observationDim,rs)
 %                 factorized readout (node x channel) to a graphDim embedding
 % params holds numeric arrays only (landing2d.util.adamInit/adamUpdate walk the
 % struct); everything fixed (schema, typed topology, graph hash) is in spec.
+if strcmp(gs.encoderVersion,'current_semantics_v1')
+    assert(observationDim==10,'landing2d:CurrentSemanticsObservation', ...
+        'Current semantics requires the unchanged current 10-D observation.');
+    [params,spec] = landing2d.current_semantics.encoderInit(gs,rs); return;
+end
 mode = gs.stateRepresentation;
 spec = struct('mode',mode,'readout',gs.readout,'attentionMode',gs.attentionMode);
 if strcmp(mode,'baseline')

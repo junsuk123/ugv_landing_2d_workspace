@@ -4,6 +4,14 @@ function [grads,dPolicyInput] = encoderBackward(params,spec,cache,dG)
 % Baseline: identity (no parameters). context_rgat: grouped factorized
 % readout -> node nonlinearity -> R-GAT layer (relationBackward) + local W0.
 % dPolicyInput is the gradient with respect to the encoder input (policyInput).
+if isfield(spec,'encoderVersion') && strcmp(spec.encoderVersion,'current_semantics_v1')
+    if strcmp(cache.mode,'baseline')
+        grads = struct(); dPolicyInput = dG;
+    else
+        [grads,dPolicyInput] = landing2d.current_semantics.encoderBackward(params,spec,cache,dG);
+    end
+    return;
+end
 if strcmp(spec.mode,'baseline')
     grads = struct(); dPolicyInput = dG; return;
 end

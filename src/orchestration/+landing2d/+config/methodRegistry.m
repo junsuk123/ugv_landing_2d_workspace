@@ -83,6 +83,9 @@ function registry = methodRegistry(c)
 % frozen. Development again on 1-5 (graph arms retrained, plain PPO 1-5
 % reused); confirmatory seeds 231-240 are fresh and fixed before any v2.14
 % training.
+if nargin>0 && isfield(c,'methodProfile') && strcmp(c.methodProfile,'current_semantics_v1')
+    registry = landing2d.current_semantics.registry(); return;
+end
 if nargin>0 && isfield(c,'methodProfile') && strcmp(c.methodProfile,'relational_residual_v5')
     registry = landing2d.residual_context.registry(); return;
 end

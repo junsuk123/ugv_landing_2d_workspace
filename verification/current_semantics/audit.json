@@ -1,0 +1,76 @@
+{
+  "test_only": true,
+  "executes_matlab": false,
+  "training_or_performance_evidence": false,
+  "scope": "Independent equations, topology, capacity, statistics, and package-call resolution only.",
+  "numeric": {
+    "random_current_observations": 10000,
+    "physical_vs_rational_max_absolute_error": 2.942091015256665e-15,
+    "jacobian_observations": 64,
+    "jacobian_entries": 12160,
+    "jacobian_max_scaled_error": 4.63086801399506e-09,
+    "approach_line_cases": 100,
+    "boundary_cases": 4
+  },
+  "structural": {
+    "nodes": 7,
+    "edges_including_self": 16,
+    "primitive_to_landing_max_hops": 2,
+    "flat_feature_dimension": 19,
+    "parameter_counts": [
+      2095,
+      2095,
+      2094,
+      2100
+    ],
+    "max_count_spread_percent": 0.28653295128939826,
+    "new_matlab_functions": 32,
+    "unresolved_package_calls": []
+  },
+  "statistics": {
+    "training_seed_counts": [
+      5,
+      20
+    ],
+    "coverages": [
+      0.95,
+      0.975
+    ],
+    "t_critical_max_difference_vs_scipy": 5.329070518200751e-15
+  },
+  "passed": true,
+  "inspected_source_sha256": {
+    "src/algorithms/+landing2d/+current_semantics/agentInit.m": "d60cc3871af3f1ba1c08da58e5ec72401282cc4e2f9234b4d0569ec0a4f31ecb",
+    "src/algorithms/+landing2d/+current_semantics/encoderBackward.m": "b2a9ae4538b796092d866b2b01d9786eabb30b6178df2de6cf158fbc93d9be35",
+    "src/algorithms/+landing2d/+current_semantics/encoderForward.m": "f8d5d057e92f2938e4ef8c4b9d97bd87a07adf3a81f95d8a58d6355564fa3364",
+    "src/algorithms/+landing2d/+current_semantics/encoderInit.m": "b58cf63dcc103d284abe1bce085b5c157be903366e170d4a34fe8f1a19fba45e",
+    "src/algorithms/+landing2d/+current_semantics/featureConstants.m": "a4f3af98ecfd3c0365987caf6b3383165eb526b09366e8f9bd42fe35cf4eb31d",
+    "src/algorithms/+landing2d/+current_semantics/features.m": "5975055fff1e65d8e72315e324bdecf946ad89b8bf277a20fdaa7f3f97b77ac1",
+    "src/algorithms/+landing2d/+current_semantics/parameterCount.m": "fde13b530e8d4f52a79a2410e7046e2eb92d30a7656d2689b3dde345b1d72316",
+    "src/algorithms/+landing2d/+current_semantics/schema.m": "c07adf11092a7ce3a4c45b121152496cd1a49a696206b605cef8f47a0d11603b",
+    "src/algorithms/+landing2d/+current_semantics/selfTest.m": "9a14f795c12caec868a3f54179d40934fb2f6a1c7388b53eb8a4ee5bac7c3f11",
+    "src/algorithms/+landing2d/+current_semantics/validateGraphConfig.m": "d9d900f0f02f84ece65d2917aeb2d275b0e226f3a9d054d51d9a27852fd0fd59",
+    "src/orchestration/+landing2d/+current_semantics/auditSeeds.m": "3b01b2c15df51a2ea86ace17952842619b31d26b2a2d3543c09bdf1564738e3d",
+    "src/orchestration/+landing2d/+current_semantics/checkSeeds.m": "b732e81092df0666b115d1f8bd638a48485f2f355adb51bab0f58a082b146e0d",
+    "src/orchestration/+landing2d/+current_semantics/checkpointRecords.m": "0aaf3db2313681286de5c92811a29b57f4bb2ef281d8ffb58cebc97bd0af8f88",
+    "src/orchestration/+landing2d/+current_semantics/condition.m": "8229c42cbc49050f9fad50eb1419a41c9196cf552a5006f6cd861603ee0d396c",
+    "src/orchestration/+landing2d/+current_semantics/config.m": "080a2d281882ffffe6ccf106434c82c6428c73c7ecc7fcdb189b69ded4aaccf6",
+    "src/orchestration/+landing2d/+current_semantics/diagnosticInputs.m": "42431beb5d921b1655e429a9273f11aaf1c86fda73fc45c4db6560c6123a6f98",
+    "src/orchestration/+landing2d/+current_semantics/evaluate.m": "af36be625fae0bd9ce547b405f2ad43b21c13fb51a9dea686c8d9c3765779a89",
+    "src/orchestration/+landing2d/+current_semantics/gate.m": "b453b9117339ce27dda1c8cd31e511744cb7496451d0dfc297a2c6feea9be4ca",
+    "src/orchestration/+landing2d/+current_semantics/pairedInterval.m": "fc45fa2989e67167d429428d88b8486f576e48f5d78a261526bfaf089bbe5937",
+    "src/orchestration/+landing2d/+current_semantics/register.m": "c2ec37f4822df1256b69a08b07e5991d7b4ad3950237d3277ee311908c52386f",
+    "src/orchestration/+landing2d/+current_semantics/registry.m": "19e18fac30bf6566317569bd953d9283f776f7c321e4e8bc2e63f4053aa2dec6",
+    "src/orchestration/+landing2d/+current_semantics/restoreTraining.m": "2264526785d1727036ec94a1b1c3c2ce35656abdbb816f2cd9bc89e74d73034b",
+    "src/orchestration/+landing2d/+current_semantics/runConfirmation.m": "3ace0d3d9c5e7356d40e877390befe5a285815e0399f6a5205a6fb8f3c7b19c1",
+    "src/orchestration/+landing2d/+current_semantics/runDevelopment.m": "77e69f88060b5d156c27646bae95a357a192ee705502afd42a874b1dea411937",
+    "src/orchestration/+landing2d/+current_semantics/runPipeline.m": "24d48e995d96883a192cbd4a5bd76308a51cab427dfe2f1928aa785db179932b",
+    "src/orchestration/+landing2d/+current_semantics/semanticDiagnostics.m": "07e4b1fa210c721146f72533df93e22e530354a5df3794c226d88fe947ce8af1",
+    "src/orchestration/+landing2d/+current_semantics/smokeTest.m": "f741371518da50a6c4eade0c7a5ae8c62843bd8b3041755ede95df3e50bce444",
+    "src/orchestration/+landing2d/+current_semantics/sourceManifest.m": "e60ce496b7c8b55c55e98a26563efa81cddfbcfa3eefc52b2c3ebe41904902c0",
+    "src/orchestration/+landing2d/+current_semantics/summarize.m": "23b0b4def1a1646dc9aeafef1b1887ba164fe9cff355d97a4f2ac2785a419d8f",
+    "src/orchestration/+landing2d/+current_semantics/verifyRegistration.m": "4292e8d16c58fee24e94652199c816c5acadfd74dccc7826afd014e6be14515a",
+    "src/orchestration/+landing2d/+current_semantics/verifySources.m": "9aa309f1aa5e9c06bb6b93f6f655ad19d80e4ef4e9df03be54b81a326971c1c6",
+    "src/orchestration/+landing2d/+current_semantics/writeJson.m": "78abe2cdad6025381391c9188b24f545a6042be6f654d1d36f8c12a52160fa11"
+  }
+}

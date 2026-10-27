@@ -69,6 +69,9 @@ info = struct('returns',returns,'captureRate',markerUpdateRate,'landed',success,
     'outcomeRates',outcomeRates,'episodeCount',n,'screened',screened, ...
     'nodeMean',[],'edgeAttentionMean',[],'graphSchema',struct());
 if strcmp(agent.encoderSpec.mode,'baseline'), return; end
+currentSemantics = isfield(agent.encoderSpec,'encoderVersion') ...
+    && strcmp(agent.encoderSpec.encoderVersion,'current_semantics_v1');
+if currentSemantics && strcmp(agent.encoderSpec.encoderMode,'semantic_mlp'), return; end
 residual = isfield(agent.encoderSpec,'encoderVersion') ...
     && ismember(agent.encoderSpec.encoderVersion,{'relational_residual_v1','relational_residual_v2','relational_residual_v3','relational_residual_v4','relational_residual_v5'});
 if residual && strcmp(agent.encoderSpec.correctionType,'mlp'), return; end
@@ -77,7 +80,10 @@ schema = agent.encoderSpec.schema;
 firstNodeFeature = nan(schema.nNodes,n); edgeAttention = nan(numel(schema.src),n);
 for i = 1:n
     if isempty(finalPolicyInputs{i}), continue; end
-    if residual
+    if currentSemantics
+        [~,X] = landing2d.current_semantics.features(finalPolicyInputs{i}, ...
+            agent.encoderSpec.featureConstants);
+    elseif residual
         % Diagnostic node features of the shared ten entries (an H3 11th entry is not logged here).
         X = reshape(landing2d.minimal.features(finalPolicyInputs{i}(1:10)),10,4);
     else

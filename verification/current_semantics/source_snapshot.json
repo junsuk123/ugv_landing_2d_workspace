@@ -1,0 +1,1384 @@
+{
+  "upstream_repository": "junsuk123/ugv_landing_2d_workspace",
+  "upstream_commit": "d438a7d4096d5b186c731c894306754aa5ab628d",
+  "local_source_snapshot_commit": "3246bc7",
+  "description": "344 text source and contract files materialized with exact Git blob identities; historical result/checkpoint files not copied. New changes are based on the complete upstream tree when published.",
+  "files": [
+    {
+      "path": ".gitignore",
+      "git_blob_sha1": "527fa66f1b8046753396b127ae467d5a0e59716c"
+    },
+    {
+      "path": "AGENTS.md",
+      "git_blob_sha1": "6b646d7fc51330f62a891c1465d5eb1f6408024c"
+    },
+    {
+      "path": "README.md",
+      "git_blob_sha1": "7bc555b091179e1f11865f679d9df550df279b6e"
+    },
+    {
+      "path": "docs/ACCELERATION_RANGE_R1_KO.md",
+      "git_blob_sha1": "fc7f670609503756cfbc6c241048f65406b175ae"
+    },
+    {
+      "path": "docs/COMMON_OBSERVATION_KO.md",
+      "git_blob_sha1": "75370843fec350fc3cb8ddf18896645740d0db56"
+    },
+    {
+      "path": "docs/CONTROL_GAIN_AUDIT_KO.md",
+      "git_blob_sha1": "182f80ec781c2902678b097a001a01ca23825ede"
+    },
+    {
+      "path": "docs/EXPERIMENT_DESIGN_KO.md",
+      "git_blob_sha1": "65c489dbf1e923bbde9249d3a0dbaece32e91a0c"
+    },
+    {
+      "path": "docs/GENERALIZATION_GOAL_CLOSURE_KO.md",
+      "git_blob_sha1": "af811a08e304fb67d33f9cc9f59cfeeb4a5eef48"
+    },
+    {
+      "path": "docs/GENERALIZATION_GOAL_KO.md",
+      "git_blob_sha1": "a5f9804035efddf6bbea63339e79604b1ca9ef3d"
+    },
+    {
+      "path": "docs/GENERALIZATION_PROTOCOL_V2_KO.md",
+      "git_blob_sha1": "898762a7dbaed870bc7cf6386befd23ebf8c3c48"
+    },
+    {
+      "path": "docs/INDUCTIVE_BIAS_DIAGNOSTICS_KO.md",
+      "git_blob_sha1": "3feefbef808ebb3c7a164acb14a1be170b173f9c"
+    },
+    {
+      "path": "docs/INDUCTIVE_BIAS_KO.md",
+      "git_blob_sha1": "aa534a1fb8d02a3677d2e6f911e3f59847338e73"
+    },
+    {
+      "path": "docs/MINIMAL_SYSTEM_KO.md",
+      "git_blob_sha1": "56863942b22dcce90710d5e53a6919c776efb6e1"
+    },
+    {
+      "path": "docs/MINIMAL_V31_DESIGN_KO.md",
+      "git_blob_sha1": "bb1744f7fb5c807ff766ef4b74e9c07a2d3cc7f2"
+    },
+    {
+      "path": "docs/MINIMAL_V31_RESULTS_20261024_KO.md",
+      "git_blob_sha1": "ec9a6454b0c554c53f18584c278c546ac8312987"
+    },
+    {
+      "path": "docs/MINIMAL_V3_RESULTS_20261024_KO.md",
+      "git_blob_sha1": "457995293f1c83bb0fa391a3dd61e46960457526"
+    },
+    {
+      "path": "docs/NOTATION_KO.md",
+      "git_blob_sha1": "3932d208e26093335b9a7858530bbebf997b3a21"
+    },
+    {
+      "path": "docs/RELATIONAL_RESIDUAL_V1_KO.md",
+      "git_blob_sha1": "b4792b4b742c588bd3100d5a22bc05f55d8605b7"
+    },
+    {
+      "path": "docs/RELATIONAL_RESIDUAL_V2_KO.md",
+      "git_blob_sha1": "210f9dc57e60401d14fa74278d97ff0f78a4f62b"
+    },
+    {
+      "path": "docs/RELATIONAL_RESIDUAL_V3_KO.md",
+      "git_blob_sha1": "8cf48e168404c66be6aeda2077c8a8ab7a4012dc"
+    },
+    {
+      "path": "docs/RELATIONAL_RESIDUAL_V4_KO.md",
+      "git_blob_sha1": "c3995207905f129296dd36fe39757ae6fa60152b"
+    },
+    {
+      "path": "docs/RELATIONAL_RESIDUAL_V5_KO.md",
+      "git_blob_sha1": "1c57530a68560994264018ce4eaf0f84f4dbbe55"
+    },
+    {
+      "path": "docs/RELATIONAL_RESIDUAL_V6_KO.md",
+      "git_blob_sha1": "16c53b77889a5c7d70dbde76329a7deaeba25481"
+    },
+    {
+      "path": "docs/RELATIONAL_RESIDUAL_V7_KO.md",
+      "git_blob_sha1": "a86d2cd61b34f04b9556bd64fbd4c209ae60cf45"
+    },
+    {
+      "path": "docs/RELATIONAL_RESIDUAL_V8_KO.md",
+      "git_blob_sha1": "72112d54d58e2e837278467cb17c58e60c652888"
+    },
+    {
+      "path": "docs/RESPONSE_GAIN_R1_KO.md",
+      "git_blob_sha1": "82d7dab98624dc9726ed489bf53a72d4b498a553"
+    },
+    {
+      "path": "docs/REWARD_KO.md",
+      "git_blob_sha1": "45049952b168a13ecf4dd02952841ebb82189f56"
+    },
+    {
+      "path": "docs/RGAT_V2_DESIGN_KO.md",
+      "git_blob_sha1": "ced275441131708cde026b9219ec8da5e05cf17b"
+    },
+    {
+      "path": "docs/TOSM4_ONTOLOGY_KO.md",
+      "git_blob_sha1": "80d282012a445dd5299d33048a9feafba3166eec"
+    },
+    {
+      "path": "docs/TOSM7_ONTOLOGY_KO.md",
+      "git_blob_sha1": "c6a20a75a2f994204a88673ba7c830a75f456d76"
+    },
+    {
+      "path": "docs/TRACE_DASHBOARD_KO.md",
+      "git_blob_sha1": "7067f15c9b97cc78039e539010d85f9f3cbeea4d"
+    },
+    {
+      "path": "docs/UGV_ACCEL_H3_GATE_KO.md",
+      "git_blob_sha1": "5c504f5fe5a83ac83ad5bcae6734f2160b9c0fe5"
+    },
+    {
+      "path": "docs/VARIABLE_NAMING_AUDIT.md",
+      "git_blob_sha1": "65f2432c9100b1b16e81631ac3344f37e70aaf2a"
+    },
+    {
+      "path": "run.m",
+      "git_blob_sha1": "13243a6ae681ee11ae728fb50663683e6e1764a0"
+    },
+    {
+      "path": "run_check.m",
+      "git_blob_sha1": "d80d7efc57e00fb1469524e7d262be27afcc0bfc"
+    },
+    {
+      "path": "run_live.m",
+      "git_blob_sha1": "e0b8972232f83bce6f660817230191c7c87630de"
+    },
+    {
+      "path": "run_scenario.m",
+      "git_blob_sha1": "ff3ddf4cf06232368fe3f180f4a0f84caecb3e4f"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+graphstate/applyStateRepresentation.m",
+      "git_blob_sha1": "7690a5cd80667b4d985cb95c31df097d040e66f0"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+graphstate/basisWeights.m",
+      "git_blob_sha1": "cc576a82c515f9bb0535f29c813a631c3eccbdf6"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+graphstate/contextSchema.m",
+      "git_blob_sha1": "490aad7942851c75da189ed547794a5975e1c1e4"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+graphstate/defaultGraphStateConfig.m",
+      "git_blob_sha1": "a6840b0ce5c7a234ac25052a8328e08fde7998a5"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+graphstate/encoderBackward.m",
+      "git_blob_sha1": "e7eefdb7dabc880fe61c671566ca313e200c002d"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+graphstate/encoderForward.m",
+      "git_blob_sha1": "10a23c102ce58e84e8cf6cca5e4ebc3d05854d66"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+graphstate/encoderInit.m",
+      "git_blob_sha1": "6307c794ffedcd2c5220dac60dae2c0b86050bbd"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+graphstate/environmentGraph.m",
+      "git_blob_sha1": "1404b19058ca929558ce21b6d630d9e445da1e92"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+graphstate/observationGraph.m",
+      "git_blob_sha1": "cd410c884c88ebedc288ec3278774899f1647a6c"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+graphstate/observationVectorGraph.m",
+      "git_blob_sha1": "e63fdd0b6e0979c3921c3040e7734f6350dfe61c"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+graphstate/validateGraphStateConfig.m",
+      "git_blob_sha1": "6ae5dcda3831eb19769d28745fd3f5a3682002ec"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+minimal/dynamicBackward.m",
+      "git_blob_sha1": "b19ebbf96ed34a0a266f25dd85e6a67d503feffe"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+minimal/dynamicForward.m",
+      "git_blob_sha1": "649b1e8324127c77305d0d30c936b56745e8bbf4"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+minimal/encoderBackward.m",
+      "git_blob_sha1": "f1f1c0bea726708e5637f69b16c662000def4ee7"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+minimal/encoderForward.m",
+      "git_blob_sha1": "a979d8e610cb9421d0f64ab8bb15d371954a54d1"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+minimal/encoderInit.m",
+      "git_blob_sha1": "2f7fad928e0e836c7335d9b4454a13311dda612e"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+minimal/features.m",
+      "git_blob_sha1": "d8ba15563794216da3e633404bb18cf6c179c59d"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+minimal/schema.m",
+      "git_blob_sha1": "ce8f24d7dda398a65203af9a057eb7084971a29e"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+minimal/validateGraphConfig.m",
+      "git_blob_sha1": "120a2207acf8e16efd86eb297e8bb1f8ba85acfa"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual/agentInit.m",
+      "git_blob_sha1": "832912f32fb6ccf7cff2294ac522b8fcf1f2bdf8"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual/encoderBackward.m",
+      "git_blob_sha1": "3d0f03ad782f6d5b5ae44e569bbca51d9321b2d3"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual/encoderForward.m",
+      "git_blob_sha1": "755e23e26a22fb4fa6665b1c688642a9bb3b4b13"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual/encoderInit.m",
+      "git_blob_sha1": "0d90683232dbb8f42b55a4f35d915c7e3c7aa1f1"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual/validateGraphConfig.m",
+      "git_blob_sha1": "7e313ad07a58042899e62abaa8a08130e0993c93"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_base_init/agentInit.m",
+      "git_blob_sha1": "b0f62093ee57d5effcfcb6e2abe1300cbed400d7"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_base_init/encoderInit.m",
+      "git_blob_sha1": "76bd55aecc5c91f880dc4aece8f5eeb1c17db621"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_base_init/validateGraphConfig.m",
+      "git_blob_sha1": "cffff84432232395669198cdf4e7175380825f51"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_context/accelerationEncoderInit.m",
+      "git_blob_sha1": "71a509ea978487bf31f1d77354efaeb9d34c741a"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_context/agentInit.m",
+      "git_blob_sha1": "f6b8427679e6478a40df330f7d2da4ae43edf731"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_context/capacityEncoderInit.m",
+      "git_blob_sha1": "5bec26bb8cb371afa89b98bab2c1a72ca5f62f49"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_context/encoderInit.m",
+      "git_blob_sha1": "9f1380535595293f2623bc77a8d01ad2a24b621b"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_context/inputDimension.m",
+      "git_blob_sha1": "7655e4975aedef90905a57fcf8fe7e5c962b77d3"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_context/schema.m",
+      "git_blob_sha1": "c8254314f697f39dcfe38414901008b848cf4a31"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_context/semanticEncoderInit.m",
+      "git_blob_sha1": "4801c68e3abe8482db5aca7f59229f288732b35c"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_context/semanticGraphBackward.m",
+      "git_blob_sha1": "88fe058834685ce4f742ec5e9e960c63aa3bd395"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_context/semanticGraphForward.m",
+      "git_blob_sha1": "e7bb27c62608344a6bbb112039fe8f0fc4861ef2"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_context/validateGraphConfig.m",
+      "git_blob_sha1": "d5a14caba81a911342e98f7f8b14e88620673014"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_logits/agentInit.m",
+      "git_blob_sha1": "3718766bc2430260b9b2f1355c7fa06deb596e35"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_logits/encoderBackward.m",
+      "git_blob_sha1": "2f793302d64bdff09b1c1194dad7783ea0de4ba1"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_logits/encoderForward.m",
+      "git_blob_sha1": "fc8b956404a1c6e29677cbffd91fb7febca093bd"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_logits/encoderInit.m",
+      "git_blob_sha1": "1020a62a8861f016909b90e867435ca13a054c60"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_logits/validateGraphConfig.m",
+      "git_blob_sha1": "4b4d8e4a643d41448a8842075d67e9786ace3d90"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_motion/agentInit.m",
+      "git_blob_sha1": "eae8bc10ada9f8bdc8c2ee4a4476745ad718d43a"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_motion/correctionActivation.m",
+      "git_blob_sha1": "b90427c8a6c48d08e762427ac30dadcb4b169648"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_motion/encoderBackward.m",
+      "git_blob_sha1": "b8d623ede03fd9972904a69debdd0eb22b07fa4c"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_motion/encoderForward.m",
+      "git_blob_sha1": "eb23288c2b29ff8263cd91e960143e5fb7c4f5c2"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_motion/encoderInit.m",
+      "git_blob_sha1": "2683ae13002f104461a8284ac442a0095b126cbb"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_motion/motionCoordinates.m",
+      "git_blob_sha1": "4e115ee3aa7b8e3961e5728b3e1f43228af2f0b8"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_motion/motionCoordinatesBackward.m",
+      "git_blob_sha1": "cd7ae912d3229ad6d2aeaa4aece5343d1e679da0"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_motion/schema.m",
+      "git_blob_sha1": "1255a19464ae61d8c3867b71310ba0110dc8de80"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+residual_motion/validateGraphConfig.m",
+      "git_blob_sha1": "51bf0d6f1e1eceaa940b0f3440096bbb3a5d6d61"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rgat/applyRelationPerturbation.m",
+      "git_blob_sha1": "4791a7602b7b109e5fb80e97b824d1ca1e22e098"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rgat/relationBackward.m",
+      "git_blob_sha1": "0540e6c71d06cb5dd7da5825e1669bfd248b335a"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rgat/relationForward.m",
+      "git_blob_sha1": "c89518981f739f2d798ea20b3d6d7fe484c8e98b"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rgat/topology.m",
+      "git_blob_sha1": "c01d65e32b1e7f393480a1a6a65995bd34436720"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/agentInit.m",
+      "git_blob_sha1": "30b9d9374f4f29606575962456c34e53259179bf"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/algorithmVersion.m",
+      "git_blob_sha1": "013d4e050808379c66861af723658682bca04c61"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/baselineVersion.m",
+      "git_blob_sha1": "2f91539f67a2569fe18cc9af87e1b351a06547f0"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/computeAdvantage.m",
+      "git_blob_sha1": "c578d1983225e55c9dc18622fbc5d9ae7b4779bc"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/computeReward.m",
+      "git_blob_sha1": "9760634df00c9e837c4a172db83cb9ae4760c9aa"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/defaultRlConfig.m",
+      "git_blob_sha1": "d5f8229e95249ec249869dc245a8a1f7f3f4b292"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/ensurePool.m",
+      "git_blob_sha1": "64ecff2f397b572a4fbf439be212efb3429d38ee"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/evaluateV2.m",
+      "git_blob_sha1": "1f954813a2cb96346496e532726a3212fb9fd813"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/initialAgent.m",
+      "git_blob_sha1": "cfcc3a7e1d1748ae890012a823618f49e8d6c1a2"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/loadCheckpoint.m",
+      "git_blob_sha1": "5d9db69fd2da0feff333337adc9b1826557f28c5"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/loadLatestCheckpoint.m",
+      "git_blob_sha1": "1119fbbb45881b00463a8bcb3e48abefc4f28c18"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/loadOrTrainAgent.m",
+      "git_blob_sha1": "a75cf625730b746d16d36f83c442fb7a7d5ae614"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/mlpBackward.m",
+      "git_blob_sha1": "449c88ed3289959001185842b61d90ccd623ddd3"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/mlpForward.m",
+      "git_blob_sha1": "702163e2e723635e5acc2e8da72324b489bb4bbc"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/mlpInit.m",
+      "git_blob_sha1": "01cad686e4bc0ebcc3c97823a9a0854a025b9beb"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/plateauReached.m",
+      "git_blob_sha1": "af75cf04583519e7d05f037f305cdf71bce8abd8"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/policyAction.m",
+      "git_blob_sha1": "bdff7c564fe68a513629f2c37b90590703bd5333"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/policyLossGradient.m",
+      "git_blob_sha1": "8e4a37d91a2f0701eef14c9b441b5e83c6a39bcc"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/ppoTrain.m",
+      "git_blob_sha1": "43b298160ee633932b892c53ec7854b2d00d1e08"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/profileAgent.m",
+      "git_blob_sha1": "5dbe9c5ca4c54ded869f600148a5077bc7260e2b"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/relationalPathActive.m",
+      "git_blob_sha1": "50188f10c091b34909b9db80b6e6b49a609527c4"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/rolloutEpisodeV2.m",
+      "git_blob_sha1": "4d8487c978f9499f491a96aef4abbe49ba3053f7"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/runIdentity.m",
+      "git_blob_sha1": "40ed3110dde6deee75eda5d4666c25cc7c292196"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/selectionScoreV2.m",
+      "git_blob_sha1": "16fd3e18dda64655349751d4dac538f6f470d406"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/signatureMatches.m",
+      "git_blob_sha1": "0cf2caa80370f3ae0975be723a2f07143c1495d9"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/trainAgent.m",
+      "git_blob_sha1": "e4609b2d895c6ea7ccdd16000ccc7b6783c97f1b"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/trainingSignature.m",
+      "git_blob_sha1": "b278fb7165bd68b2e560eec3513510f98aa4e94d"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/validateRlConfig.m",
+      "git_blob_sha1": "92389e0e851c5c78dc236a4172767b07436b0230"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/valueForward.m",
+      "git_blob_sha1": "4538e18859e1f4a0f747f02ca7333977e13aedd5"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/valueLossGradient.m",
+      "git_blob_sha1": "62a6a4db17187bee85ce2ee01701d20521b68a1b"
+    },
+    {
+      "path": "src/algorithms/+landing2d/+rl/verifyCheckpointGraph.m",
+      "git_blob_sha1": "b6f871c4a94d55c93af21715a0c62dee6415c7d0"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+accel_range/analyze.m",
+      "git_blob_sha1": "fae6ea045a2d3ecb550b0eb1b046438d23902c15"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+accel_range/checkSeeds.m",
+      "git_blob_sha1": "ff5a692bc57a1dc33bccedaffcb8bbbb3a41b8de"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+accel_range/checkSetup.m",
+      "git_blob_sha1": "45dc1ed6398b8a35334678e9c42c9b83dce26ca5"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+accel_range/config.m",
+      "git_blob_sha1": "9a6a5d50a2d54cd13837ba614c9502f8d87091d0"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+accel_range/evaluationRuns.m",
+      "git_blob_sha1": "c79a022dc7ebe4dde4cc7e55bed2d213cae0ba36"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+accel_range/learningGate.m",
+      "git_blob_sha1": "d5c0356aad638d0070b67195f3e94537f3c0aca8"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+accel_range/plots.m",
+      "git_blob_sha1": "4a225fba45f73715dc104582b4638979b2e5bf66"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+accel_range/register.m",
+      "git_blob_sha1": "dad3c946afb9eeb7797fbf8ab5beac7d96fa2498"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+accel_range/runAll.m",
+      "git_blob_sha1": "edf34ab03ba751b2ab504d6e83be30002c9a3f93"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+bias_diagnostics/branchRollouts.m",
+      "git_blob_sha1": "524ff3e533df6d6701d6f367aae255664c59c5b7"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+bias_diagnostics/checkSeeds.m",
+      "git_blob_sha1": "79bccb9cfcf60a0f83a23ff9d34c22156e2505d5"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+bias_diagnostics/closedLoop.m",
+      "git_blob_sha1": "216703f4f7e79e6ebe1f0acd26e78880a8bd062e"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+bias_diagnostics/condition.m",
+      "git_blob_sha1": "b8244edf9dcd424c675aaa954b62cb6c1c93ad23"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+bias_diagnostics/config.m",
+      "git_blob_sha1": "21c3774167824e67e301cc41eb1e222980d3ccc6"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+bias_diagnostics/fileHash.m",
+      "git_blob_sha1": "8dbe07f79828740d4f92890b376f16adb40cd2f0"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+bias_diagnostics/models.m",
+      "git_blob_sha1": "fe240b15538568ffb491a83038cd107beea925a4"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+bias_diagnostics/plots.m",
+      "git_blob_sha1": "4929f53e571b92a1f27d5e70420ea8777a37c388"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+bias_diagnostics/probeResponses.m",
+      "git_blob_sha1": "32f1e8c689d80ceeeea945f2fb0fa75c81db324c"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+bias_diagnostics/referenceStates.m",
+      "git_blob_sha1": "83168eb66f477388368d5252793f9b0d47f6ca6c"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+bias_diagnostics/response.m",
+      "git_blob_sha1": "3257abbecd3a56524f59bd2ac0f6931804732494"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+bias_diagnostics/runAll.m",
+      "git_blob_sha1": "385f8f05cda78b0925aab4ec607774e767e04e96"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+bias_diagnostics/selfTest.m",
+      "git_blob_sha1": "765019c48815da866b1e85e0937db15ae7218e06"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+bias_diagnostics/spearman.m",
+      "git_blob_sha1": "d8e1308b0369f9d448cf8d8bf857b5b12678e680"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+bias_diagnostics/summarize.m",
+      "git_blob_sha1": "6cd9d485e9c71634d613f5832eb659a3d691fde8"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+bias_diagnostics/tables.m",
+      "git_blob_sha1": "bc9cc6d36c1e9e829dee330d0f55c95d416e4139"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+bias_diagnostics/typingSwap.m",
+      "git_blob_sha1": "78dab197a860f35c95554ecac267ac94fb82e62f"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+config/applyMethod.m",
+      "git_blob_sha1": "fec0c9622189e6587f455a135f9b3811d4db8336"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+config/comparisonArms.m",
+      "git_blob_sha1": "e37956cf94e223426ab97062a6f9d0d973c247c5"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+config/defaultCommonObservationConfig.m",
+      "git_blob_sha1": "61857c297fb96d3b5bbef2b3e6d6549dc46c3041"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+config/defaultConfig.m",
+      "git_blob_sha1": "5df1c2044591792c4c9827853bf725400426d85b"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+config/defaultEvaluationConfig.m",
+      "git_blob_sha1": "774d8bb5d01f62c11826fcd7bd2ad128b75f8f89"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+config/defaultPlanarVisibilityConfig.m",
+      "git_blob_sha1": "ba29ddbf2dd8b51c18338280356ae9db0dd7d640"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+config/methodRegistry.m",
+      "git_blob_sha1": "aa4f3d0da7504821353ba792fc6d4ba0b7950ba9"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+config/primaryConfig.m",
+      "git_blob_sha1": "e3ca7dcd2157f07f7b27b2e0e399cb975eba65cf"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+config/validateConfig.m",
+      "git_blob_sha1": "6ce471bd961d85199c05012f809688a6ecd96319"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+config/validatePrimaryConfig.m",
+      "git_blob_sha1": "09c720872e6b74dbe86b3f21190cebbec95a0b19"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/aimError.m",
+      "git_blob_sha1": "f0766b1c4db7164276df508f8369830422a69745"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/buildProbeSet.m",
+      "git_blob_sha1": "d6dfa5bcd9e595b23ee16bac06459fda899288a9"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/episodeMetrics.m",
+      "git_blob_sha1": "e93d3ebee8d376aa80de9b9f0526f6bf65359685"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/factorialCases.m",
+      "git_blob_sha1": "00dd4bb202cdc9db8fc96a590b8aa273cb3c0e9d"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/factorialEffects.m",
+      "git_blob_sha1": "96f67d6307b15b64d8492395ee1b48385acd1a4d"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/factorialStudy.m",
+      "git_blob_sha1": "3afc85ada67d3ab26ab3d367a58172105a700ef9"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/failureClasses.m",
+      "git_blob_sha1": "fb10b56c7e7acb5c628576b980f5b8b90c2f4d60"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/failureTable.m",
+      "git_blob_sha1": "335b78f8531d5739c12c864ad36c5cbbd1c433cd"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/generalization.m",
+      "git_blob_sha1": "c8cf672e7f2c821631846d7909dd965a3558a7d7"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/headlineContrasts.m",
+      "git_blob_sha1": "d1c068cfc148bc2e29cc51b33c8ea92bb3a08b40"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/heldOut.m",
+      "git_blob_sha1": "e29999b4106cf36406ef209776fe470ece69c57f"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/learningEfficiency.m",
+      "git_blob_sha1": "d6372a2aab7b924b3abc50ff6fd8bd552d1f2376"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/methodContrasts.m",
+      "git_blob_sha1": "9dc568ebb5497a7888366888fa1f2dafbd22a712"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/openLoopProbes.m",
+      "git_blob_sha1": "76e71d8914a302a08921060355556fca2d0bc08c"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/replicateSeeds.m",
+      "git_blob_sha1": "07686f0aff2ea0d5c9711201504879d655ca01db"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/rolloutSet.m",
+      "git_blob_sha1": "be5df4bebb4defc707af2f1b4ab52e1ddc3bdd40"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/runMeans.m",
+      "git_blob_sha1": "61939c9fdb7c408d1f37024432e1ef1db20b8251"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/seedSummary.m",
+      "git_blob_sha1": "0823ac137d86bffdc321ca2103115bdd6bc1638b"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/tInterval.m",
+      "git_blob_sha1": "12dffed9f227e1cbccfbe465e2bc193c1acdff5e"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/trainingDiagnostics.m",
+      "git_blob_sha1": "fd12fa4f94ba495b258b5f43dc3d84978b13236d"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/v215DevelopmentGate.m",
+      "git_blob_sha1": "9b719293ca0fe08bfee561ebf3a3e83f1bae0fab"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+evaluation/verticalResponseProbe.m",
+      "git_blob_sha1": "daeea57674de06a545960c711bc14efdf98d2801"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+gain_audit/analyze.m",
+      "git_blob_sha1": "a2714bd94b02f4aa5d6d89e01caf48cf8b55c3ce"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+gain_audit/checkSeeds.m",
+      "git_blob_sha1": "812a6cc15fd43e3b4d8749c4daf2646c83486c91"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+gain_audit/config.m",
+      "git_blob_sha1": "d933caa25670d4895e641af9d74ef329526be894"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+gain_audit/episodes.m",
+      "git_blob_sha1": "f838609eb690b8ac8dc7f75e121710ec634bec13"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+gain_audit/plots.m",
+      "git_blob_sha1": "7b8925bc1211bde16755b55fa9e8b409e043a7a7"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+gain_audit/reproduce.m",
+      "git_blob_sha1": "d9f51897fe5a43a6287693494a9a9e07ddd8b1a5"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+gain_audit/rollout.m",
+      "git_blob_sha1": "1fc0b1eb854f49d67a950b3b716bef9a74f8ebeb"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+gain_audit/runAll.m",
+      "git_blob_sha1": "c89e66325eb20818644be8c21c37c585695cf0ac"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+gain_audit/selfTest.m",
+      "git_blob_sha1": "58e464df4cea78ca6dd176fa3b402835732dedd8"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+minimal/cases.m",
+      "git_blob_sha1": "d2e4ea0d68c1c02dd09dc5a5b1224f75d7dae9b8"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+minimal/checkAnchoredEvidence.m",
+      "git_blob_sha1": "9b87567aaebfc5d12946dc3adc57b5659a5beb57"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+minimal/checkDynamicAttention.m",
+      "git_blob_sha1": "21f5a6afc658d9dcfe1aaea5996ca5d4acf286aa"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+minimal/checkGeneralization.m",
+      "git_blob_sha1": "4242d4080472bb1e12764ffe014f470ea99b1c75"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+minimal/checkLearningPath.m",
+      "git_blob_sha1": "0eb83905fd59126f0557a8d2960b9a5cb099ad12"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+minimal/checkNeutralRelationInitialization.m",
+      "git_blob_sha1": "d1a95189e42012889b619412002d701f42e7af23"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+minimal/config.m",
+      "git_blob_sha1": "e5e88184796c5f6f4390f787c79dc26fca971c9f"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+minimal/evaluate.m",
+      "git_blob_sha1": "0150983f6c40a994b6646df1889f17a111501696"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+minimal/generalization.m",
+      "git_blob_sha1": "c03a68865c8931d0c1e2b9d85644a47ca6c7fdcc"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+minimal/generalizationCondition.m",
+      "git_blob_sha1": "b0a3c534437518602701cc0fd6f2fc173a1521b4"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+minimal/generalizationSummary.m",
+      "git_blob_sha1": "5c2a63d727cdf5dd6d21db1d18c2e4d1f7e2f871"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+minimal/integrationCheck.m",
+      "git_blob_sha1": "c96ea8dc5ba70eafbb35ef409c6d23d3c1ead6c6"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+minimal/options.m",
+      "git_blob_sha1": "05db4e775428e9c8008be885cc758c0a01e21ff6"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+minimal/plotGeneralization.m",
+      "git_blob_sha1": "26e106d35059e7ca20d5b41e545c959988dd978c"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+minimal/plotResults.m",
+      "git_blob_sha1": "1eb4ad99ab607a10d4b3edd2be4faee453e115c3"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+minimal/runPipeline.m",
+      "git_blob_sha1": "869bcfcf3569d2444a5bf37be094c0e254ddd527"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+minimal/selfTest.m",
+      "git_blob_sha1": "8739f44b69c9630510fe2521929689d5120f9b28"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+orchestration/loadRuns.m",
+      "git_blob_sha1": "8e47e1433d364319b512dd934b38e7b18d4a9262"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+orchestration/printHeadline.m",
+      "git_blob_sha1": "3cc53f5693d0ec98549c075328662e68bb9af9ef"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+orchestration/projectRoot.m",
+      "git_blob_sha1": "3e90f71bd5a35282ce500e2190fba600ff38e88c"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+orchestration/runCheck.m",
+      "git_blob_sha1": "c31a98451954fd3369c95c6160bf2320aef6358a"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+orchestration/runEvaluation.m",
+      "git_blob_sha1": "988a8602b2267d2428e1d955b49a2b8a0d95f0ed"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+orchestration/runLive.m",
+      "git_blob_sha1": "551bfaa81c6ee047f1f8a811e8e78402f80f0e6c"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+orchestration/runPipeline.m",
+      "git_blob_sha1": "4491d20a0f857af874fb9d46ec66f93b55b05c9f"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+orchestration/runScenario.m",
+      "git_blob_sha1": "db2f30a47c22c97685fbce86469b8c1a520d36f6"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+orchestration/runTrace.m",
+      "git_blob_sha1": "c825d926a9b45143e5cfd347e36bc2f684efe2f8"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+orchestration/selfTest.m",
+      "git_blob_sha1": "6e45dc9711d2de4d68dc054d468ae8b7cc369db4"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+orchestration/smokeConfig.m",
+      "git_blob_sha1": "a6a6ae113386b92f4671ab7cc85cbe2e7b443f17"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+orchestration/trainRuns.m",
+      "git_blob_sha1": "09ccd251de0e8056ba0eead9571e0cd41e6111c4"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual/checkEncoder.m",
+      "git_blob_sha1": "fa8a0b5967afc2458652f13449290f3db80bdbe3"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual/config.m",
+      "git_blob_sha1": "3c4da7803ba808541e88fe265db74c393bb52a18"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual/developmentGate.m",
+      "git_blob_sha1": "26397510261a3b48f98c2b2221be98278a2e5e3f"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual/registry.m",
+      "git_blob_sha1": "e8b474adc7a41a3a13d768ec25d72c3e9a99b4b1"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual/runPipeline.m",
+      "git_blob_sha1": "91f5fa2b6b38b3230b93a6fec89eba07ced16dbd"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual/selfTest.m",
+      "git_blob_sha1": "0ea74452e88673745427a9f2da7029b24202789b"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_base_init/checkInitialization.m",
+      "git_blob_sha1": "afd6e57f82f6f1461de6d8e320ee6256452950d6"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_base_init/config.m",
+      "git_blob_sha1": "170f3d2f8b253695f2bf0dbc2858a034eee5e227"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_base_init/developmentGate.m",
+      "git_blob_sha1": "03d904de2c233d69641a8b1b723987b764883cbb"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_base_init/registry.m",
+      "git_blob_sha1": "d5b5342bbc755e36ad1c2a9ec813f2abe1158c50"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_base_init/runPipeline.m",
+      "git_blob_sha1": "68c611ec9f9a85335c8ff79a334b22a41b0c137c"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_base_init/selfTest.m",
+      "git_blob_sha1": "62c68c30c390bbf35537a1cc688291a09a952c30"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_capacity/config.m",
+      "git_blob_sha1": "0797c90f398882e64d6491a47116f8df77b161ea"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_capacity/register.m",
+      "git_blob_sha1": "8a56dd52e3af157372d59d9399944f348f85f1c6"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_capacity/runDevelopment.m",
+      "git_blob_sha1": "2ad0daacbfac6c3dd399a82b4cd8848219741319"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_capacity/selfTest.m",
+      "git_blob_sha1": "bb4e14e91c76859f6fb180f92d67606140fcffc5"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_context/config.m",
+      "git_blob_sha1": "eddd79d46075f85d7bff3132ef8010773a54c5ab"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_context/developmentGate.m",
+      "git_blob_sha1": "8e579295b7f09967c1761e99bc6497649885f2c9"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_context/registry.m",
+      "git_blob_sha1": "0fa35a98b3f2480775bf64449de1989d9b74a403"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_context/runPipeline.m",
+      "git_blob_sha1": "119772c81a51f33f03e69e8ec55455b0177abf72"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_context/selfTest.m",
+      "git_blob_sha1": "471c773dee656a56bd2c1d7c5a04f161d64e98cf"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_logits/checkEncoder.m",
+      "git_blob_sha1": "fb3198ffa52c3c86174a9382e22da16243a7d470"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_logits/config.m",
+      "git_blob_sha1": "a13bc97a138ee943ab4b639fd208d4b6766eed36"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_logits/developmentGate.m",
+      "git_blob_sha1": "b858945c97bd1ec9831624a3b15af7fed3215a15"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_logits/registry.m",
+      "git_blob_sha1": "144e8dd301d95d14a4c42708cfd3e89c59c4e43a"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_logits/runPipeline.m",
+      "git_blob_sha1": "09a69ac29a6b4d295cca10fd84635e2eaa0d98c1"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_logits/selfTest.m",
+      "git_blob_sha1": "bb66dc7ce8906ecfc71c2744513b71fca6b9fe78"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_motion/checkCoordinates.m",
+      "git_blob_sha1": "321c6aef80c0f54aa0c117c916918ddca2b31b15"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_motion/checkEncoder.m",
+      "git_blob_sha1": "63f34dc34b5f9d525c5b739d3249a88963325c5a"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_motion/checkNeutralInitialization.m",
+      "git_blob_sha1": "c57c230b41fdf45fc2e6982a23a5bc45b411707c"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_motion/config.m",
+      "git_blob_sha1": "371d925f563b7d0082e145e98f33aeea0e570e52"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_motion/developmentGate.m",
+      "git_blob_sha1": "03d904de2c233d69641a8b1b723987b764883cbb"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_motion/registry.m",
+      "git_blob_sha1": "845ff95fd5566c5af83cd0cadfdefe62e13915e4"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_motion/runPipeline.m",
+      "git_blob_sha1": "46f681f8300cdf34a8158c46cf57b33b7ddaae15"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_motion/selfTest.m",
+      "git_blob_sha1": "aed6c88b197ea27c7915ea0051ef9a9320e16b56"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_semantic/config.m",
+      "git_blob_sha1": "a72679baba77e55a50d53953005512db102573c3"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_semantic/register.m",
+      "git_blob_sha1": "159c6d50330973d5292966c1f0569bb2e76f8de8"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_semantic/runDevelopment.m",
+      "git_blob_sha1": "58b7c2d76dc9b1fcca8e15faf0bfa358db911bed"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_semantic/selfTest.m",
+      "git_blob_sha1": "e1f514f9e965112e6855616b55fe474e183d8d93"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_soft/config.m",
+      "git_blob_sha1": "0c022115c70b56e167eed4ebee4126a1cf1ae2ae"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_soft/developmentGate.m",
+      "git_blob_sha1": "9b2f31be5f4a6b456d021876625393a09e3be49b"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_soft/register.m",
+      "git_blob_sha1": "c53a71eb0f6efd620020bc2d95af877ba1b66c35"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_soft/runDevelopment.m",
+      "git_blob_sha1": "040161de3aed2ad1a2e1a75b78443b5a6b718f48"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+residual_soft/selfTest.m",
+      "git_blob_sha1": "542cf8c988d8b25d382a396d13055854585033f5"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+response_gain/analyze.m",
+      "git_blob_sha1": "57361a460f69079110599be53348953a131371e1"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+response_gain/config.m",
+      "git_blob_sha1": "2bd6ddaf40bfc6ba2411d20ffb2da43d167a37aa"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+response_gain/models.m",
+      "git_blob_sha1": "31e8d82ccf1b0935a1776c217229bb20ec2524ba"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+response_gain/plots.m",
+      "git_blob_sha1": "b597ca012228ecf1301d5e2ac8144e123b84a88c"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+response_gain/runAll.m",
+      "git_blob_sha1": "a2843dd919ca40b3d3a79b8a33edb82ae6bb327c"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+trace/actorForward.m",
+      "git_blob_sha1": "52e42cce49da84927d6bf27920b60f247a5892d8"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+trace/buildEvents.m",
+      "git_blob_sha1": "08ff82ee3df756fce25de0d836f41346900ff7a4"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+trace/cadenceSummary.m",
+      "git_blob_sha1": "96f71dfcb554601b794cc2da304d12312d7bbbf5"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+trace/channelStatus.m",
+      "git_blob_sha1": "5d29ca6881f4b79c84ae62af6da2388d8c9e5bb9"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+trace/decisionSensing.m",
+      "git_blob_sha1": "e94ca93c40324e5608e32103fff934f6e6ff32a0"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+trace/dependencyGraph.m",
+      "git_blob_sha1": "562f4869edfe19a79efcba126c531ed6171ffce5"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+trace/explainDecision.m",
+      "git_blob_sha1": "0a03cadd24fb22e862aa75ae406623fb5d6c01f0"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+trace/exportTrace.m",
+      "git_blob_sha1": "db28ab38784533605da5e2679f2b493ebec0d207"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+trace/graphSchema.m",
+      "git_blob_sha1": "a4470071a5efb24745f3d4aaf33768e4373173f5"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+trace/labels.m",
+      "git_blob_sha1": "4ef9e6d5c539bfe00d8a1325373a0a57ef40a293"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+trace/loadTrace.m",
+      "git_blob_sha1": "3ac582478d8884e26b53078ded16f158cefe85e7"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+trace/provenanceMap.m",
+      "git_blob_sha1": "c72be408467c951bdd1f329d89b7afd34cf0b2fe"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+trace/recordEpisode.m",
+      "git_blob_sha1": "a43411affe7dc5f94b3953890af82c6357e2d7a4"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+trace/selectionChain.m",
+      "git_blob_sha1": "7c47f6deb9c816d76fc7eb9e6a184c5b5e36aa66"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+trace/selfTest.m",
+      "git_blob_sha1": "f6e1eca1e83af461f713f7477d2ca8f2ef14745e"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+ugv_accel/config.m",
+      "git_blob_sha1": "0dfe88b6b82fc9fb57ad511307e687fa9f3d7456"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+ugv_accel/referenceEpisode.m",
+      "git_blob_sha1": "253d159e39f9de028695995bd500d9dac4bc2c77"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+ugv_accel/runGate.m",
+      "git_blob_sha1": "a2832673c09036ab1a4f9f9cdb3f20a7fe91dcd4"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+util/adamInit.m",
+      "git_blob_sha1": "cb90d1a36a7094ceaf19193d4d7c83255eed1639"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+util/adamUpdate.m",
+      "git_blob_sha1": "eec2b6d9dda0926699dead46a00878db88a9b676"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+util/checksum.m",
+      "git_blob_sha1": "02b8f64f96153cd64f16bebaeb6cbf28d3592616"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+util/clipGradient.m",
+      "git_blob_sha1": "4dd917b8f7f8b75ddf84c38307594745b0ee94c8"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+util/gradientNorm.m",
+      "git_blob_sha1": "1a7c5ea067605f2539d169d09b76e432fed0a047"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+util/saturate.m",
+      "git_blob_sha1": "fcf10af5282c02227e247de6454e86ee457c0bc6"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+util/sha256.m",
+      "git_blob_sha1": "2f74cd7920cd636954543b1384a661f8a9c86677"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+viz/ReplicateLiveView.m",
+      "git_blob_sha1": "609e6a5a8992da91fe3c750daedbcbd6f45469a3"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+viz/TosmTraceDashboard.m",
+      "git_blob_sha1": "fcf8d32d710d5a53f7f83f01060336b1d3591f0f"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+viz/TrainingMonitor.m",
+      "git_blob_sha1": "faf016a1ec365cc028d8ec8af247c30409a2265a"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+viz/plotCaseTimeSeries.m",
+      "git_blob_sha1": "5443373a5ce4b1e2737c98501608f643c41ac1a4"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+viz/plotConfirmatorySummary.m",
+      "git_blob_sha1": "1280273030584bf0f36025fe28f995ba6b7ccbe9"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+viz/plotResults.m",
+      "git_blob_sha1": "e916e8b0aa75d0df9705f383a85779c33efb3462"
+    },
+    {
+      "path": "src/orchestration/+landing2d/+viz/plotTrajectories.m",
+      "git_blob_sha1": "d4e7604fb9810df74577f7b042b7521e09a16783"
+    },
+    {
+      "path": "src/simulations/+landing2d/+control/supervisorReasonCode.m",
+      "git_blob_sha1": "893a045654fbb0b29243da880286489fe5756cb2"
+    },
+    {
+      "path": "src/simulations/+landing2d/+dynamics/accelerationToThrustPitch.m",
+      "git_blob_sha1": "4a636b7c904e82b9bc49e0d1ddb8fe66ee2a1649"
+    },
+    {
+      "path": "src/simulations/+landing2d/+dynamics/stepPlanar.m",
+      "git_blob_sha1": "4e5ea093b855975d75ef462bc6ca9140e6836bda"
+    },
+    {
+      "path": "src/simulations/+landing2d/+environment/actionLimits.m",
+      "git_blob_sha1": "fea2043b1376996cada9dd22da50e9444c56b0df"
+    },
+    {
+      "path": "src/simulations/+landing2d/+environment/evaluateTermination.m",
+      "git_blob_sha1": "926605a8962fe4b72885bf2c16d9f32a7254bfe3"
+    },
+    {
+      "path": "src/simulations/+landing2d/+environment/exogenousManifest.m",
+      "git_blob_sha1": "23765599631d6936365319c6d0025de277e3820f"
+    },
+    {
+      "path": "src/simulations/+landing2d/+environment/initialStatus.m",
+      "git_blob_sha1": "c575b99f7a52fc467c55c6d857b84fca12e94530"
+    },
+    {
+      "path": "src/simulations/+landing2d/+environment/perceptionView.m",
+      "git_blob_sha1": "7cf567c94cdfef54431d2a0a738564d1aff43364"
+    },
+    {
+      "path": "src/simulations/+landing2d/+environment/reset.m",
+      "git_blob_sha1": "09a0f02d3b8f0a16d8a4b9b64a93585c5ac654fb"
+    },
+    {
+      "path": "src/simulations/+landing2d/+environment/step.m",
+      "git_blob_sha1": "fc4e5658755b4e2d797746f4eda147b9397fe585"
+    },
+    {
+      "path": "src/simulations/+landing2d/+environment/taskFingerprint.m",
+      "git_blob_sha1": "7d0808e7721470280d7f2dc6f6a13e2ea1b93488"
+    },
+    {
+      "path": "src/simulations/+landing2d/+environment/updateDecisionContext.m",
+      "git_blob_sha1": "af50fba2beb574eb6cac9ff74c803e1e02adb4d4"
+    },
+    {
+      "path": "src/simulations/+landing2d/+metrics/perceptionError.m",
+      "git_blob_sha1": "7949970f1acfb1238dc3f34e6052c4c92f2b1a61"
+    },
+    {
+      "path": "src/simulations/+landing2d/+observation/capture.m",
+      "git_blob_sha1": "e16a97f261a7175f21ef8aee270d52ef9ba68ec6"
+    },
+    {
+      "path": "src/simulations/+landing2d/+observation/estimatePadPose.m",
+      "git_blob_sha1": "1638646bab026d10b2e4d9316c997f9c88c8417e"
+    },
+    {
+      "path": "src/simulations/+landing2d/+observation/initialMemory.m",
+      "git_blob_sha1": "a284a2770a88a22e990bd1b5f419b22dbcd1a5e0"
+    },
+    {
+      "path": "src/simulations/+landing2d/+observation/staticContext.m",
+      "git_blob_sha1": "8dfb640290aa13fc5ccaad6ba1ed3f1afd3feae2"
+    },
+    {
+      "path": "src/simulations/+landing2d/+observation/toVector.m",
+      "git_blob_sha1": "84879b09e10154cad3043c813a32b87539ead228"
+    },
+    {
+      "path": "src/simulations/+landing2d/+observation/ugvPositionMeasurement.m",
+      "git_blob_sha1": "b39aff970dc472521fdef5f294b1ad44da041381"
+    },
+    {
+      "path": "src/simulations/+landing2d/+observation/updateUgvAcceleration.m",
+      "git_blob_sha1": "54cfe68890a9f99b08a0b15a0ee78a2689321211"
+    },
+    {
+      "path": "src/simulations/+landing2d/+observation/updateUgvEstimate.m",
+      "git_blob_sha1": "bae36ddf0fc414b38876991abedafba236cba8d2"
+    },
+    {
+      "path": "src/simulations/+landing2d/+observation/vectorSchema.m",
+      "git_blob_sha1": "b4ed23f47a11af1cef1d0ae0659acd2b51e63e1d"
+    },
+    {
+      "path": "src/simulations/+landing2d/+probe/recordReference.m",
+      "git_blob_sha1": "b9a6a2f7826558b87a6f6bb6eb8374fd0351fd37"
+    },
+    {
+      "path": "src/simulations/+landing2d/+probe/referenceDriver.m",
+      "git_blob_sha1": "e78250dddb9b5a93f1c34e1dbc871f067de43101"
+    },
+    {
+      "path": "src/simulations/+landing2d/+probe/replaySensing.m",
+      "git_blob_sha1": "e874b4cb00a84f9742e494db71819e786613f9e5"
+    },
+    {
+      "path": "src/simulations/+landing2d/+scenario/evaluateTrajectory.m",
+      "git_blob_sha1": "3e3d7b419628a13259cf5dbf5fc8c40922115d10"
+    },
+    {
+      "path": "src/simulations/+landing2d/+scenario/padState.m",
+      "git_blob_sha1": "cb5ac75e4626473fc528040a7735d9e089c24681"
+    },
+    {
+      "path": "src/simulations/+landing2d/+scenario/sampleParameters.m",
+      "git_blob_sha1": "0df12c94f3594e69d7257b33cf241703e395903f"
+    },
+    {
+      "path": "src/simulations/+landing2d/+sensing/buildPacket.m",
+      "git_blob_sha1": "31a75f57133856319ad30271d5bba719e39b31f5"
+    },
+    {
+      "path": "src/simulations/+landing2d/+sensing/detectMarkers.m",
+      "git_blob_sha1": "eb04b186c28e4ca5132844d6cdf47ff7c431963d"
+    },
+    {
+      "path": "src/simulations/+landing2d/+sensing/distortPoints.m",
+      "git_blob_sha1": "28461ea695fc680b45c66ab6cfbf3ce2238b7aae"
+    },
+    {
+      "path": "src/simulations/+landing2d/+sensing/exogenousNoise.m",
+      "git_blob_sha1": "b130f26fe84f2f31dea9b59b0d2bb79ca02b8cd8"
+    },
+    {
+      "path": "src/simulations/+landing2d/+sensing/generateMeasurement.m",
+      "git_blob_sha1": "e30c119fe9ec1f3fe924d7fdf53b6c26807f3c2b"
+    },
+    {
+      "path": "src/simulations/+landing2d/+sensing/initialPadTrack.m",
+      "git_blob_sha1": "58adc46f2211b147537776fa005b68c955535f41"
+    },
+    {
+      "path": "src/simulations/+landing2d/+sensing/markerGeometry.m",
+      "git_blob_sha1": "2a4db2472b17d7718e1b797f6efe9ce465acbe21"
+    },
+    {
+      "path": "src/simulations/+landing2d/+sensing/navigationEstimate.m",
+      "git_blob_sha1": "e1efe0f0fed434d8f24ef748714d9abdde10dcdc"
+    },
+    {
+      "path": "src/simulations/+landing2d/+sensing/normalizePacket.m",
+      "git_blob_sha1": "5dbbdddb3a93f2a79ccf31746402f05edf0f96bb"
+    },
+    {
+      "path": "src/simulations/+landing2d/+sensing/observationSchema.m",
+      "git_blob_sha1": "12a70848b3fe79fb4ec935582f2c89b4b8283e06"
+    },
+    {
+      "path": "src/simulations/+landing2d/+sensing/packetVector.m",
+      "git_blob_sha1": "7c63108cc4ab67c352df6159be1e45204e49be64"
+    },
+    {
+      "path": "src/simulations/+landing2d/+sensing/planarCameraGeometry.m",
+      "git_blob_sha1": "b820bfe851454c196093ddfbe9d302ac540ffe71"
+    },
+    {
+      "path": "src/simulations/+landing2d/+sensing/projectPad.m",
+      "git_blob_sha1": "e3d6155a25629d4b6bdf14b8cf90e0348797f8e7"
+    },
+    {
+      "path": "src/simulations/+landing2d/+sensing/sampleEvents.m",
+      "git_blob_sha1": "c8a8d73fd677bef948497261c36eed6c40b8ae18"
+    },
+    {
+      "path": "src/simulations/+landing2d/+sensing/undistortPoints.m",
+      "git_blob_sha1": "8c9a2c3d6095f84df80fe36a25c58f5c4d78ece4"
+    },
+    {
+      "path": "src/simulations/+landing2d/+sensing/updatePadTrack.m",
+      "git_blob_sha1": "ac1dda6ceb1e60fc03c4f3d58081612ab1cf5858"
+    }
+  ]
+}

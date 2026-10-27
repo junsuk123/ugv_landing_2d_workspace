@@ -39,7 +39,7 @@ options = parseOptions(options,defaults);
 if nargin<3, cfg = landing2d.config.primaryConfig(landing2d.orchestration.projectRoot()); end
 if ~isempty(options.outputDir), cfg.outputDir = char(options.outputDir); end
 specs = landing2d.evaluation.factorialCases(cfg);
-if ismember(cfg.graphState.encoderVersion,{'rgat_minimal_v1','rgat_minimal_v2','rgat_minimal_v3','relational_residual_v1','relational_residual_v2','relational_residual_v3','relational_residual_v4','relational_residual_v5'}), specs = landing2d.minimal.cases(cfg); end
+if ismember(cfg.graphState.encoderVersion,{'current_semantics_v1','rgat_minimal_v1','rgat_minimal_v2','rgat_minimal_v3','relational_residual_v1','relational_residual_v2','relational_residual_v3','relational_residual_v4','relational_residual_v5'}), specs = landing2d.minimal.cases(cfg); end
 caseId = upper(char(caseId));
 spec = specs(strcmp({specs.id},caseId));
 assert(isscalar(spec),'landing2d:ScenarioId','caseId must be one of %s.',strjoin({specs.id},', '));

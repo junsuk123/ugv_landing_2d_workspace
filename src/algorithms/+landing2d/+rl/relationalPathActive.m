@@ -6,6 +6,18 @@ function [active,audit] = relationalPathActive(agent,tolerance)
 if nargin < 2 || isempty(tolerance), tolerance = 1e-10; end
 required = strcmp(agent.encoderSpec.mode,'context_rgat');
 policyReadout = NaN; valueReadout = NaN; active = true;
+if isfield(agent.encoderSpec,'encoderVersion') && strcmp(agent.encoderSpec.encoderVersion,'current_semantics_v1')
+    required = ismember(agent.encoderSpec.encoderMode,{'untyped','rgat'});
+    if required
+        p = agent.policy.encoder;
+        goalHead = p.A1(:,agent.encoderSpec.rawDim+(1:agent.encoderSpec.hiddenDim));
+        policyReadout = norm(goalHead,'fro')*norm(p.A2,'fro');
+        active = policyReadout>tolerance && norm(p.W(:))>tolerance && norm(p.P,'fro')>tolerance;
+    end
+    audit = struct('required',required,'active',active,'tolerance',tolerance, ...
+        'policyReadoutNorm',policyReadout,'valueReadoutNorm',NaN);
+    return;
+end
 if isfield(agent.encoderSpec,'encoderVersion') && ismember(agent.encoderSpec.encoderVersion,{'relational_residual_v1','relational_residual_v2','relational_residual_v3','relational_residual_v4','relational_residual_v5'})
     required = strcmp(agent.encoderSpec.correctionType,'graph');
     if required

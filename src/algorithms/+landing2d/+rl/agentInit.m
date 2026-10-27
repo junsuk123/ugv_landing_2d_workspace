@@ -7,6 +7,9 @@ function agent = agentInit(rl,rs,gs)
 % structure. The MLP initialization uses streams derived from rl.seed only, so
 % the encoder size never changes the random policy initialization.
 if nargin < 3 || isempty(gs), gs = landing2d.graphstate.defaultGraphStateConfig(); end
+if strcmp(gs.encoderVersion,'current_semantics_v1')
+    agent = landing2d.current_semantics.agentInit(rl,rs,gs); return;
+end
 if strcmp(gs.encoderVersion,'relational_residual_v5')
     agent = landing2d.residual_context.agentInit(rl,rs,gs); return;
 end
