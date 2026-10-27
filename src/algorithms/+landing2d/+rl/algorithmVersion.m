@@ -67,7 +67,17 @@ function version = algorithmVersion(c)
 % v2.15 (2026-10-24): tosm7_v5 removes only LandingCondition's duplicate
 % drone_vz; DroneMotion, all encoder equations, PPO and its RNG are unchanged.
 if nargin>0 && strcmp(c.graphState.encoderVersion,'relational_residual_v5')
-    version = 'relational-residual-v5.0'; return;
+    version = 'relational-residual-v5.0';
+    if isfield(c.graphState,'correctionActivation') && strcmp(c.graphState.correctionActivation,'soft_linear_v1')
+        version = 'relational-residual-v6.0';   % C1: non-saturating correction branch
+    end
+    if isfield(c.graphState,'correctionHiddenSize')
+        version = 'relational-residual-v7.0';   % C2: capacity reallocation 42/12/68
+    end
+    if isfield(c.graphState,'correctionOperators')
+        version = 'relational-residual-v8.0';   % C3: relation-typed operators, goal-node readout, beta 0
+    end
+    return;
 end
 if nargin>0 && strcmp(c.graphState.encoderVersion,'relational_residual_v4')
     version = 'relational-residual-v4.0'; return;

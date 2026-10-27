@@ -1,3 +1,38 @@
+# 진행 중 — 후보 C3 관계 의미 연산자 (relational_residual_v8, 2026-10-27, Claude 판정)
+
+C1·C2가 종료된 뒤 사용자가 새로 지시했다("코덱스 한도 복원되기 전까지 너가 판단해서 수정해줘", "관계를 셔플 하면 잘 안되는게 맞아"). Codex를 2026-11-02까지 쓸 수 없어서 Claude가 판정자를 맡는다. 계약은 `docs/RELATIONAL_RESIDUAL_V8_KO.md`, 패키지는 `landing2d.residual_semantic`이다.
+
+- **변경**
+  - 관계 유형이 연산자를 정한다. qualifiesEstimate = 도착 노드 곱셈 조절 1+tanh, informsMotion·self = 가산 attention 메시지.
+  - 그래프 readout은 RelativeState 노드만 읽는다.
+  - 세 잔차 방법 모두 β = 0, 기본 폭 77, MLP 보정 32다.
+  - 파라미터 수는 2095/2085/2087/2087이다.
+- **공통 코드:** gs 필드 `correctionOperators = 'semantic_v1'`이 있을 때만 분기한다(`residual_context.semantic*`). C2 등록 스냅샷 `results/archive/pre_residual_v8_20261027/` 대비 v5·v6·v7 경로가 비트 단위로 같다. 주의: gs의 `relationOperators`는 기존 코드가 잔차 방법 설정에서 지우는 예약 필드다.
+- **진행:** 개발 471–475가 실행 중이다(등록 소스 308개). 통과하면 확인 431–450·9101–9200(j = 1)을 연다.
+- **예산:** 후보는 C3와 C4(481–485, 학습 전 정의) 최대 둘이다. 등록 소스는 실행 중에 수정하지 않는다.
+
+---
+
+# 일반화 목표 재개 종료 (2026-10-27, 등록 예산 내 미달성)
+
+사용자가 목표 재개를 지시했다("기존 일반화 목표 재개", "확인까지 자율"). Codex 계획에 따라 후보 두 개를 등록했지만 둘 다 프로토콜 v2 개발 기준을 통과하지 못해 종료했다. 종합은 `docs/GENERALIZATION_GOAL_CLOSURE_KO.md`의 "재개" 절에 있다.
+
+- **C1** `relational_residual_v6`: 패키지 `landing2d.residual_soft`, 문서 `docs/RELATIONAL_RESIDUAL_V6_KO.md`, 시드 451–455.
+  - 변경: 보정 경로 φ(z) = 0.9 tanh z + 0.1 z
+  - 결과: 학습은 통과했다. OOD 착륙률은 PPO/MLP/TOSM/Shuffled 91.27/90.33/88.67/88.87%로, OOD 방향과 강인성 기준을 실패했다.
+- **C2** `relational_residual_v7`: 패키지 `landing2d.residual_capacity`, 문서 `docs/RELATIONAL_RESIDUAL_V7_KO.md`, 시드 461–465.
+  - 변경: 기본 폭 42, 그래프 폭 12, MLP 보정 68
+  - 결과: TOSM 465와 Shuffled 464가 학습에 실패해 TOSM·Shuffled 학습 기준이 4/5다. OOD 착륙률은 92.73/92.40/73.60/68.33%로 세 기준을 모두 실패했다.
+- 공통 코드 변경은 모두 필드가 있을 때만 분기한다.
+  - `residual_motion` forward/backward: 활성 함수 기울기 캐시, `d = spec.hiddenDim`
+  - `residual_context`: `capacityEncoderInit`, 폭 묶음 검증기
+  - `algorithmVersion` v6/v7
+  - v5와 C1 경로는 C1 스냅샷 대비 비트 단위로 같다(`results/relational_residual_v7/prechecks/`). 보관 run_check 8종도 통과했다.
+- 확인 431–450과 환경 9101–9200은 미사용으로 보존한다. **재개 승인은 소진됐다.** 새 학습이나 새 후보는 사용자의 새 지시가 있을 때만 시작한다. 공개 진입점은 v5 재현 경로로 유지한다.
+- C2에 대한 Codex 최종 검토는 사용량 한도(2026-11-02까지)로 받지 못했다. 패킷은 `results/relational_residual_v7/post_hoc/packetQ.md`에 있다.
+
+---
+
 # 일반화 목표 종료 (2026-10-26, 미달성)
 
 사용자 결정으로 일반화·강인성 목표를 종료했다. 종합 결과와 진단, 논문 주장의 범위는 `docs/GENERALIZATION_GOAL_CLOSURE_KO.md`에 있다.
